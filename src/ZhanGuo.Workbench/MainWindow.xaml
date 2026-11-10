@@ -1,0 +1,292 @@
+<Window x:Class="ZhanGuo.Workbench.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="战国演义 · 数据工作台"
+        Height="900" Width="1520"
+        WindowStartupLocation="CenterScreen"
+        Background="#1E1F22" Foreground="#E6E6E6"
+        FontFamily="Microsoft YaHei UI" FontSize="13">
+
+    <Window.Resources>
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="#2B2D30"/>
+            <Setter Property="Foreground" Value="#E6E6E6"/>
+            <Setter Property="RowBackground" Value="#2B2D30"/>
+            <Setter Property="AlternatingRowBackground" Value="#323438"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#3C3F41"/>
+            <Setter Property="BorderBrush" Value="#3C3F41"/>
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="CanUserDeleteRows" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="RowHeight" Value="26"/>
+        </Style>
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#3C3F41"/>
+            <Setter Property="Foreground" Value="#CFCFCF"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="BorderBrush" Value="#4A4D50"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        </Style>
+        <Style TargetType="TabItem">
+            <Setter Property="Background" Value="#2B2D30"/>
+            <Setter Property="Foreground" Value="#DDD"/>
+            <Setter Property="Padding" Value="14,6"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#3C3F41"/>
+            <Setter Property="Foreground" Value="#EEE"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="BorderBrush" Value="#4A4D50"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="MinWidth" Value="130"/>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Background="#2B2D30" BorderBrush="#3C3F41" BorderThickness="0,0,0,1" Padding="10,8">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="国别" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <ComboBox x:Name="NationBox" Width="120" DisplayMemberPath="Name"
+                          SelectionChanged="NationBox_SelectionChanged" Margin="0,0,16,0"/>
+                <TextBlock Text="回合" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <TextBox x:Name="TurnBox" Width="60" LostFocus="TurnBox_LostFocus" Margin="0,0,16,0"/>
+                <Button Content="保存到 JSON" Click="Save_Click"/>
+                <Button Content="重新载入" Click="Reload_Click"/>
+                <Button Content="与 Excel 对照" Click="Verify_Click"/>
+                <TextBlock x:Name="StatusText" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#8AA"/>
+            </StackPanel>
+        </Border>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="180"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="320"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Background="#232528" BorderBrush="#3C3F41" BorderThickness="0,0,1,0">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="列国" Padding="12,10" Foreground="#8A8D91"/>
+                    <ListBox x:Name="NationList" Background="Transparent" Foreground="#E6E6E6"
+                             BorderThickness="0" SelectionChanged="NationList_SelectionChanged"
+                             DisplayMemberPath="Name"/>
+                </DockPanel>
+            </Border>
+
+            <TabControl Grid.Column="1" Background="#1E1F22" BorderThickness="0" Margin="6">
+
+                <!-- ============ 变更单 ============ -->
+                <TabItem Header="变更单">
+                    <Grid Margin="10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="150"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0" Background="#232528" BorderBrush="#3C3F41" BorderThickness="1"
+                                CornerRadius="4" Padding="10" Margin="0,0,0,10">
+                            <StackPanel>
+                                <TextBlock Text="新建变更（不写数值，只写加减量；跨地转移用「转移」）"
+                                           Foreground="#8A8D91" Margin="0,0,0,8"/>
+
+                                <WrapPanel>
+                                    <StackPanel Margin="0,0,14,8">
+                                        <TextBlock Text="方式" Foreground="#8A8D91" FontSize="12"/>
+                                        <ComboBox x:Name="OpKindBox" Width="110" SelectionChanged="OpKindBox_SelectionChanged">
+                                            <ComboBoxItem Content="调整" Tag="Adjust" IsSelected="True"/>
+                                            <ComboBoxItem Content="转移" Tag="Transfer"/>
+                                            <ComboBoxItem Content="设定（强改）" Tag="Set"/>
+                                        </ComboBox>
+                                    </StackPanel>
+
+                                    <StackPanel Margin="0,0,14,8">
+                                        <TextBlock Text="来源国" Foreground="#8A8D91" FontSize="12"/>
+                                        <ComboBox x:Name="FromNationBox" DisplayMemberPath="Name"
+                                                  SelectionChanged="FromNationBox_SelectionChanged"/>
+                                    </StackPanel>
+
+                                    <StackPanel Margin="0,0,14,8">
+                                        <TextBlock Text="对象" Foreground="#8A8D91" FontSize="12"/>
+                                        <ComboBox x:Name="ObjectBox" DisplayMemberPath="Display" Width="200"
+                                                  SelectionChanged="ObjectBox_SelectionChanged"/>
+                                    </StackPanel>
+
+                                    <StackPanel Margin="0,0,14,8">
+                                        <TextBlock Text="字段" Foreground="#8A8D91" FontSize="12"/>
+                                        <ComboBox x:Name="FieldBox" DisplayMemberPath="Display" Width="150"/>
+                                    </StackPanel>
+
+                                    <StackPanel Margin="0,0,14,8">
+                                        <TextBlock Text="数值（可负）" Foreground="#8A8D91" FontSize="12"/>
+                                        <TextBox x:Name="ValueBox" Width="90" Text="0" Padding="4,2"/>
+                                    </StackPanel>
+
+                                    <StackPanel x:Name="ToPanel" Margin="0,0,14,8" Visibility="Collapsed">
+                                        <TextBlock Text="目标国" Foreground="#8A8D91" FontSize="12"/>
+                                        <ComboBox x:Name="ToNationBox" DisplayMemberPath="Name" Width="110"
+                                                  SelectionChanged="ToNationBox_SelectionChanged"/>
+                                    </StackPanel>
+
+                                    <StackPanel x:Name="ToObjPanel" Margin="0,0,14,8" Visibility="Collapsed">
+                                        <TextBlock Text="目标对象" Foreground="#8A8D91" FontSize="12"/>
+                                        <ComboBox x:Name="ToObjectBox" DisplayMemberPath="Display" Width="200"/>
+                                    </StackPanel>
+
+                                    <StackPanel x:Name="CreatePanel" Margin="0,0,14,20" Visibility="Collapsed">
+                                        <CheckBox x:Name="CreateNewCheck" Content="目标人群不存在时自动新建" Foreground="#CFCFCF"/>
+                                    </StackPanel>
+
+                                    <StackPanel Margin="0,0,14,8">
+                                        <TextBlock Text="事由（必填）" Foreground="#8A8D91" FontSize="12"/>
+                                        <TextBox x:Name="MemoBox" Width="280" Padding="4,2"/>
+                                    </StackPanel>
+
+                                    <Button Content="＋ 加入变更单" Click="AddOp_Click" VerticalAlignment="Bottom" Margin="0,0,0,14"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Grid.Row="1" Text="待提交变更（未落地）" Foreground="#8A8D91" Margin="2,0,0,6"/>
+                        <DataGrid Grid.Row="2" x:Name="PendingGrid" Margin="0,0,0,8">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="变更" Binding="{Binding Text}" Width="*"/>
+                                <DataGridTextColumn Header="事由" Binding="{Binding Memo}" Width="300"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,8">
+                            <Button Content="预览效果" Click="Preview_Click"/>
+                            <Button Content="提交并落盘" Click="Commit_Click"/>
+                            <Button Content="删除选中" Click="RemoveOp_Click"/>
+                            <Button Content="清空" Click="ClearOps_Click"/>
+                        </StackPanel>
+
+                        <Border Grid.Row="4" Background="#232528" BorderBrush="#3C3F41" BorderThickness="1" CornerRadius="4">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="10">
+                                <TextBlock x:Name="PreviewText" Text="（尚未预览）" TextWrapping="Wrap"
+                                           FontFamily="Consolas, Microsoft YaHei UI" LineHeight="22"/>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                </TabItem>
+
+                <!-- ============ 概览 ============ -->
+                <TabItem Header="概览">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="OverviewPanel" Margin="12"/>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- ============ 财税 ============ -->
+                <TabItem Header="财税">
+                    <Grid Margin="6">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="200"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="税目" Foreground="#8A8D91" Margin="2,0,0,6"/>
+                        <DataGrid Grid.Row="1" x:Name="TaxGrid">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="税目" Binding="{Binding Name}" Width="140"/>
+                                <DataGridTextColumn Header="税基范围" Binding="{Binding BaseLabel}" Width="120"/>
+                                <DataGridTextColumn Header="覆盖人群" Binding="{Binding Groups}" Width="*"/>
+                                <DataGridTextColumn Header="税基" Binding="{Binding TaxBase, StringFormat={}{0:N0}}" Width="110"/>
+                                <DataGridTextColumn Header="税额" Binding="{Binding Amount, StringFormat={}{0:N0}}" Width="90"/>
+                                <DataGridTextColumn Header="效率" Binding="{Binding Efficiency, StringFormat={}{0:N2}}" Width="80"/>
+                                <DataGridTextColumn Header="上税" Binding="{Binding Paid, StringFormat={}{0:N0}}" Width="100"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <TextBlock Grid.Row="2" Text="工程开支 / 判定修正" Foreground="#8A8D91" Margin="2,12,0,6"/>
+                        <DataGrid Grid.Row="3" x:Name="ExpenseGrid">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="160"/>
+                                <DataGridTextColumn Header="类型" Binding="{Binding Kind}" Width="70"/>
+                                <DataGridTextColumn Header="金额" Binding="{Binding Amount, StringFormat={}{0:N0}}" Width="110"/>
+                                <DataGridTextColumn Header="事由" Binding="{Binding Memo}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </TabItem>
+
+                <!-- ============ 人口 ============ -->
+                <TabItem Header="人口与产业">
+                    <DataGrid x:Name="GroupGrid" Margin="6">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="人群" Binding="{Binding Name}" Width="120"/>
+                            <DataGridTextColumn Header="都" Binding="{Binding Du, StringFormat={}{0:N0}}" Width="50"/>
+                            <DataGridTextColumn Header="城" Binding="{Binding Cheng, StringFormat={}{0:N0}}" Width="50"/>
+                            <DataGridTextColumn Header="邑" Binding="{Binding Yi, StringFormat={}{0:N0}}" Width="50"/>
+                            <DataGridTextColumn Header="野地" Binding="{Binding Wild, StringFormat={}{0:N0}}" Width="60"/>
+                            <DataGridTextColumn Header="找补" Binding="{Binding Adjustment, StringFormat={}{0:N0}}" Width="60"/>
+                            <DataGridTextColumn Header="开发" Binding="{Binding Development, StringFormat={}{0:N2}}" Width="60"/>
+                            <DataGridTextColumn Header="户口" Binding="{Binding Household, StringFormat={}{0:N2}}" Width="60"/>
+                            <DataGridTextColumn Header="基数" Binding="{Binding Base, StringFormat={}{0:N0}}" Width="60"/>
+                            <DataGridTextColumn Header="邑权重" Binding="{Binding WeightYi, StringFormat={}{0:N0}}" Width="70"/>
+                            <DataGridTextColumn Header="人口" Binding="{Binding Population, StringFormat={}{0:N0}}" Width="80"/>
+                            <DataGridTextColumn Header="产值" Binding="{Binding Output, StringFormat={}{0:N0}}" Width="100"/>
+                            <DataGridTextColumn Header="核心城" Binding="{Binding CoreCity}" Width="90"/>
+                            <DataGridTextColumn Header="类型" Binding="{Binding PopType}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+
+                <!-- ============ 军事 ============ -->
+                <TabItem Header="军事">
+                    <DataGrid x:Name="ArmyGrid" Margin="6">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="部队" Binding="{Binding Name}" Width="110"/>
+                            <DataGridTextColumn Header="步卒" Binding="{Binding Infantry, StringFormat={}{0:N0}}" Width="60"/>
+                            <DataGridTextColumn Header="甲士" Binding="{Binding Elite, StringFormat={}{0:N0}}" Width="60"/>
+                            <DataGridTextColumn Header="辅骑" Binding="{Binding Cavalry, StringFormat={}{0:N0}}" Width="60"/>
+                            <DataGridTextColumn Header="战车" Binding="{Binding Chariots, StringFormat={}{0:N0}}" Width="60"/>
+                            <DataGridTextColumn Header="训练" Binding="{Binding Training, StringFormat={}{0:N0}}" Width="60"/>
+                            <DataGridTextColumn Header="战备" Binding="{Binding Readiness, StringFormat={}{0:N0}}" Width="60"/>
+                            <DataGridTextColumn Header="补给" Binding="{Binding Supply, StringFormat={}{0:N0}}" Width="60"/>
+                            <DataGridTextColumn Header="维护费" Binding="{Binding Upkeep, StringFormat={}{0:N1}}" Width="90"/>
+                            <DataGridTextColumn Header="驻地" Binding="{Binding Station}" Width="90"/>
+                            <DataGridTextColumn Header="统帅" Binding="{Binding Commander}" Width="90"/>
+                            <DataGridTextColumn Header="备注" Binding="{Binding Note}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+
+                <!-- ============ 制度 ============ -->
+                <TabItem Header="制度">
+                    <DataGrid x:Name="InstGrid" Margin="6">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="制度" Binding="{Binding Name}" Width="200"/>
+                            <DataGridTextColumn Header="等级" Binding="{Binding LevelText}" Width="110"/>
+                            <DataGridTextColumn Header="当前情状" Binding="{Binding Description}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+
+                <!-- ============ 时局 ============ -->
+                <TabItem Header="国家时局">
+                    <DataGrid x:Name="SituationGrid" Margin="6">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="时局" Binding="{Binding Name}" Width="180"/>
+                            <DataGridTextColumn Header="说明" Binding="{Binding Description}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+            </TabControl>
+
+            <Border Grid.Column="2" Background="#232528" BorderBrush="#3C3F41" BorderThickness="1,0,0,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="TotalsPanel" Margin="14"/>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+    </DockPanel>
+</Window>

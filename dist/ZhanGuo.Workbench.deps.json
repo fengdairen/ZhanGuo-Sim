@@ -1,0 +1,39 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "ZhanGuo.Workbench/1.0.0": {
+        "dependencies": {
+          "ZhanGuo.Core": "1.0.0"
+        },
+        "runtime": {
+          "ZhanGuo.Workbench.dll": {}
+        }
+      },
+      "ZhanGuo.Core/1.0.0": {
+        "runtime": {
+          "ZhanGuo.Core.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "ZhanGuo.Workbench/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ZhanGuo.Core/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

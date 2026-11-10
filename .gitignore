@@ -1,0 +1,31 @@
+# ===== 大文件 =====
+# 原始 PSD 298MB，超过 GitHub 单文件 100MB 限制
+ditu.psd
+
+# 打包产物（可随时重新生成）
+*.zip
+
+# 除三个源图层外的所有图片（OCR 切片、裁剪、对比图等中间产物）
+*.png
+!/ditu.png
+!/城池.png
+!/城池名称.png
+
+# ===== 调试与中间产物 =====
+tools/**/*.txt
+tools/*.txt
+tools/*.log
+tools/_*
+debug.log
+
+# ===== 构建输出 =====
+.dotnet/
+.nuget/
+bin/
+obj/
+*.user
+*.suo
+
+# ===== 运行时数据 =====
+data/events.jsonl
+data/map/_backup_*.csv

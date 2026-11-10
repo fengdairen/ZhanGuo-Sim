@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>战国演义 · 地图勘误台</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;font-family:"Microsoft YaHei UI",sans-serif;
+    background:#141517;color:#e8e8e8}
+  #wrap{display:flex;height:100%}
+  #left{position:relative;flex:1;min-width:0;background:#000}
+  #vp{position:absolute;inset:0;overflow:hidden;cursor:grab}
+  #vp.drag{cursor:grabbing}
+  #world{position:absolute;left:0;top:0;width:9101px;height:8509px;transform-origin:0 0}
+  #world img{position:absolute;left:0;top:0;width:9101px;height:8509px;user-select:none;-webkit-user-drag:none}
+  #ring{position:absolute;border:3px solid #ff2d2d;border-radius:50%;
+    box-shadow:0 0 0 3px rgba(255,45,45,.25);pointer-events:none}
+  #cross{position:absolute;pointer-events:none;opacity:.85}
+  #hint{position:absolute;left:12px;bottom:10px;font-size:12px;color:#aaa;
+    background:rgba(0,0,0,.55);padding:4px 8px;border-radius:4px}
+  #right{width:390px;flex:none;background:#1c1e22;border-left:1px solid #333;
+    padding:16px;display:flex;flex-direction:column;gap:10px;overflow:auto}
+  h1{font-size:16px;margin:0;color:#fff}
+  .sub{font-size:12px;color:#888}
+  #prog{font-size:13px;color:#7dd3a0}
+  #meta{font-size:13px;color:#cfcfcf;background:#26282d;padding:8px;border-radius:5px;
+    line-height:1.7}
+  #meta b{color:#fff}
+  #ans{width:100%;font-size:24px;padding:10px;border-radius:6px;border:2px solid #3d6cff;
+    background:#0f1115;color:#fff;font-family:inherit;outline:none}
+  #ans:focus{border-color:#68a0ff;box-shadow:0 0 0 3px rgba(61,108,255,.25)}
+  .row{display:flex;gap:8px}
+  button{flex:1;font-size:14px;padding:9px 10px;border-radius:6px;border:1px solid #3a3d44;
+    background:#2a2d33;color:#e8e8e8;cursor:pointer;font-family:inherit}
+  button:hover{background:#343841}
+  button.pri{background:#1f4fd8;border-color:#2f63ff}
+  button.pri:hover{background:#2a5ce8}
+  #list{flex:1;overflow:auto;border-top:1px solid #333;margin-top:6px;padding-top:8px}
+  .it{padding:4px 6px;border-radius:4px;font-size:12px;color:#bbb;cursor:pointer;
+    display:flex;justify-content:space-between;gap:8px}
+  .it:hover{background:#26282d}
+  .it.cur{background:#2b3b6b;color:#fff}
+  .it.done{color:#7dd3a0}
+  .it .k{color:#888}
+  .it.done .k{color:#4e8f6a}
+</style></head>
+<body>
+<div id="wrap">
+  <div id="left">
+    <div id="vp"><div id="world">
+      <img src="../../../ditu.png" alt="map">
+      <div id="ring"></div>
+    </div></div>
+    <div id="hint">滚轮缩放 · 拖动平移 · 空格回正</div>
+  </div>
+  <div id="right">
+    <h1>地图勘误台</h1>
+    <div class="sub">镜头已对准当前城址（红圈）</div>
+    <div id="prog"></div>
+    <div id="meta"></div>
+    <input id="ans" autocomplete="off" placeholder="输入地名，回车确认">
+    <div class="row">
+      <button class="pri" onclick="confirmAns()">确认 (Enter)</button>
+      <button onclick="skip()">跳过 (→)</button>
+    </div>
+    <div class="row">
+      <button onclick="prev()">← 上一题</button>
+      <button onclick="clearAns()">清空本条</button>
+    </div>
+    <div class="row">
+      <button onclick="exportCSV()">导出 CSV</button>
+      <button onclick="resetAll()">重置进度</button>
+    </div>
+    <div id="list"></div>
+  </div>
+</div>
+<script>
+const DATA = [{"id": "n0015", "kind": "邑", "x": 7542.0, "y": 1526.0, "name": "", "status": "未识别"}, {"id": "n0046", "kind": "邑", "x": 3766.0, "y": 1890.0, "name": "", "status": "未识别"}, {"id": "n0062", "kind": "都", "x": 5480.0, "y": 2040.0, "name": "", "status": "未识别"}, {"id": "n0074", "kind": "邑", "x": 5320.0, "y": 2200.0, "name": "", "status": "未识别"}, {"id": "n0095", "kind": "邑", "x": 3796.0, "y": 2342.0, "name": "", "status": "未识别"}, {"id": "n0099", "kind": "邑", "x": 4180.0, "y": 2398.0, "name": "", "status": "未识别"}, {"id": "n0105", "kind": "邑", "x": 5126.0, "y": 2440.0, "name": "", "status": "未识别"}, {"id": "n0112", "kind": "邑", "x": 3484.0, "y": 2494.0, "name": "", "status": "未识别"}, {"id": "n0113", "kind": "邑", "x": 5436.0, "y": 2506.0, "name": "", "status": "未识别"}, {"id": "n0132", "kind": "邑", "x": 3260.0, "y": 2692.0, "name": "", "status": "未识别"}, {"id": "n0151", "kind": "邑", "x": 4144.0, "y": 2856.0, "name": "", "status": "未识别"}, {"id": "n0168", "kind": "邑", "x": 4862.0, "y": 2932.0, "name": "", "status": "未识别"}, {"id": "n0186", "kind": "邑", "x": 4856.0, "y": 3068.0, "name": "", "status": "未识别"}, {"id": "n0196", "kind": "邑", "x": 3462.0, "y": 3144.0, "name": "", "status": "未识别"}, {"id": "n0205", "kind": "邑", "x": 4790.0, "y": 3210.0, "name": "", "status": "未识别"}, {"id": "n0207", "kind": "邑", "x": 5472.0, "y": 3220.0, "name": "", "status": "未识别"}, {"id": "n0214", "kind": "邑", "x": 3752.0, "y": 3270.0, "name": "", "status": "未识别"}, {"id": "n0219", "kind": "邑", "x": 5002.0, "y": 3298.0, "name": "", "status": "未识别"}, {"id": "n0222", "kind": "邑", "x": 6780.0, "y": 3314.0, "name": "", "status": "未识别"}, {"id": "n0230", "kind": "邑", "x": 4818.0, "y": 3358.0, "name": "", "status": "未识别"}, {"id": "n0233", "kind": "邑", "x": 6542.0, "y": 3398.0, "name": "", "status": "未识别"}, {"id": "n0235", "kind": "邑", "x": 4126.0, "y": 3404.0, "name": "", "status": "未识别"}, {"id": "n0237", "kind": "邑", "x": 3846.0, "y": 3410.0, "name": "", "status": "未识别"}, {"id": "n0243", "kind": "邑", "x": 6388.0, "y": 3432.0, "name": "", "status": "未识别"}, {"id": "n0247", "kind": "邑", "x": 6618.0, "y": 3464.0, "name": "潍水密胶水", "status": "超长待查"}, {"id": "n0249", "kind": "邑", "x": 5622.0, "y": 3472.0, "name": "", "status": "未识别"}, {"id": "n0253", "kind": "城", "x": 6344.0, "y": 3492.0, "name": "", "status": "未识别"}, {"id": "n0260", "kind": "邑", "x": 5856.0, "y": 3528.0, "name": "", "status": "未识别"}, {"id": "n0263", "kind": "邑", "x": 3750.0, "y": 3530.0, "name": "", "status": "未识别"}, {"id": "n0291", "kind": "邑", "x": 4376.0, "y": 3618.0, "name": "", "status": "未识别"}, {"id": "n0293", "kind": "邑", "x": 5590.0, "y": 3626.0, "name": "", "status": "未识别"}, {"id": "n0294", "kind": "邑", "x": 4348.0, "y": 3640.0, "name": "", "status": "未识别"}, {"id": "n0298", "kind": "邑", "x": 6870.0, "y": 3664.0, "name": "", "status": "未识别"}, {"id": "n0302", "kind": "邑", "x": 4750.0, "y": 3678.0, "name": "武城", "status": "近距重名"}, {"id": "n0310", "kind": "邑", "x": 6400.0, "y": 3694.0, "name": "", "status": "未识别"}, {"id": "n0316", "kind": "邑", "x": 4746.0, "y": 3712.0, "name": "武城", "status": "近距重名"}, {"id": "n0318", "kind": "邑", "x": 4848.0, "y": 3718.0, "name": "平阳蒲阳狐", "status": "超长待查"}, {"id": "n0325", "kind": "邑", "x": 5078.0, "y": 3738.0, "name": "元城", "status": "近距重名"}, {"id": "n0328", "kind": "邑", "x": 5012.0, "y": 3744.0, "name": "", "status": "未识别"}, {"id": "n0333", "kind": "邑", "x": 5064.0, "y": 3762.0, "name": "元城", "status": "近距重名"}, {"id": "n0348", "kind": "邑", "x": 6068.0, "y": 3798.0, "name": "", "status": "未识别"}, {"id": "n0354", "kind": "邑", "x": 5630.0, "y": 3818.0, "name": "", "status": "未识别"}, {"id": "n0357", "kind": "城", "x": 5786.0, "y": 3822.0, "name": "", "status": "未识别"}, {"id": "n0365", "kind": "邑", "x": 6592.0, "y": 3852.0, "name": "", "status": "未识别"}, {"id": "n0370", "kind": "邑", "x": 6426.0, "y": 3864.0, "name": "", "status": "未识别"}, {"id": "n0372", "kind": "邑", "x": 3396.0, "y": 3866.0, "name": "", "status": "未识别"}, {"id": "n0377", "kind": "邑", "x": 5348.0, "y": 3870.0, "name": "", "status": "未识别"}, {"id": "n0387", "kind": "邑", "x": 5468.0, "y": 3900.0, "name": "", "status": "未识别"}, {"id": "n0394", "kind": "邑", "x": 5326.0, "y": 3924.0, "name": "", "status": "未识别"}, {"id": "n0399", "kind": "城", "x": 5636.0, "y": 3946.0, "name": "", "status": "未识别"}, {"id": "n0407", "kind": "邑", "x": 4220.0, "y": 3966.0, "name": "泫氏", "status": "近距重名"}, {"id": "n0410", "kind": "邑", "x": 4254.0, "y": 3974.0, "name": "泫氏", "status": "近距重名"}, {"id": "n0413", "kind": "邑", "x": 6014.0, "y": 3980.0, "name": "", "status": "未识别"}, {"id": "n0416", "kind": "邑", "x": 3634.0, "y": 3986.0, "name": "临汾", "status": "近距重名"}, {"id": "n0420", "kind": "邑", "x": 5174.0, "y": 3992.0, "name": "", "status": "未识别"}, {"id": "n0426", "kind": "邑", "x": 5620.0, "y": 4008.0, "name": "", "status": "未识别"}, {"id": "n0429", "kind": "城", "x": 3660.0, "y": 4010.0, "name": "临汾", "status": "近距重名"}, {"id": "n0431", "kind": "邑", "x": 5770.0, "y": 4014.0, "name": "", "status": "未识别"}, {"id": "n0444", "kind": "邑", "x": 5092.0, "y": 4046.0, "name": "", "status": "未识别"}, {"id": "n0464", "kind": "邑", "x": 4956.0, "y": 4094.0, "name": "", "status": "未识别"}, {"id": "n0465", "kind": "邑", "x": 5752.0, "y": 4094.0, "name": "漆泗沂水昌衍", "status": "超长待查"}, {"id": "n0492", "kind": "邑", "x": 4756.0, "y": 4162.0, "name": "", "status": "未识别"}, {"id": "n0497", "kind": "邑", "x": 4486.0, "y": 4176.0, "name": "", "status": "未识别"}, {"id": "n0508", "kind": "邑", "x": 5742.0, "y": 4214.0, "name": "", "status": "未识别"}, {"id": "n0509", "kind": "邑", "x": 6378.0, "y": 4214.0, "name": "", "status": "未识别"}, {"id": "n0521", "kind": "邑", "x": 5284.0, "y": 4234.0, "name": "", "status": "未识别"}, {"id": "n0525", "kind": "邑", "x": 5732.0, "y": 4252.0, "name": "", "status": "未识别"}, {"id": "n0545", "kind": "邑", "x": 5376.0, "y": 4290.0, "name": "", "status": "未识别"}, {"id": "n0546", "kind": "邑", "x": 3354.0, "y": 4292.0, "name": "", "status": "未识别"}, {"id": "n0550", "kind": "邑", "x": 3596.0, "y": 4306.0, "name": "", "status": "未识别"}, {"id": "n0553", "kind": "邑", "x": 6098.0, "y": 4312.0, "name": "", "status": "未识别"}, {"id": "n0554", "kind": "邑", "x": 1248.0, "y": 4314.0, "name": "", "status": "未识别"}, {"id": "n0557", "kind": "邑", "x": 4444.0, "y": 4318.0, "name": "广武", "status": "近距重名"}, {"id": "n0568", "kind": "邑", "x": 4472.0, "y": 4338.0, "name": "广武", "status": "近距重名"}, {"id": "n0586", "kind": "都", "x": 4734.0, "y": 4376.0, "name": "", "status": "未识别"}, {"id": "n0588", "kind": "邑", "x": 6064.0, "y": 4378.0, "name": "", "status": "未识别"}, {"id": "n0599", "kind": "邑", "x": 3580.0, "y": 4396.0, "name": "上阳", "status": "近距重名"}, {"id": "n0603", "kind": "邑", "x": 3428.0, "y": 4404.0, "name": "", "status": "未识别"}, {"id": "n0606", "kind": "邑", "x": 4466.0, "y": 4410.0, "name": "", "status": "未识别"}, {"id": "n0610", "kind": "邑", "x": 3596.0, "y": 4420.0, "name": "上阳", "status": "近距重名"}, {"id": "n0612", "kind": "邑", "x": 4594.0, "y": 4422.0, "name": "", "status": "未识别"}, {"id": "n0628", "kind": "邑", "x": 4224.0, "y": 4450.0, "name": "", "status": "未识别"}, {"id": "n0631", "kind": "邑", "x": 6182.0, "y": 4464.0, "name": "", "status": "未识别"}, {"id": "n0636", "kind": "邑", "x": 4038.0, "y": 4468.0, "name": "", "status": "未识别"}, {"id": "n0637", "kind": "邑", "x": 4942.0, "y": 4470.0, "name": "", "status": "未识别"}, {"id": "n0641", "kind": "邑", "x": 1560.0, "y": 4474.0, "name": "", "status": "未识别"}, {"id": "n0648", "kind": "邑", "x": 5726.0, "y": 4484.0, "name": "", "status": "未识别"}, {"id": "n0652", "kind": "邑", "x": 6460.0, "y": 4490.0, "name": "", "status": "未识别"}, {"id": "n0659", "kind": "邑", "x": 4074.0, "y": 4504.0, "name": "", "status": "未识别"}, {"id": "n0661", "kind": "邑", "x": 5254.0, "y": 4510.0, "name": "", "status": "未识别"}, {"id": "n0662", "kind": "邑", "x": 2362.0, "y": 4510.0, "name": "", "status": "未识别"}, {"id": "n0664", "kind": "邑", "x": 6016.0, "y": 4512.0, "name": "", "status": "未识别"}, {"id": "n0667", "kind": "邑", "x": 3976.0, "y": 4520.0, "name": "", "status": "未识别"}, {"id": "n0676", "kind": "城", "x": 3794.0, "y": 4536.0, "name": "", "status": "未识别"}, {"id": "n0686", "kind": "邑", "x": 2740.0, "y": 4556.0, "name": "渭城", "status": "近距重名"}, {"id": "n0691", "kind": "城", "x": 2266.0, "y": 4566.0, "name": "", "status": "未识别"}, {"id": "n0695", "kind": "邑", "x": 2746.0, "y": 4580.0, "name": "渭城", "status": "近距重名"}, {"id": "n0699", "kind": "邑", "x": 4828.0, "y": 4588.0, "name": "", "status": "未识别"}, {"id": "n0702", "kind": "邑", "x": 5062.0, "y": 4592.0, "name": "", "status": "未识别"}, {"id": "n0705", "kind": "邑", "x": 6068.0, "y": 4604.0, "name": "", "status": "未识别"}, {"id": "n0719", "kind": "邑", "x": 5700.0, "y": 4642.0, "name": "", "status": "未识别"}, {"id": "n0721", "kind": "邑", "x": 2686.0, "y": 4646.0, "name": "", "status": "未识别"}, {"id": "n0741", "kind": "邑", "x": 3014.0, "y": 4708.0, "name": "", "status": "未识别"}, {"id": "n0744", "kind": "邑", "x": 5794.0, "y": 4744.0, "name": "", "status": "未识别"}, {"id": "n0747", "kind": "邑", "x": 5584.0, "y": 4752.0, "name": "", "status": "未识别"}, {"id": "n0753", "kind": "邑", "x": 5260.0, "y": 4802.0, "name": "", "status": "未识别"}, {"id": "n0755", "kind": "邑", "x": 5730.0, "y": 4838.0, "name": "", "status": "未识别"}, {"id": "n0760", "kind": "邑", "x": 3272.0, "y": 4862.0, "name": "", "status": "未识别"}, {"id": "n0770", "kind": "邑", "x": 4604.0, "y": 4936.0, "name": "", "status": "未识别"}, {"id": "n0775", "kind": "邑", "x": 4888.0, "y": 4956.0, "name": "", "status": "未识别"}, {"id": "n0781", "kind": "邑", "x": 3624.0, "y": 5006.0, "name": "", "status": "未识别"}, {"id": "n0787", "kind": "城", "x": 6170.0, "y": 5038.0, "name": "", "status": "未识别"}, {"id": "n0789", "kind": "邑", "x": 5076.0, "y": 5052.0, "name": "", "status": "未识别"}, {"id": "n0792", "kind": "邑", "x": 1816.0, "y": 5080.0, "name": "", "status": "未识别"}, {"id": "n0798", "kind": "邑", "x": 4840.0, "y": 5094.0, "name": "", "status": "未识别"}, {"id": "n0800", "kind": "邑", "x": 5162.0, "y": 5096.0, "name": "", "status": "未识别"}, {"id": "n0807", "kind": "邑", "x": 3846.0, "y": 5146.0, "name": "", "status": "未识别"}, {"id": "n0815", "kind": "邑", "x": 4638.0, "y": 5206.0, "name": "", "status": "未识别"}, {"id": "n0821", "kind": "邑", "x": 5412.0, "y": 5250.0, "name": "", "status": "未识别"}, {"id": "n0822", "kind": "邑", "x": 3308.0, "y": 5256.0, "name": "汉水", "status": "近距重名"}, {"id": "n0824", "kind": "邑", "x": 3332.0, "y": 5262.0, "name": "汉水", "status": "近距重名"}, {"id": "n0840", "kind": "邑", "x": 3738.0, "y": 5376.0, "name": "", "status": "未识别"}, {"id": "n0846", "kind": "城", "x": 1646.0, "y": 5424.0, "name": "", "status": "未识别"}, {"id": "n0848", "kind": "邑", "x": 4400.0, "y": 5428.0, "name": "", "status": "未识别"}, {"id": "n0849", "kind": "邑", "x": 5022.0, "y": 5432.0, "name": "", "status": "未识别"}, {"id": "n0850", "kind": "城", "x": 4876.0, "y": 5442.0, "name": "", "status": "未识别"}, {"id": "n0853", "kind": "邑", "x": 6354.0, "y": 5454.0, "name": "", "status": "未识别"}, {"id": "n0854", "kind": "邑", "x": 4762.0, "y": 5460.0, "name": "", "status": "未识别"}, {"id": "n0859", "kind": "邑", "x": 5450.0, "y": 5474.0, "name": "", "status": "未识别"}, {"id": "n0861", "kind": "邑", "x": 4888.0, "y": 5486.0, "name": "", "status": "未识别"}, {"id": "n0863", "kind": "邑", "x": 3252.0, "y": 5516.0, "name": "", "status": "未识别"}, {"id": "n0864", "kind": "邑", "x": 4994.0, "y": 5518.0, "name": "", "status": "未识别"}, {"id": "n0870", "kind": "邑", "x": 3936.0, "y": 5572.0, "name": "", "status": "未识别"}, {"id": "n0878", "kind": "邑", "x": 4302.0, "y": 5612.0, "name": "", "status": "未识别"}, {"id": "n0884", "kind": "邑", "x": 1660.0, "y": 5666.0, "name": "", "status": "未识别"}, {"id": "n0887", "kind": "邑", "x": 5546.0, "y": 5698.0, "name": "", "status": "未识别"}, {"id": "n0888", "kind": "邑", "x": 6918.0, "y": 5700.0, "name": "", "status": "未识别"}, {"id": "n0893", "kind": "城", "x": 4396.0, "y": 5726.0, "name": "", "status": "未识别"}, {"id": "n0898", "kind": "邑", "x": 3890.0, "y": 5764.0, "name": "", "status": "未识别"}, {"id": "n0904", "kind": "邑", "x": 6970.0, "y": 5824.0, "name": "", "status": "未识别"}, {"id": "n0905", "kind": "邑", "x": 1232.0, "y": 5830.0, "name": "", "status": "未识别"}, {"id": "n0907", "kind": "邑", "x": 6756.0, "y": 5860.0, "name": "阳羡矣小城", "status": "超长待查"}, {"id": "n0911", "kind": "邑", "x": 5764.0, "y": 5880.0, "name": "", "status": "未识别"}, {"id": "n0912", "kind": "邑", "x": 1672.0, "y": 5884.0, "name": "", "status": "未识别"}, {"id": "n0915", "kind": "邑", "x": 7162.0, "y": 5896.0, "name": "", "status": "未识别"}, {"id": "n0918", "kind": "邑", "x": 4504.0, "y": 5920.0, "name": "", "status": "未识别"}, {"id": "n0924", "kind": "邑", "x": 3968.0, "y": 5952.0, "name": "宵汉水疆郢", "status": "超长待查"}, {"id": "n0928", "kind": "邑", "x": 5786.0, "y": 5960.0, "name": "", "status": "未识别"}, {"id": "n0937", "kind": "邑", "x": 5680.0, "y": 6022.0, "name": "", "status": "未识别"}, {"id": "n0941", "kind": "邑", "x": 4876.0, "y": 6046.0, "name": "", "status": "未识别"}, {"id": "n0945", "kind": "邑", "x": 2862.0, "y": 6056.0, "name": "", "status": "未识别"}, {"id": "n0946", "kind": "邑", "x": 4364.0, "y": 6082.0, "name": "", "status": "未识别"}, {"id": "n0956", "kind": "邑", "x": 7188.0, "y": 6134.0, "name": "", "status": "未识别"}, {"id": "n0960", "kind": "邑", "x": 5556.0, "y": 6158.0, "name": "", "status": "未识别"}, {"id": "n0961", "kind": "邑", "x": 6668.0, "y": 6158.0, "name": "", "status": "未识别"}, {"id": "n0983", "kind": "邑", "x": 4596.0, "y": 6314.0, "name": "", "status": "未识别"}, {"id": "n0986", "kind": "邑", "x": 6696.0, "y": 6352.0, "name": "", "status": "未识别"}, {"id": "n0988", "kind": "邑", "x": 6958.0, "y": 6360.0, "name": "", "status": "未识别"}, {"id": "n0990", "kind": "邑", "x": 7030.0, "y": 6364.0, "name": "", "status": "未识别"}, {"id": "n1004", "kind": "邑", "x": 6044.0, "y": 6478.0, "name": "", "status": "未识别"}, {"id": "n1007", "kind": "邑", "x": 6216.0, "y": 6504.0, "name": "", "status": "未识别"}, {"id": "n1009", "kind": "邑", "x": 7378.0, "y": 6556.0, "name": "", "status": "未识别"}, {"id": "n1014", "kind": "城", "x": 2220.0, "y": 6596.0, "name": "", "status": "未识别"}, {"id": "n1026", "kind": "邑", "x": 4698.0, "y": 6860.0, "name": "", "status": "未识别"}];
+const KEY = "zg_review_v1";
+let answers = JSON.parse(localStorage.getItem(KEY) || "{}");
+let idx = parseInt(localStorage.getItem(KEY + "_idx") || "0");
+if (isNaN(idx) || idx < 0 || idx >= DATA.length) idx = 0;
+
+const vp = document.getElementById("vp");
+const world = document.getElementById("world");
+const ring = document.getElementById("ring");
+const ansEl = document.getElementById("ans");
+let z = 2.6, tx = 0, ty = 0, dragging = false, lx = 0, ly = 0;
+
+function apply() { world.style.transform = `translate(${tx}px,${ty}px) scale(${z})`; }
+
+function center(x, y, zoom) {
+  if (zoom) z = zoom;
+  tx = vp.clientWidth / 2 - x * z;
+  ty = vp.clientHeight / 2 - y * z;
+  apply();
+}
+
+function render() {
+  const d = DATA[idx];
+  ring.style.left = (d.x - 19) + "px";
+  ring.style.top = (d.y - 19) + "px";
+  ring.style.width = "38px";
+  ring.style.height = "38px";
+  center(d.x, d.y, z);
+  document.getElementById("prog").textContent = `第 ${idx + 1} / ${DATA.length} 题 · 已答 ${Object.keys(answers).length}`;
+  document.getElementById("meta").innerHTML =
+    `<b>${d.id}</b> · ${d.kind} · <span style="color:#e0a458">${d.status}</span>` +
+    (d.name ? `<br>当前识别：<b style="color:#ff8a8a">${d.name}</b>` : `<br>当前识别：<b style="color:#888">⌀</b>`);
+  ansEl.value = answers[d.id] !== undefined ? answers[d.id] : "";
+  ansEl.focus();
+  ansEl.select();
+  renderList();
+}
+
+function renderList() {
+  const box = document.getElementById("list");
+  box.innerHTML = "";
+  DATA.forEach((d, i) => {
+    const div = document.createElement("div");
+    const done = answers[d.id] !== undefined && answers[d.id] !== "";
+    div.className = "it" + (i === idx ? " cur" : "") + (done ? " done" : "");
+    div.innerHTML = `<span>${d.id} ${d.status}</span><span class="k">${done ? answers[d.id] : (d.name || "⌀")}</span>`;
+    div.onclick = () => { idx = i; save(); render(); };
+    box.appendChild(div);
+  });
+  const cur = box.querySelector(".cur");
+  if (cur) cur.scrollIntoView({ block: "center" });
+}
+
+function save() {
+  localStorage.setItem(KEY, JSON.stringify(answers));
+  localStorage.setItem(KEY + "_idx", String(idx));
+}
+
+function confirmAns() {
+  const v = ansEl.value.trim();
+  if (!v) { skip(); return; }
+  answers[DATA[idx].id] = v;
+  idx = Math.min(idx + 1, DATA.length - 1);
+  save(); render();
+}
+
+function skip() { idx = Math.min(idx + 1, DATA.length - 1); save(); render(); }
+function prev() { idx = Math.max(idx - 1, 0); save(); render(); }
+function clearAns() {
+  const id = DATA[idx].id;
+  answers[id] = "";
+  save(); render();
+}
+
+function resetAll() {
+  if (!confirm("清空所有已输入答案？")) return;
+  answers = {}; idx = 0; save(); render();
+}
+
+function exportCSV() {
+  const rows = [["id","kind","x","y","recognized","status","correction"]];
+  DATA.forEach(d => rows.push([d.id, d.kind, d.x, d.y, d.name, d.status, answers[d.id] || ""]));
+  const csv = "\ufeff" + rows.map(r => r.map(v => {
+    const s = String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }).join(",")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "review_todo_filled.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+ansEl.addEventListener("keydown", e => {
+  if (e.isComposing) return;
+  if (e.key === "Enter") { e.preventDefault(); confirmAns(); }
+});
+window.addEventListener("keydown", e => {
+  if (document.activeElement === ansEl) return;
+  if (e.key === "ArrowRight") skip();
+  if (e.key === "ArrowLeft") prev();
+  if (e.key === " ") { e.preventDefault(); const d = DATA[idx]; center(d.x, d.y, z); }
+});
+
+vp.addEventListener("wheel", e => {
+  e.preventDefault();
+  const r = vp.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const k = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+  const nz = Math.min(8, Math.max(0.4, z * k));
+  tx = mx - (mx - tx) * (nz / z); ty = my - (my - ty) * (nz / z); z = nz; apply();
+}, { passive: false });
+vp.addEventListener("mousedown", e => { dragging = true; lx = e.clientX; ly = e.clientY; vp.classList.add("drag"); });
+window.addEventListener("mouseup", () => { dragging = false; vp.classList.remove("drag"); });
+window.addEventListener("mousemove", e => {
+  if (!dragging) return;
+  tx += e.clientX - lx; ty += e.clientY - ly; lx = e.clientX; ly = e.clientY; apply();
+});
+window.addEventListener("resize", () => { const d = DATA[idx]; center(d.x, d.y, z); });
+
+render();
+</script></body></html>

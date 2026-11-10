@@ -1,0 +1,4261 @@
+{
+  "version": 1,
+  "turn": 0,
+  "year": -1,
+  "season": 0,
+  "nations": [
+    {
+      "id": "lu",
+      "name": "鲁",
+      "reserve": 5.0,
+      "adminLevel": 0.7,
+      "militaryDiscipline": 0.6,
+      "corruption": 0.2,
+      "treasury": 400.0,
+      "weights": {
+        "du": 120.0,
+        "cheng": 60.0,
+        "yi": 30.0
+      },
+      "populationGroups": [
+        {
+          "id": "g43",
+          "name": "鲁人",
+          "du": 1.0,
+          "cheng": 1.0,
+          "yi": 11.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.7,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": "曲阜",
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g44",
+          "name": "季孙氏",
+          "du": 0.0,
+          "cheng": 1.0,
+          "yi": 1.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.72,
+          "household": 0.6,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": "费邑",
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g45",
+          "name": "孟孙氏",
+          "du": 0.0,
+          "cheng": 1.0,
+          "yi": 2.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.72,
+          "household": 0.6,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": "郕邑",
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g46",
+          "name": "平陆人",
+          "du": 0.0,
+          "cheng": 1.0,
+          "yi": 9.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.7,
+          "household": 0.6,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": "平陆",
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g47",
+          "name": "汶阳人",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 2.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.7,
+          "household": 0.5,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g48",
+          "name": "叔孙氏",
+          "du": 0.0,
+          "cheng": 1.0,
+          "yi": 0.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.68,
+          "household": 0.4,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": "郈邑",
+          "popType": "农民",
+          "note": null
+        }
+      ],
+      "taxes": [
+        {
+          "id": "t3",
+          "name": "土地普税",
+          "baseLabel": "传统鲁地",
+          "groupIds": [
+            "g43",
+            "g44",
+            "g45"
+          ],
+          "amount": 2000.0,
+          "efficiency": 0.8
+        },
+        {
+          "id": "t4",
+          "name": "苛捐杂税",
+          "baseLabel": "传统鲁地",
+          "groupIds": [
+            "g43",
+            "g44",
+            "g45"
+          ],
+          "amount": 800.0,
+          "efficiency": 0.5
+        },
+        {
+          "id": "t5",
+          "name": "新土地税",
+          "baseLabel": "平陆占领区",
+          "groupIds": [
+            "g46",
+            "g47",
+            "g48"
+          ],
+          "amount": 800.0,
+          "efficiency": 0.6
+        }
+      ],
+      "expenses": [
+        {
+          "id": "e517",
+          "name": "国都",
+          "kind": "Project",
+          "amount": -80.0
+        },
+        {
+          "id": "e617",
+          "name": "郕邑",
+          "kind": "Project",
+          "amount": -40.0
+        },
+        {
+          "id": "e717",
+          "name": "费邑",
+          "kind": "Project",
+          "amount": -40.0
+        },
+        {
+          "id": "e817",
+          "name": "郈邑",
+          "kind": "Project",
+          "amount": -40.0
+        },
+        {
+          "id": "e519",
+          "name": "官办鲁缟",
+          "kind": "Modifier",
+          "amount": 80.0
+        },
+        {
+          "id": "e619",
+          "name": "任国",
+          "kind": "Modifier",
+          "amount": 20.0
+        },
+        {
+          "id": "e719",
+          "name": "倪国",
+          "kind": "Modifier",
+          "amount": 20.0
+        },
+        {
+          "id": "e819",
+          "name": "玛瑙生意",
+          "kind": "Modifier",
+          "amount": 30.0
+        }
+      ],
+      "armies": [
+        {
+          "id": "a26",
+          "name": "中军",
+          "infantry": 3.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 1.0,
+          "training": 40.0,
+          "station": "郕邑",
+          "commander": "孟孙井",
+          "note": null,
+          "readiness": 2.0,
+          "supply": 1.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C26*60+D26*150+E26*180+F26*300)*(1+G26/100)^0.5*L26^0.5*M26"
+        },
+        {
+          "id": "a28",
+          "name": "上军",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C28*60+D28*150+E28*180+F28*300)*(1+G28/100)^0.5*L28^0.5*M28"
+        },
+        {
+          "id": "a30",
+          "name": "下军",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C30*60+D30*150+E30*180+F30*300)*(1+G30/100)^0.5*L30^0.5*M30"
+        },
+        {
+          "id": "a32",
+          "name": "新军",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C32*60+D32*150+E32*180+F32*300)*(1+G32/100)^0.5*L32^0.5*M32"
+        },
+        {
+          "id": "a34",
+          "name": "独立骑兵",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 220.0,
+          "costElite": 0.0,
+          "costCavalry": 0.0,
+          "costChariots": 0.0,
+          "upkeepFormula": "=C34*220*(1+G34/100)^0.5*L34^0.5*M34"
+        },
+        {
+          "id": "a36",
+          "name": "水师",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 300.0,
+          "costElite": 0.0,
+          "costCavalry": 0.0,
+          "costChariots": 0.0,
+          "upkeepFormula": "=C36*300*(1+G36/100)^0.5*L36^0.5*M36"
+        }
+      ],
+      "institutions": [
+        {
+          "id": "i4",
+          "name": "军团架构与指挥系统",
+          "description": "我们的军事指挥体系混乱不堪，军团架构混乱不清，中央军和地方军界限模糊",
+          "level": 1,
+          "reformPoint": "@"
+        },
+        {
+          "id": "i6",
+          "name": "征兵与预备役制度",
+          "description": "我们的兵役制度并不完善，募兵征兵条例不清晰，预备役制度潦草",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i8",
+          "name": "后勤运输与保障能力",
+          "description": "我们的后勤体系极其低效，辎重运输和物资保障不足",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i10",
+          "name": "武备生产技术",
+          "description": "我们的武备生产技术可圈可点，在分散工匠的精心生产下有着稳定的产出",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i12",
+          "name": "工程建造技术",
+          "description": "我们的工程建造技术缺乏组织，分散各地，产能有限，但具备基本建造能力",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i14",
+          "name": "军功制度",
+          "description": "我们国家的军功制度并未体系化，依赖于君王的一时恩德",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i16",
+          "name": "军事训练模式",
+          "description": "我们的军事训练依靠将军的个人理解，并未系统性的培训与传承",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i18",
+          "name": "军事人才发掘、培养与晋升",
+          "description": "我们的军事人才更多依靠将军的代传、举荐，并无系统性的发掘与培养",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i20",
+          "name": "军法与军纪建设",
+          "description": "我国的军法军纪建设几乎是空白，全凭士兵的朴素道德来管，以至于劫掠屠城频发",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i22",
+          "name": "土地所有、开发与流转制度",
+          "description": "我们已经开始建设稳定的田籍，尽管目前仍然混乱、有大量确权不清晰，但终归是有了",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i24",
+          "name": "中央官僚架构、协作与运行",
+          "description": "我们的中央官僚架构稳定运行，尽管尚有大量春秋遗存的低效机制",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i26",
+          "name": "地方管理与治理",
+          "description": "地方上我们依赖封君和有限的郡县邑治理，实际治理不下乡",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i28",
+          "name": "法律体系与执法",
+          "description": "我们的法律有初步的成文法，尽管并不严谨，但聊胜于无",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i30",
+          "name": "国家指导理念",
+          "description": "我们国家并无确切的指导理念，朝臣各执己见，缺乏长期执行的原则",
+          "level": 1,
+          "reformPoint": "@"
+        },
+        {
+          "id": "i32",
+          "name": "行政人才发掘、培养与晋升",
+          "description": "我们的行政人才依靠老人对新人的举荐、培养和提拔，范围窄且亲亲相护现象明显",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i34",
+          "name": "商业发展与管制",
+          "description": "我们的商业有着初步管制以及政府监督，但商业税体系并不完善",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i36",
+          "name": "贵族的清退机制",
+          "description": "贵族并不会轻易清退，没有犯大错的情况下完全是世卿世禄，成为国家机器的蠹虫",
+          "level": 1,
+          "reformPoint": null
+        }
+      ],
+      "situations": [
+        {
+          "id": "s28",
+          "name": "官办鲁缟",
+          "description": "一部分鲁缟产业为官办，我们从中获益"
+        },
+        {
+          "id": "s30",
+          "name": "儒学兴盛",
+          "description": "鲁国是儒学发源之地，儒学兴盛，士人阶层活跃"
+        },
+        {
+          "id": "s32",
+          "name": "鲁墨遗存",
+          "description": "鲁墨虽然被驱逐出朝堂，但仍然在曲阜民间活跃"
+        },
+        {
+          "id": "s34",
+          "name": "鲁制玛瑙",
+          "description": "鲁国的玛瑙饰品技术卓越，是紧俏的商品，我们从中加税获益"
+        }
+      ]
+    },
+    {
+      "id": "qi",
+      "name": "齐",
+      "reserve": 12.0,
+      "adminLevel": 0.65,
+      "militaryDiscipline": 0.65,
+      "corruption": 0.3,
+      "treasury": 1200.0,
+      "weights": {
+        "du": 120.0,
+        "cheng": 60.0,
+        "yi": 30.0
+      },
+      "populationGroups": [
+        {
+          "id": "g43",
+          "name": "临淄都人",
+          "du": 1.0,
+          "cheng": 1.0,
+          "yi": 10.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.75,
+          "household": 0.75,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g44",
+          "name": "即墨都",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 5.0,
+          "wild": 10.0,
+          "adjustment": 0.0,
+          "development": 0.6,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g45",
+          "name": "莒都",
+          "du": 1.0,
+          "cheng": 0.0,
+          "yi": 4.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.7,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g46",
+          "name": "长城南人",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 12.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.7,
+          "household": 0.65,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g47",
+          "name": "河间地带",
+          "du": 0.0,
+          "cheng": 1.0,
+          "yi": 9.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.6,
+          "household": 0.6,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g48",
+          "name": "高唐都",
+          "du": 0.0,
+          "cheng": 1.0,
+          "yi": 15.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.65,
+          "household": 0.65,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g49",
+          "name": "陈仪卫人",
+          "du": 0.0,
+          "cheng": 1.0,
+          "yi": 13.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.65,
+          "household": 0.65,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g50",
+          "name": "阿都",
+          "du": 1.0,
+          "cheng": 0.0,
+          "yi": 14.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.65,
+          "household": 0.65,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g51",
+          "name": "田氏领地",
+          "du": 1.0,
+          "cheng": 1.0,
+          "yi": 13.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.7,
+          "household": 0.5,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g52",
+          "name": "东海君",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 1.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.7,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        }
+      ],
+      "taxes": [
+        {
+          "id": "t3",
+          "name": "农业普税",
+          "baseLabel": "五都辖地",
+          "groupIds": [
+            "g43",
+            "g44",
+            "g45",
+            "g46",
+            "g47",
+            "g48",
+            "g49",
+            "g50"
+          ],
+          "amount": 6000.0,
+          "efficiency": 0.75
+        },
+        {
+          "id": "t4",
+          "name": "苛捐杂税",
+          "baseLabel": "五都辖地",
+          "groupIds": [
+            "g43",
+            "g44",
+            "g45",
+            "g46",
+            "g47",
+            "g48",
+            "g49",
+            "g50"
+          ],
+          "amount": 2000.0,
+          "efficiency": 0.5
+        },
+        {
+          "id": "t5",
+          "name": "东海君上缴",
+          "baseLabel": "东海君辖地",
+          "groupIds": [
+            "g52"
+          ],
+          "amount": 20.0,
+          "efficiency": 1.0
+        },
+        {
+          "id": "t6",
+          "name": "田氏税",
+          "baseLabel": "田氏辖地",
+          "groupIds": [
+            "g51"
+          ],
+          "amount": 800.0,
+          "efficiency": 0.8
+        }
+      ],
+      "expenses": [
+        {
+          "id": "e517",
+          "name": "国都",
+          "kind": "Project",
+          "amount": -120.0
+        },
+        {
+          "id": "e617",
+          "name": "齐长城",
+          "kind": "Project",
+          "amount": -400.0
+        },
+        {
+          "id": "e519",
+          "name": "官山",
+          "kind": "Modifier",
+          "amount": 400.0
+        },
+        {
+          "id": "e619",
+          "name": "官海",
+          "kind": "Modifier",
+          "amount": 1000.0
+        },
+        {
+          "id": "e719",
+          "name": "田氏齐纨",
+          "kind": "Modifier",
+          "amount": 100.0
+        },
+        {
+          "id": "e819",
+          "name": "田氏商业",
+          "kind": "Modifier",
+          "amount": 400.0
+        }
+      ],
+      "armies": [
+        {
+          "id": "a26",
+          "name": "齐技击",
+          "infantry": 0.0,
+          "elite": 6.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 65.0,
+          "station": "阿邑",
+          "commander": "田驰",
+          "note": null,
+          "readiness": 2.0,
+          "supply": 1.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C26*60+D26*150+E26*180+F26*300)*(1+G26/100)^0.5*L26^0.5*M26"
+        },
+        {
+          "id": "a28",
+          "name": "南军",
+          "infantry": 2.0,
+          "elite": 1.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 45.0,
+          "station": "莒",
+          "commander": null,
+          "note": null,
+          "readiness": 1.0,
+          "supply": 1.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C28*60+D28*150+E28*180+F28*300)*(1+G28/100)^0.5*L28^0.5*M28"
+        },
+        {
+          "id": "a30",
+          "name": "下军",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C30*60+D30*150+E30*180+F30*300)*(1+G30/100)^0.5*L30^0.5*M30"
+        },
+        {
+          "id": "a32",
+          "name": "新军",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C32*60+D32*150+E32*180+F32*300)*(1+G32/100)^0.5*L32^0.5*M32"
+        },
+        {
+          "id": "a34",
+          "name": "独立骑兵",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 220.0,
+          "costElite": 0.0,
+          "costCavalry": 0.0,
+          "costChariots": 0.0,
+          "upkeepFormula": "=C34*220*(1+G34/100)^0.5*L34^0.5*M34"
+        },
+        {
+          "id": "a36",
+          "name": "水师",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 300.0,
+          "costElite": 0.0,
+          "costCavalry": 0.0,
+          "costChariots": 0.0,
+          "upkeepFormula": "=C36*300*(1+G36/100)^0.5*L36^0.5*M36"
+        }
+      ],
+      "institutions": [
+        {
+          "id": "i4",
+          "name": "军团架构与指挥系统",
+          "description": "我们的军事体系架构完善，以精锐军团为核心，卫戍军团为策应，由中央统一调度管理",
+          "level": 3,
+          "reformPoint": null
+        },
+        {
+          "id": "i6",
+          "name": "征兵与预备役制度",
+          "description": "我们的兵役制度比较混乱，募兵征兵相结合，预备役制度存在但不够清晰",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i8",
+          "name": "后勤运输与保障能力",
+          "description": "我们的后勤体系极其低效，辎重运输和物资保障不足",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i10",
+          "name": "武备生产技术",
+          "description": "我们的武备生产技术可圈可点，在分散工匠的精心生产下有着稳定的产出",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i12",
+          "name": "工程建造技术",
+          "description": "我们的工程建造技术缺乏组织，分散各地，产能有限，但具备基本建造能力",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i14",
+          "name": "军功制度",
+          "description": "我们国家的军功制度并未体系化，依赖于君王的一时恩德",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i16",
+          "name": "军事训练模式",
+          "description": "我们的军事训练依靠将军的个人理解，并未系统性的培训与传承",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i18",
+          "name": "军事人才发掘、培养与晋升",
+          "description": "我们的军事人才更多依靠将军的代传、举荐，并无系统性的发掘与培养",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i20",
+          "name": "军法与军纪建设",
+          "description": "我国的军法军纪建设几乎是空白，全凭士兵的朴素道德来管，以至于劫掠屠城频发",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i22",
+          "name": "土地所有、开发与流转制度",
+          "description": "我们已经开始建设稳定的田籍，尽管目前仍然混乱、有大量确权不清晰，但终归是有了",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i24",
+          "name": "中央官僚架构、协作与运行",
+          "description": "我们的中央官僚架构稳定运行，尽管尚有大量春秋遗存的低效机制",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i26",
+          "name": "地方管理与治理",
+          "description": "地方上我们依赖封君和有限的都邑治理，实际治理不下乡",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i28",
+          "name": "法律体系与执法",
+          "description": "我们的法律有初步的成文法，尽管并不严谨，但聊胜于无",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i30",
+          "name": "国家指导理念",
+          "description": "我们国家并无确切的指导理念，朝臣各执己见，缺乏长期执行的原则",
+          "level": 1,
+          "reformPoint": "@"
+        },
+        {
+          "id": "i32",
+          "name": "行政人才发掘、培养与晋升",
+          "description": "我们的行政人才依靠老人对新人的举荐、培养和提拔，范围窄且亲亲相护现象明显",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i34",
+          "name": "商业发展与管制",
+          "description": "我们的商业有着初步管制以及政府监督，但商业税体系并不完善",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i36",
+          "name": "贵族的清退机制",
+          "description": "贵族并不会轻易清退，没有犯大错的情况下完全是世卿世禄，成为国家机器的蠹虫",
+          "level": 1,
+          "reformPoint": null
+        }
+      ],
+      "situations": [
+        {
+          "id": "s28",
+          "name": "官山",
+          "description": "管仲的官山海政策，其中一条就是国营矿业"
+        },
+        {
+          "id": "s30",
+          "name": "官海",
+          "description": "管仲的官山海政策，其中一条就是国营盐业"
+        },
+        {
+          "id": "s32",
+          "name": "田氏齐纨",
+          "description": "一部分齐纨产业为田氏操办，我们从中获益"
+        },
+        {
+          "id": "s34",
+          "name": "管仲遗学",
+          "description": "管仲学说已经没落，但并非无人传承"
+        }
+      ]
+    },
+    {
+      "id": "song",
+      "name": "宋",
+      "reserve": 6.0,
+      "adminLevel": 0.65,
+      "militaryDiscipline": 0.6,
+      "corruption": 0.3,
+      "treasury": 0.0,
+      "weights": {
+        "du": 120.0,
+        "cheng": 60.0,
+        "yi": 30.0
+      },
+      "populationGroups": [
+        {
+          "id": "g43",
+          "name": "宋人",
+          "du": 2.0,
+          "cheng": 1.0,
+          "yi": 27.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.72,
+          "household": 0.8,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g44",
+          "name": "戴氏土地",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 4.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.75,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g45",
+          "name": "萧人",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 1.0,
+          "wild": 0.0,
+          "adjustment": 15.0,
+          "development": 0.72,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        }
+      ],
+      "taxes": [
+        {
+          "id": "t3",
+          "name": "农业普税",
+          "baseLabel": "宋国国人",
+          "groupIds": [
+            "g43",
+            "g44"
+          ],
+          "amount": 2600.0,
+          "efficiency": 0.8
+        },
+        {
+          "id": "t4",
+          "name": "苛捐杂税",
+          "baseLabel": "宋国国人",
+          "groupIds": [
+            "g43",
+            "g44"
+          ],
+          "amount": 900.0,
+          "efficiency": 0.6
+        }
+      ],
+      "expenses": [
+        {
+          "id": "e517",
+          "name": "国都",
+          "kind": "Project",
+          "amount": -80.0
+        },
+        {
+          "id": "e519",
+          "name": "萧国",
+          "kind": "Modifier",
+          "amount": 20.0
+        },
+        {
+          "id": "e619",
+          "name": "工正",
+          "kind": "Modifier",
+          "amount": 300.0
+        }
+      ],
+      "armies": [
+        {
+          "id": "a26",
+          "name": "宋军",
+          "infantry": 3.0,
+          "elite": 1.0,
+          "cavalry": 0.0,
+          "chariots": 1.0,
+          "training": 40.0,
+          "station": "睢阳",
+          "commander": "宋壬",
+          "note": null,
+          "readiness": 1.0,
+          "supply": 1.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C26*60+D26*150+E26*180+F26*300)*(1+G26/100)^0.5*L26^0.5*M26"
+        },
+        {
+          "id": "a28",
+          "name": "上军",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C28*60+D28*150+E28*180+F28*300)*(1+G28/100)^0.5*L28^0.5*M28"
+        },
+        {
+          "id": "a30",
+          "name": "下军",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C30*60+D30*150+E30*180+F30*300)*(1+G30/100)^0.5*L30^0.5*M30"
+        },
+        {
+          "id": "a32",
+          "name": "新军",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C32*60+D32*150+E32*180+F32*300)*(1+G32/100)^0.5*L32^0.5*M32"
+        },
+        {
+          "id": "a34",
+          "name": "独立骑兵",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 220.0,
+          "costElite": 0.0,
+          "costCavalry": 0.0,
+          "costChariots": 0.0,
+          "upkeepFormula": "=C34*220*(1+G34/100)^0.5*L34^0.5*M34"
+        },
+        {
+          "id": "a36",
+          "name": "水师",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 300.0,
+          "costElite": 0.0,
+          "costCavalry": 0.0,
+          "costChariots": 0.0,
+          "upkeepFormula": "=C36*300*(1+G36/100)^0.5*L36^0.5*M36"
+        }
+      ],
+      "institutions": [
+        {
+          "id": "i4",
+          "name": "军团架构与指挥系统",
+          "description": "我们的军事指挥体系混乱不堪，军团架构混乱不清，中央军和地方军界限模糊",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i6",
+          "name": "征兵与预备役制度",
+          "description": "我们的兵役制度并不完善，募兵征兵条例不清晰，预备役制度潦草",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i8",
+          "name": "后勤运输与保障能力",
+          "description": "我们的后勤体系极其低效，辎重运输和物资保障不足",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i10",
+          "name": "武备生产技术",
+          "description": "我们的武备生产技术可圈可点，在分散工匠的精心生产下有着稳定的产出",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i12",
+          "name": "工程建造技术",
+          "description": "我们的工程建造技术缺乏组织，分散各地，产能有限，但具备基本建造能力",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i14",
+          "name": "军功制度",
+          "description": "我们国家的军功制度并未体系化，依赖于君王的一时恩德",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i16",
+          "name": "军事训练模式",
+          "description": "我们的军事训练依靠将军的个人理解，并未系统性的培训与传承",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i18",
+          "name": "军事人才发掘、培养与晋升",
+          "description": "我们的军事人才更多依靠将军的代传、举荐，并无系统性的发掘与培养",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i20",
+          "name": "军法与军纪建设",
+          "description": "我国的军法军纪建设几乎是空白，全凭士兵的朴素道德来管，以至于劫掠屠城频发",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i22",
+          "name": "土地所有、开发与流转制度",
+          "description": "我们的土地制度为事实上的土地私有，但缺乏国家层面的详尽田籍",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i24",
+          "name": "中央官僚架构、协作与运行",
+          "description": "我们的中央官僚架构延续春秋形制，已经与时代略有脱节",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i26",
+          "name": "地方管理与治理",
+          "description": "地方上我们完全依赖地方势力的治理，管理松散，缺乏体系",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i28",
+          "name": "法律体系与执法",
+          "description": "我们的法律体系停留在琐碎的案例，依仗于执法官员的个人理解",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i30",
+          "name": "国家指导理念",
+          "description": "我们国家并无确切的指导理念，朝臣各执己见，缺乏长期执行的原则",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i32",
+          "name": "行政人才发掘、培养与晋升",
+          "description": "我们的行政人才依靠老人对新人的举荐、培养和提拔，范围窄且亲亲相护现象明显",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i34",
+          "name": "商业发展与管制",
+          "description": "我们的商业有着初步管制以及政府监督，但商业税体系并不完善",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i36",
+          "name": "贵族的清退机制",
+          "description": "贵族并不会轻易清退，没有犯大错的情况下完全是世卿世禄，成为国家机器的蠹虫",
+          "level": 1,
+          "reformPoint": null
+        }
+      ],
+      "situations": [
+        {
+          "id": "s28",
+          "name": "戴氏取宋？",
+          "description": "戴姓的宋壬大权在握，似乎随时可以篡权"
+        },
+        {
+          "id": "s30",
+          "name": "工正",
+          "description": "宋国特色的“工正”制度，管理着各种手工业工匠"
+        }
+      ]
+    },
+    {
+      "id": "wei",
+      "name": "魏",
+      "reserve": 12.0,
+      "adminLevel": 0.75,
+      "militaryDiscipline": 0.7,
+      "corruption": 0.22,
+      "treasury": 0.0,
+      "weights": {
+        "du": 120.0,
+        "cheng": 60.0,
+        "yi": 25.0
+      },
+      "populationGroups": [
+        {
+          "id": "g43",
+          "name": "中山人",
+          "du": 1.0,
+          "cheng": 1.0,
+          "yi": 33.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.6,
+          "household": 0.6,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 25.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g44",
+          "name": "成阳飞地",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 1.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.66,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g45",
+          "name": "河内",
+          "du": 0.0,
+          "cheng": 2.0,
+          "yi": 15.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.68,
+          "household": 0.75,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g46",
+          "name": "大梁",
+          "du": 1.0,
+          "cheng": 0.0,
+          "yi": 19.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.68,
+          "household": 0.8,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g47",
+          "name": "睢水以南",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 7.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.6,
+          "household": 0.65,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g48",
+          "name": "上洛",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 1.0,
+          "wild": 0.0,
+          "adjustment": 20.0,
+          "development": 0.55,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g49",
+          "name": "上郡",
+          "du": 0.0,
+          "cheng": 1.0,
+          "yi": 12.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.55,
+          "household": 0.6,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 20.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g50",
+          "name": "河西",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 17.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.68,
+          "household": 0.65,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 25.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g51",
+          "name": "南河崤函",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 10.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.72,
+          "household": 0.75,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 25.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g52",
+          "name": "河东",
+          "du": 1.0,
+          "cheng": 2.0,
+          "yi": 20.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.72,
+          "household": 0.75,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 25.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        }
+      ],
+      "taxes": [
+        {
+          "id": "t3",
+          "name": "农业普税 西部",
+          "baseLabel": "魏西国人",
+          "groupIds": [
+            "g48",
+            "g49",
+            "g50",
+            "g51",
+            "g52"
+          ],
+          "amount": 4500.0,
+          "efficiency": 0.8
+        },
+        {
+          "id": "t4",
+          "name": "农业普税 东部",
+          "baseLabel": "魏东国人",
+          "groupIds": [
+            "g44",
+            "g45",
+            "g46",
+            "g47"
+          ],
+          "amount": 3000.0,
+          "efficiency": 0.65
+        },
+        {
+          "id": "t5",
+          "name": "苛捐杂税西部",
+          "baseLabel": "魏西国人",
+          "groupIds": [
+            "g48",
+            "g49",
+            "g50",
+            "g51",
+            "g52"
+          ],
+          "amount": 1000.0,
+          "efficiency": 0.6
+        },
+        {
+          "id": "t6",
+          "name": "苛捐杂税东部",
+          "baseLabel": "魏东国人",
+          "groupIds": [
+            "g44",
+            "g45",
+            "g46",
+            "g47"
+          ],
+          "amount": 1000.0,
+          "efficiency": 0.4
+        },
+        {
+          "id": "t7",
+          "name": "中山杂捐",
+          "baseLabel": "中山",
+          "groupIds": [
+            "g43"
+          ],
+          "amount": 800.0,
+          "efficiency": 0.5
+        }
+      ],
+      "expenses": [
+        {
+          "id": "e517",
+          "name": "安邑",
+          "kind": "Project",
+          "amount": -80.0
+        },
+        {
+          "id": "e617",
+          "name": "大梁",
+          "kind": "Project",
+          "amount": -60.0
+        },
+        {
+          "id": "e519",
+          "name": "陈国",
+          "kind": "Modifier",
+          "amount": 50.0
+        },
+        {
+          "id": "e619",
+          "name": "蔡国",
+          "kind": "Modifier",
+          "amount": 50.0
+        },
+        {
+          "id": "e719",
+          "name": "盐池",
+          "kind": "Modifier",
+          "amount": 300.0
+        },
+        {
+          "id": "e819",
+          "name": "中条山",
+          "kind": "Modifier",
+          "amount": 400.0
+        }
+      ],
+      "armies": [
+        {
+          "id": "a26",
+          "name": "魏武卒",
+          "infantry": 0.0,
+          "elite": 6.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 70.0,
+          "station": "元里",
+          "commander": "魏罕",
+          "note": null,
+          "readiness": 1.0,
+          "supply": 1.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C26*60+D26*150+E26*180+F26*300)*(1+G26/100)^0.5*L26^0.5*M26"
+        },
+        {
+          "id": "a28",
+          "name": "中山军团",
+          "infantry": 2.0,
+          "elite": 2.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 50.0,
+          "station": "灵寿",
+          "commander": "乐不书",
+          "note": null,
+          "readiness": 2.0,
+          "supply": 1.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C28*60+D28*150+E28*180+F28*300)*(1+G28/100)^0.5*L28^0.5*M28"
+        },
+        {
+          "id": "a30",
+          "name": "下军",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C30*60+D30*150+E30*180+F30*300)*(1+G30/100)^0.5*L30^0.5*M30"
+        },
+        {
+          "id": "a32",
+          "name": "新军",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C32*60+D32*150+E32*180+F32*300)*(1+G32/100)^0.5*L32^0.5*M32"
+        },
+        {
+          "id": "a34",
+          "name": "独立骑兵",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 220.0,
+          "costElite": 0.0,
+          "costCavalry": 0.0,
+          "costChariots": 0.0,
+          "upkeepFormula": "=C34*220*(1+G34/100)^0.5*L34^0.5*M34"
+        },
+        {
+          "id": "a36",
+          "name": "水师",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 300.0,
+          "costElite": 0.0,
+          "costCavalry": 0.0,
+          "costChariots": 0.0,
+          "upkeepFormula": "=C36*300*(1+G36/100)^0.5*L36^0.5*M36"
+        }
+      ],
+      "institutions": [
+        {
+          "id": "i4",
+          "name": "军团架构与指挥系统",
+          "description": "我们的军事体系架构完善，以精锐军团为核心，卫戍军团为策应，由中央统一调度管理",
+          "level": 3,
+          "reformPoint": null
+        },
+        {
+          "id": "i6",
+          "name": "征兵与预备役制度",
+          "description": "我们的兵役制度比较混乱，募兵征兵相结合，预备役制度存在但不够清晰",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i8",
+          "name": "后勤运输与保障能力",
+          "description": "我们的后勤体系极其低效，辎重运输和物资保障不足",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i10",
+          "name": "武备生产技术",
+          "description": "我们的武备生产技术可圈可点，在分散工匠的精心生产下有着稳定的产出",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i12",
+          "name": "工程建造技术",
+          "description": "我们的工程建造技术缺乏组织，分散各地，产能有限，但具备基本建造能力",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i14",
+          "name": "军功制度",
+          "description": "我们国家的军功制度并未体系化，依赖于君王的一时恩德",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i16",
+          "name": "军事训练模式",
+          "description": "我们的军事训练依仗吴起的严格训练模式，保证了士兵的基本素质，但有待发展",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i18",
+          "name": "军事人才发掘、培养与晋升",
+          "description": "我们的军事人才更多依靠将军的代传、举荐，并无系统性的发掘与培养",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i20",
+          "name": "军法与军纪建设",
+          "description": "我国的军法军纪建设几乎是空白，全凭士兵的朴素道德来管，以至于劫掠屠城频发",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i22",
+          "name": "土地所有、开发与流转制度",
+          "description": "我们已经开始建设稳定的田籍，并在尽地力平籴法的努力下发展农业",
+          "level": 3,
+          "reformPoint": null
+        },
+        {
+          "id": "i24",
+          "name": "中央官僚架构、协作与运行",
+          "description": "我们的中央官僚架构稳定运行，尽管尚有大量春秋遗存的低效机制",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i26",
+          "name": "地方管理与治理",
+          "description": "地方上我们依赖封君和有限的郡县邑治理，实际治理不下乡",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i28",
+          "name": "法律体系与执法",
+          "description": "我们的法律有成体系的李悝      《法经》指导司法",
+          "level": 3,
+          "reformPoint": null
+        },
+        {
+          "id": "i30",
+          "name": "国家指导理念",
+          "description": "我们国家并无确切的指导理念，朝臣各执己见，缺乏长期执行的原则",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i32",
+          "name": "行政人才发掘、培养与晋升",
+          "description": "我们的行政人才依靠老人对新人的举荐、培养和提拔，范围窄且亲亲相护现象明显",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i34",
+          "name": "商业发展与管制",
+          "description": "我们的商业有着初步管制以及政府监督，但商业税体系并不完善",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i36",
+          "name": "贵族的清退机制",
+          "description": "贵族并不会轻易清退，没有犯大错的情况下完全是世卿世禄，成为国家机器的蠹虫",
+          "level": 1,
+          "reformPoint": null
+        }
+      ],
+      "situations": [
+        {
+          "id": "s28",
+          "name": "盐池",
+          "description": "河东盐池的盐业十分发达，但是官府和民间争利 不垄断"
+        },
+        {
+          "id": "s30",
+          "name": "中条山之铜",
+          "description": "魏国国家经营的中条山铜矿获利颇丰"
+        },
+        {
+          "id": "s32",
+          "name": "衰落的西河学派",
+          "description": "西河学派伴随着魏武侯卒的打压已经衰微"
+        },
+        {
+          "id": "s34",
+          "name": "魏东离心",
+          "description": "魏东地方势力膨胀，离心现象明显"
+        },
+        {
+          "id": "s36",
+          "name": "南线补给压力",
+          "description": "南方对楚前线补给压力很大，缺乏可靠的补给线"
+        }
+      ]
+    },
+    {
+      "id": "han",
+      "name": "韩",
+      "reserve": 8.0,
+      "adminLevel": 0.65,
+      "militaryDiscipline": 0.65,
+      "corruption": 0.35,
+      "treasury": 0.0,
+      "weights": {
+        "du": 120.0,
+        "cheng": 60.0,
+        "yi": 30.0
+      },
+      "populationGroups": [
+        {
+          "id": "g43",
+          "name": "汝颍",
+          "du": 1.0,
+          "cheng": 0.0,
+          "yi": 13.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.68,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g44",
+          "name": "伊洛",
+          "du": 0.0,
+          "cheng": 1.0,
+          "yi": 17.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.7,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 28.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g45",
+          "name": "荥阳",
+          "du": 0.0,
+          "cheng": 1.0,
+          "yi": 2.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.72,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g46",
+          "name": "河内",
+          "du": 0.0,
+          "cheng": 1.0,
+          "yi": 15.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.72,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g47",
+          "name": "汾河",
+          "du": 0.0,
+          "cheng": 1.0,
+          "yi": 19.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.65,
+          "household": 0.65,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 20.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g48",
+          "name": "上党",
+          "du": 0.0,
+          "cheng": 1.0,
+          "yi": 14.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.65,
+          "household": 0.65,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 20.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        }
+      ],
+      "taxes": [
+        {
+          "id": "t3",
+          "name": "农业普税",
+          "baseLabel": "全国国人",
+          "groupIds": [
+            "g43",
+            "g44",
+            "g45",
+            "g46",
+            "g47",
+            "g48"
+          ],
+          "amount": 6000.0,
+          "efficiency": 0.8
+        },
+        {
+          "id": "t4",
+          "name": "苛捐杂税",
+          "baseLabel": "全国国人",
+          "groupIds": [
+            "g43",
+            "g44",
+            "g45",
+            "g46",
+            "g47",
+            "g48"
+          ],
+          "amount": 1200.0,
+          "efficiency": 0.55
+        }
+      ],
+      "expenses": [
+        {
+          "id": "e517",
+          "name": "国都",
+          "kind": "Project",
+          "amount": -80.0
+        },
+        {
+          "id": "e519",
+          "name": "宜阳铁矿",
+          "kind": "Modifier",
+          "amount": 150.0
+        },
+        {
+          "id": "e619",
+          "name": "平阳铁矿",
+          "kind": "Modifier",
+          "amount": 80.0
+        }
+      ],
+      "armies": [
+        {
+          "id": "a26",
+          "name": "南征军",
+          "infantry": 2.0,
+          "elite": 5.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 55.0,
+          "station": "阳翟",
+          "commander": "蒋将",
+          "note": null,
+          "readiness": 1.0,
+          "supply": 1.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C26*60+D26*150+E26*180+F26*300)*(1+G26/100)^0.5*L26^0.5*M26"
+        },
+        {
+          "id": "a28",
+          "name": "阳翟军",
+          "infantry": 3.0,
+          "elite": 1.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 45.0,
+          "station": "阳翟",
+          "commander": "严充",
+          "note": null,
+          "readiness": 1.0,
+          "supply": 1.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C28*60+D28*150+E28*180+F28*300)*(1+G28/100)^0.5*L28^0.5*M28"
+        },
+        {
+          "id": "a30",
+          "name": "下军",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C30*60+D30*150+E30*180+F30*300)*(1+G30/100)^0.5*L30^0.5*M30"
+        },
+        {
+          "id": "a32",
+          "name": "新军",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C32*60+D32*150+E32*180+F32*300)*(1+G32/100)^0.5*L32^0.5*M32"
+        },
+        {
+          "id": "a34",
+          "name": "独立骑兵",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 220.0,
+          "costElite": 0.0,
+          "costCavalry": 0.0,
+          "costChariots": 0.0,
+          "upkeepFormula": "=C34*220*(1+G34/100)^0.5*L34^0.5*M34"
+        },
+        {
+          "id": "a36",
+          "name": "水师",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 300.0,
+          "costElite": 0.0,
+          "costCavalry": 0.0,
+          "costChariots": 0.0,
+          "upkeepFormula": "=C36*300*(1+G36/100)^0.5*L36^0.5*M36"
+        }
+      ],
+      "institutions": [
+        {
+          "id": "i4",
+          "name": "军团架构与指挥系统",
+          "description": "我们的军事体系初步架构，以中央军为核心，地方军为辅助，尽管指挥上尚有不足",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i6",
+          "name": "征兵与预备役制度",
+          "description": "我们的兵役制度比较混乱，募兵征兵相结合，预备役制度存在但不够清晰",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i8",
+          "name": "后勤运输与保障能力",
+          "description": "我们的后勤体系极其低效，辎重运输和物资保障不足",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i10",
+          "name": "武备生产技术",
+          "description": "我们的武备生产技术可圈可点，在分散工匠的精心生产下有着稳定的产出",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i12",
+          "name": "工程建造技术",
+          "description": "我们的工程建造技术缺乏组织，分散各地，产能有限，但具备基本建造能力",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i14",
+          "name": "军功制度",
+          "description": "我们国家的军功制度并未体系化，依赖于君王的一时恩德",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i16",
+          "name": "军事训练模式",
+          "description": "我们的军事训练依靠将军的个人理解，并未系统性的培训与传承",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i18",
+          "name": "军事人才发掘、培养与晋升",
+          "description": "我们的军事人才更多依靠将军的代传、举荐，并无系统性的发掘与培养",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i20",
+          "name": "军法与军纪建设",
+          "description": "我国的军法军纪建设正在起步，一些基础军法得到执行",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i22",
+          "name": "土地所有、开发与流转制度",
+          "description": "我们的土地制度为事实上的土地私有，但缺乏国家层面的详尽田籍",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i24",
+          "name": "中央官僚架构、协作与运行",
+          "description": "我们的中央官僚架构稳定运行，尽管尚有大量春秋遗存的低效机制",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i26",
+          "name": "地方管理与治理",
+          "description": "地方上我们依赖封君和有限的郡县邑治理，实际治理不下乡",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i28",
+          "name": "法律体系与执法",
+          "description": "我们的法律体系停留在琐碎的案例，依仗于执法官员的个人理解",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i30",
+          "name": "国家指导理念",
+          "description": "我们国家并无确切的指导理念，朝臣各执己见，缺乏长期执行的原则",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i32",
+          "name": "行政人才发掘、培养与晋升",
+          "description": "我们的行政人才依靠老人对新人的举荐、培养和提拔，范围窄且亲亲相护现象明显",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i34",
+          "name": "商业发展与管制",
+          "description": "我们的商业有着初步管制以及政府监督，但商业税体系并不完善",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i36",
+          "name": "贵族的清退机制",
+          "description": "贵族并不会轻易清退，没有犯大错的情况下完全是世卿世禄，成为国家机器的蠹虫",
+          "level": 1,
+          "reformPoint": null
+        }
+      ],
+      "situations": [
+        {
+          "id": "s28",
+          "name": "宜阳铁矿",
+          "description": "宜阳铁矿是韩国官办铁矿，收益归公"
+        },
+        {
+          "id": "s30",
+          "name": "平阳铁矿",
+          "description": "平阳铁矿是韩国官办铁矿，收益归公"
+        },
+        {
+          "id": "s32",
+          "name": "严党",
+          "description": "严党在朝中大权独揽、贪赃成性"
+        }
+      ]
+    },
+    {
+      "id": "zhao",
+      "name": "赵",
+      "reserve": 8.0,
+      "adminLevel": 0.6,
+      "militaryDiscipline": 0.65,
+      "corruption": 0.3,
+      "treasury": 500.0,
+      "weights": {
+        "du": 120.0,
+        "cheng": 60.0,
+        "yi": 16.0
+      },
+      "populationGroups": [
+        {
+          "id": "g43",
+          "name": "河水沿岸",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 8.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.6,
+          "household": 0.8,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 16.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g44",
+          "name": "晋中",
+          "du": 1.0,
+          "cheng": 0.0,
+          "yi": 15.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.68,
+          "household": 0.73,
+          "base": 12.0,
+          "weightDu": 80.0,
+          "weightCheng": 60.0,
+          "weightYi": 22.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g45",
+          "name": "洹东",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 5.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.68,
+          "household": 0.68,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 25.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g46",
+          "name": "大河间",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 19.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.65,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 25.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g47",
+          "name": "大河内",
+          "du": 1.0,
+          "cheng": 4.0,
+          "yi": 20.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.68,
+          "household": 0.73,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 50.0,
+          "weightYi": 25.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g48",
+          "name": "上党",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 9.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.62,
+          "household": 0.65,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 20.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g49",
+          "name": "晋北代地",
+          "du": 0.0,
+          "cheng": 1.0,
+          "yi": 13.0,
+          "wild": 0.0,
+          "adjustment": 30.0,
+          "development": 0.6,
+          "household": 0.6,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 16.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        }
+      ],
+      "taxes": [
+        {
+          "id": "t3",
+          "name": "农业普税",
+          "baseLabel": "全国国人",
+          "groupIds": [
+            "g43",
+            "g44",
+            "g45",
+            "g46",
+            "g47",
+            "g48",
+            "g49"
+          ],
+          "amount": 6000.0,
+          "efficiency": 0.8
+        },
+        {
+          "id": "t4",
+          "name": "苛捐杂税",
+          "baseLabel": "全国国人",
+          "groupIds": [
+            "g43",
+            "g44",
+            "g45",
+            "g46",
+            "g47",
+            "g48",
+            "g49"
+          ],
+          "amount": 1200.0,
+          "efficiency": 0.5
+        }
+      ],
+      "expenses": [
+        {
+          "id": "e517",
+          "name": "国都",
+          "kind": "Project",
+          "amount": -80.0
+        },
+        {
+          "id": "e617",
+          "name": "赵长城",
+          "kind": "Project",
+          "amount": -100.0
+        },
+        {
+          "id": "e519",
+          "name": "邯郸铁矿",
+          "kind": "Modifier",
+          "amount": 120.0
+        },
+        {
+          "id": "e619",
+          "name": "马市",
+          "kind": "Modifier",
+          "amount": 120.0
+        },
+        {
+          "id": "e719",
+          "name": "卫国",
+          "kind": "Modifier",
+          "amount": 200.0
+        },
+        {
+          "id": "e819",
+          "name": "西北骚扰",
+          "kind": "Modifier",
+          "amount": -300.0
+        }
+      ],
+      "armies": [
+        {
+          "id": "a26",
+          "name": "晋中军",
+          "infantry": 3.0,
+          "elite": 1.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 40.0,
+          "station": "晋中",
+          "commander": "赵成",
+          "note": null,
+          "readiness": 1.0,
+          "supply": 1.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C26*60+D26*150+E26*180+F26*300)*(1+G26/100)^0.5*L26^0.5*M26"
+        },
+        {
+          "id": "a28",
+          "name": "中牟军",
+          "infantry": 3.0,
+          "elite": 1.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 45.0,
+          "station": "中牟",
+          "commander": "赵章",
+          "note": null,
+          "readiness": 1.0,
+          "supply": 1.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C28*60+D28*150+E28*180+F28*300)*(1+G28/100)^0.5*L28^0.5*M28"
+        },
+        {
+          "id": "a30",
+          "name": "代地军",
+          "infantry": 2.0,
+          "elite": 0.0,
+          "cavalry": 1.0,
+          "chariots": 0.0,
+          "training": 45.0,
+          "station": "代邑",
+          "commander": null,
+          "note": null,
+          "readiness": 2.0,
+          "supply": 1.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C30*60+D30*150+E30*180+F30*300)*(1+G30/100)^0.5*L30^0.5*M30"
+        },
+        {
+          "id": "a32",
+          "name": "新军",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C32*60+D32*150+E32*180+F32*300)*(1+G32/100)^0.5*L32^0.5*M32"
+        },
+        {
+          "id": "a34",
+          "name": "独立骑兵",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 220.0,
+          "costElite": 0.0,
+          "costCavalry": 0.0,
+          "costChariots": 0.0,
+          "upkeepFormula": "=C34*220*(1+G34/100)^0.5*L34^0.5*M34"
+        },
+        {
+          "id": "a36",
+          "name": "水师",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 300.0,
+          "costElite": 0.0,
+          "costCavalry": 0.0,
+          "costChariots": 0.0,
+          "upkeepFormula": "=C36*300*(1+G36/100)^0.5*L36^0.5*M36"
+        }
+      ],
+      "institutions": [
+        {
+          "id": "i4",
+          "name": "军团架构与指挥系统",
+          "description": "我们的军事指挥体系混乱不堪，军团架构混乱不清，中央军和地方军界限模糊",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i6",
+          "name": "征兵与预备役制度",
+          "description": "我们的兵役制度并不完善，募兵征兵条例不清晰，预备役制度潦草",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i8",
+          "name": "后勤运输与保障能力",
+          "description": "我们的后勤体系极其低效，辎重运输和物资保障不足",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i10",
+          "name": "武备生产技术",
+          "description": "我们的武备生产技术可圈可点，在分散工匠的精心生产下有着稳定的产出",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i12",
+          "name": "工程建造技术",
+          "description": "我们的工程建造技术缺乏组织，分散各地，产能有限，但具备基本建造能力",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i14",
+          "name": "军功制度",
+          "description": "我们国家的军功制度并未体系化，依赖于君王的一时恩德",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i16",
+          "name": "军事训练模式",
+          "description": "我们的军事训练依靠将军的个人理解，并未系统性的培训与传承",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i18",
+          "name": "军事人才发掘、培养与晋升",
+          "description": "我们的军事人才更多依靠将军的代传、举荐，并无系统性的发掘与培养",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i20",
+          "name": "军法与军纪建设",
+          "description": "我国的军法军纪建设几乎是空白，全凭士兵的朴素道德来管，以至于劫掠屠城频发",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i22",
+          "name": "土地所有、开发与流转制度",
+          "description": "我们的土地制度为事实上的土地私有，但缺乏国家层面的详尽田籍",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i24",
+          "name": "中央官僚架构、协作与运行",
+          "description": "我们的中央官僚架构稳定运行，尽管尚有大量春秋遗存的低效机制",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i26",
+          "name": "地方管理与治理",
+          "description": "地方上我们依赖封君和有限的郡县邑治理，实际治理不下乡",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i28",
+          "name": "法律体系与执法",
+          "description": "我们的法律体系停留在琐碎的案例，依仗于执法官员的个人理解",
+          "level": 1,
+          "reformPoint": "@"
+        },
+        {
+          "id": "i30",
+          "name": "国家指导理念",
+          "description": "我们国家并无确切的指导理念，朝臣各执己见，缺乏长期执行的原则",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i32",
+          "name": "行政人才发掘、培养与晋升",
+          "description": "我们的行政人才依靠老人对新人的举荐、培养和提拔，范围窄且亲亲相护现象明显",
+          "level": 1,
+          "reformPoint": "@"
+        },
+        {
+          "id": "i34",
+          "name": "商业发展与管制",
+          "description": "我们的商业缺乏管制，野蛮粗放发展，后劲严重不足，不成气候",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i36",
+          "name": "贵族的清退机制",
+          "description": "贵族并不会轻易清退，没有犯大错的情况下完全是世卿世禄，成为国家机器的蠹虫",
+          "level": 1,
+          "reformPoint": null
+        }
+      ],
+      "situations": [
+        {
+          "id": "s28",
+          "name": "邯郸铁矿",
+          "description": "邯郸铁矿是赵国官办铁矿，收益归公"
+        },
+        {
+          "id": "s30",
+          "name": "马市",
+          "description": "我们在西北向其他部族购买马匹，转销内地以获利"
+        },
+        {
+          "id": "s32",
+          "name": "西北袭扰",
+          "description": "西北部族袭扰我们边境"
+        }
+      ]
+    },
+    {
+      "id": "qin",
+      "name": "秦",
+      "reserve": 6.0,
+      "adminLevel": 0.6,
+      "militaryDiscipline": 0.6,
+      "corruption": 0.3,
+      "treasury": 500.0,
+      "weights": {
+        "du": 120.0,
+        "cheng": 60.0,
+        "yi": 30.0
+      },
+      "populationGroups": [
+        {
+          "id": "g43",
+          "name": "六大氏族",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 10.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.7,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g44",
+          "name": "东关中",
+          "du": 0.0,
+          "cheng": 2.0,
+          "yi": 7.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.6,
+          "household": 0.65,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 25.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g45",
+          "name": "中关中",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 8.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.63,
+          "household": 0.68,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 28.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g46",
+          "name": "西关中",
+          "du": 1.0,
+          "cheng": 1.0,
+          "yi": 7.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.66,
+          "household": 0.73,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 30.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g47",
+          "name": "南关中",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 10.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.63,
+          "household": 0.68,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 25.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g48",
+          "name": "西部",
+          "du": 0.0,
+          "cheng": 1.0,
+          "yi": 10.0,
+          "wild": 60.0,
+          "adjustment": 0.0,
+          "development": 0.6,
+          "household": 0.68,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 60.0,
+          "weightYi": 20.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        }
+      ],
+      "taxes": [
+        {
+          "id": "t3",
+          "name": "农业普税",
+          "baseLabel": "全国国人不含氏族",
+          "groupIds": [
+            "g44",
+            "g45",
+            "g46",
+            "g47",
+            "g48"
+          ],
+          "amount": 3600.0,
+          "efficiency": 0.8
+        },
+        {
+          "id": "t4",
+          "name": "苛捐杂税",
+          "baseLabel": "全国国人不含氏族",
+          "groupIds": [
+            "g44",
+            "g45",
+            "g46",
+            "g47",
+            "g48"
+          ],
+          "amount": 800.0,
+          "efficiency": 0.5
+        },
+        {
+          "id": "t5",
+          "name": "氏族杂捐",
+          "baseLabel": "六大氏族",
+          "groupIds": [
+            "g43"
+          ],
+          "amount": 500.0,
+          "efficiency": 0.75
+        }
+      ],
+      "expenses": [
+        {
+          "id": "e517",
+          "name": "国都",
+          "kind": "Project",
+          "amount": -60.0
+        },
+        {
+          "id": "e519",
+          "name": "蓝田美玉",
+          "kind": "Modifier",
+          "amount": 80.0
+        },
+        {
+          "id": "e619",
+          "name": "西北骚扰",
+          "kind": "Modifier",
+          "amount": -200.0
+        }
+      ],
+      "armies": [
+        {
+          "id": "a26",
+          "name": "中军",
+          "infantry": 6.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 40.0,
+          "station": "栎阳",
+          "commander": null,
+          "note": null,
+          "readiness": 1.0,
+          "supply": 1.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C26*60+D26*150+E26*180+F26*300)*(1+G26/100)^0.5*L26^0.5*M26"
+        },
+        {
+          "id": "a28",
+          "name": "上军",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C28*60+D28*150+E28*180+F28*300)*(1+G28/100)^0.5*L28^0.5*M28"
+        },
+        {
+          "id": "a30",
+          "name": "下军",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C30*60+D30*150+E30*180+F30*300)*(1+G30/100)^0.5*L30^0.5*M30"
+        },
+        {
+          "id": "a32",
+          "name": "新军",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C32*60+D32*150+E32*180+F32*300)*(1+G32/100)^0.5*L32^0.5*M32"
+        },
+        {
+          "id": "a34",
+          "name": "独立骑兵",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 220.0,
+          "costElite": 0.0,
+          "costCavalry": 0.0,
+          "costChariots": 0.0,
+          "upkeepFormula": "=C34*220*(1+G34/100)^0.5*L34^0.5*M34"
+        },
+        {
+          "id": "a36",
+          "name": "水师",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 300.0,
+          "costElite": 0.0,
+          "costCavalry": 0.0,
+          "costChariots": 0.0,
+          "upkeepFormula": "=C36*300*(1+G36/100)^0.5*L36^0.5*M36"
+        }
+      ],
+      "institutions": [
+        {
+          "id": "i4",
+          "name": "军团架构与指挥系统",
+          "description": "我们的军事指挥体系混乱不堪，军团架构混乱不清，中央军和地方军界限模糊",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i6",
+          "name": "征兵与预备役制度",
+          "description": "我们的兵役制度并不完善，募兵征兵条例不清晰，预备役制度潦草",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i8",
+          "name": "后勤运输与保障能力",
+          "description": "我们的后勤体系极其低效，辎重运输和物资保障不足",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i10",
+          "name": "武备生产技术",
+          "description": "我们的武备生产极其低效，基本是士兵自筹、民间工匠不成标准的制造",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i12",
+          "name": "工程建造技术",
+          "description": "我们的工程建造技术缺乏组织，分散各地，产能有限，但具备基本建造能力",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i14",
+          "name": "军功制度",
+          "description": "我们国家的军功制度并未体系化，依赖于君王的一时恩德",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i16",
+          "name": "军事训练模式",
+          "description": "我们的军事训练依靠将军的个人理解，并未系统性的培训与传承",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i18",
+          "name": "军事人才发掘、培养与晋升",
+          "description": "我们的军事人才更多依靠将军的代传、举荐，并无系统性的发掘与培养",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i20",
+          "name": "军法与军纪建设",
+          "description": "我国的军法军纪建设几乎是空白，全凭士兵的朴素道德来管，以至于劫掠屠城频发",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i22",
+          "name": "土地所有、开发与流转制度",
+          "description": "我们的土地制度为事实上的土地私有，但缺乏国家层面的详尽田籍",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i24",
+          "name": "中央官僚架构、协作与运行",
+          "description": "我们的中央官僚架构延续春秋形制，已经与时代略有脱节",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i26",
+          "name": "地方管理与治理",
+          "description": "地方上我们完全依赖地方势力的治理，管理松散，缺乏体系",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i28",
+          "name": "法律体系与执法",
+          "description": "我们的法律体系停留在琐碎的案例，依仗于执法官员的个人理解",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i30",
+          "name": "国家指导理念",
+          "description": "我们国家并无确切的指导理念，朝臣各执己见，缺乏长期执行的原则",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i32",
+          "name": "行政人才发掘、培养与晋升",
+          "description": "我们的行政人才依靠老人对新人的举荐、培养和提拔，范围窄且亲亲相护现象明显",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i34",
+          "name": "商业发展与管制",
+          "description": "我们的商业缺乏管制，野蛮粗放发展，后劲严重不足，不成气候",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i36",
+          "name": "贵族的清退机制",
+          "description": "贵族并不会轻易清退，没有犯大错的情况下完全是世卿世禄，成为国家机器的蠹虫",
+          "level": 1,
+          "reformPoint": null
+        }
+      ],
+      "situations": [
+        {
+          "id": "s28",
+          "name": "蓝田美玉",
+          "description": "邯郸铁矿是秦国官办铁矿，收益归公"
+        },
+        {
+          "id": "s30",
+          "name": "人殉制度",
+          "description": "秦国的人殉制度影响恶劣，外臣不愿来秦，内人不尽力"
+        },
+        {
+          "id": "s32",
+          "name": "西北袭扰",
+          "description": "西北部族袭扰我们边境"
+        }
+      ]
+    },
+    {
+      "id": "yue",
+      "name": "越",
+      "reserve": 6.0,
+      "adminLevel": 0.6,
+      "militaryDiscipline": 0.6,
+      "corruption": 0.3,
+      "treasury": 600.0,
+      "weights": {
+        "du": 80.0,
+        "cheng": 30.0,
+        "yi": 13.0
+      },
+      "populationGroups": [
+        {
+          "id": "g43",
+          "name": "江南吴地",
+          "du": 1.0,
+          "cheng": 1.0,
+          "yi": 28.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.7,
+          "household": 0.76,
+          "base": 12.0,
+          "weightDu": 80.0,
+          "weightCheng": 30.0,
+          "weightYi": 13.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g44",
+          "name": "江北淮南",
+          "du": 0.0,
+          "cheng": 1.0,
+          "yi": 14.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.63,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 80.0,
+          "weightCheng": 30.0,
+          "weightYi": 20.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g45",
+          "name": "淮北",
+          "du": 1.0,
+          "cheng": 0.0,
+          "yi": 11.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.66,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 80.0,
+          "weightCheng": 30.0,
+          "weightYi": 23.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g46",
+          "name": "赣水",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 4.0,
+          "wild": 30.0,
+          "adjustment": 0.0,
+          "development": 0.63,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 80.0,
+          "weightCheng": 30.0,
+          "weightYi": 20.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g47",
+          "name": "越人",
+          "du": 1.0,
+          "cheng": 1.0,
+          "yi": 22.0,
+          "wild": 30.0,
+          "adjustment": 0.0,
+          "development": 0.7,
+          "household": 0.76,
+          "base": 12.0,
+          "weightDu": 80.0,
+          "weightCheng": 30.0,
+          "weightYi": 13.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g48",
+          "name": "水上人",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 0.0,
+          "wild": 150.0,
+          "adjustment": 0.0,
+          "development": 0.66,
+          "household": 0.73,
+          "base": 12.0,
+          "weightDu": 80.0,
+          "weightCheng": 30.0,
+          "weightYi": 25.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        }
+      ],
+      "taxes": [
+        {
+          "id": "t3",
+          "name": "农业普税",
+          "baseLabel": "全国国人",
+          "groupIds": [
+            "g43",
+            "g44",
+            "g45",
+            "g46",
+            "g47"
+          ],
+          "amount": 4600.0,
+          "efficiency": 0.8
+        },
+        {
+          "id": "t4",
+          "name": "苛捐杂税",
+          "baseLabel": "全国国人",
+          "groupIds": [
+            "g43",
+            "g44",
+            "g45",
+            "g46",
+            "g47"
+          ],
+          "amount": 1000.0,
+          "efficiency": 0.5
+        }
+      ],
+      "expenses": [
+        {
+          "id": "e517",
+          "name": "越城防御",
+          "kind": "Project",
+          "amount": -60.0
+        },
+        {
+          "id": "e617",
+          "name": "琅琊防御",
+          "kind": "Project",
+          "amount": -60.0
+        },
+        {
+          "id": "e519",
+          "name": "滕国",
+          "kind": "Modifier",
+          "amount": 20.0
+        },
+        {
+          "id": "e619",
+          "name": "薛国",
+          "kind": "Modifier",
+          "amount": 20.0
+        },
+        {
+          "id": "e719",
+          "name": "鄫国",
+          "kind": "Modifier",
+          "amount": 20.0
+        },
+        {
+          "id": "e819",
+          "name": "郯国",
+          "kind": "Modifier",
+          "amount": 20.0
+        },
+        {
+          "id": "e919",
+          "name": "煮海",
+          "kind": "Modifier",
+          "amount": 20.0
+        },
+        {
+          "id": "e1019",
+          "name": "罗绢",
+          "kind": "Modifier",
+          "amount": 200.0
+        }
+      ],
+      "armies": [
+        {
+          "id": "a26",
+          "name": "北军",
+          "infantry": 1.0,
+          "elite": 1.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 45.0,
+          "station": "琅琊",
+          "commander": "公子诸咎",
+          "note": null,
+          "readiness": 1.0,
+          "supply": 1.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C26*60+D26*150+E26*180+F26*300)*(1+G26/100)^0.5*L26^0.5*M26"
+        },
+        {
+          "id": "a28",
+          "name": "南军",
+          "infantry": 2.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 40.0,
+          "station": "越",
+          "commander": "越豫",
+          "note": null,
+          "readiness": 1.0,
+          "supply": 1.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C28*60+D28*150+E28*180+F28*300)*(1+G28/100)^0.5*L28^0.5*M28"
+        },
+        {
+          "id": "a30",
+          "name": "荆王军",
+          "infantry": 0.0,
+          "elite": 3.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 50.0,
+          "station": "钟离",
+          "commander": "越歌",
+          "note": null,
+          "readiness": 1.0,
+          "supply": 1.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C30*60+D30*150+E30*180+F30*300)*(1+G30/100)^0.5*L30^0.5*M30"
+        },
+        {
+          "id": "a32",
+          "name": "新军",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C32*60+D32*150+E32*180+F32*300)*(1+G32/100)^0.5*L32^0.5*M32"
+        },
+        {
+          "id": "a34",
+          "name": "独立骑兵",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 220.0,
+          "costElite": 0.0,
+          "costCavalry": 0.0,
+          "costChariots": 0.0,
+          "upkeepFormula": "=C34*220*(1+G34/100)^0.5*L34^0.5*M34"
+        },
+        {
+          "id": "a36",
+          "name": "水师",
+          "infantry": 3.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": null,
+          "readiness": 0.5,
+          "supply": 0.5,
+          "costInfantry": 250.0,
+          "costElite": 0.0,
+          "costCavalry": 0.0,
+          "costChariots": 0.0,
+          "upkeepFormula": "=C36*250*(1+G36/100)^0.5*L36^0.5*M36"
+        }
+      ],
+      "institutions": [
+        {
+          "id": "i4",
+          "name": "军团架构与指挥系统",
+          "description": "我们的军事指挥体系混乱不堪，军团架构混乱不清，中央军和地方军界限模糊",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i6",
+          "name": "征兵与预备役制度",
+          "description": "我们的兵役制度并不完善，募兵征兵条例不清晰，预备役制度潦草",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i8",
+          "name": "后勤运输与保障能力",
+          "description": "我们的后勤体系极其低效，辎重运输和物资保障不足",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i10",
+          "name": "武备生产技术",
+          "description": "我们的武备生产技术可圈可点，在分散工匠的精心生产下有着稳定的产出",
+          "level": 2,
+          "reformPoint": "@"
+        },
+        {
+          "id": "i12",
+          "name": "工程建造技术",
+          "description": "我们的工程建造技术缺乏组织，分散各地，产能有限，但具备基本建造能力",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i14",
+          "name": "军功制度",
+          "description": "我们国家的军功制度并未体系化，依赖于君王的一时恩德",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i16",
+          "name": "军事训练模式",
+          "description": "我们的军事训练依靠将军的个人理解，并未系统性的培训与传承",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i18",
+          "name": "军事人才发掘、培养与晋升",
+          "description": "我们的军事人才更多依靠将军的代传、举荐，并无系统性的发掘与培养",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i20",
+          "name": "军法与军纪建设",
+          "description": "我国的军法军纪建设几乎是空白，全凭士兵的朴素道德来管，以至于劫掠屠城频发",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i22",
+          "name": "土地所有、开发与流转制度",
+          "description": "我们的土地制度为事实上的土地私有，但缺乏国家层面的详尽田籍",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i24",
+          "name": "中央官僚架构、协作与运行",
+          "description": "我们的中央官僚架构延续春秋形制，已经与时代略有脱节",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i26",
+          "name": "地方管理与治理",
+          "description": "地方上我们完全依赖地方势力的治理，管理松散，缺乏体系",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i28",
+          "name": "法律体系与执法",
+          "description": "我们的法律体系停留在琐碎的案例，依仗于执法官员的个人理解",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i30",
+          "name": "国家指导理念",
+          "description": "我们国家并无确切的指导理念，朝臣各执己见，缺乏长期执行的原则",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i32",
+          "name": "行政人才发掘、培养与晋升",
+          "description": "我们的行政人才依靠老人对新人的举荐、培养和提拔，范围窄且亲亲相护现象明显",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i34",
+          "name": "商业发展与管制",
+          "description": "我们的商业缺乏管制，野蛮粗放发展，后劲严重不足，不成气候",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i36",
+          "name": "贵族的清退机制",
+          "description": "贵族并不会轻易清退，没有犯大错的情况下完全是世卿世禄，成为国家机器的蠹虫",
+          "level": 1,
+          "reformPoint": null
+        }
+      ],
+      "situations": [
+        {
+          "id": "s28",
+          "name": "煮海",
+          "description": "越国煮海制盐以谋取利润，越国政府从中获益"
+        },
+        {
+          "id": "s30",
+          "name": "铸山",
+          "description": "越国铸造业发达，但是属于民间师承"
+        },
+        {
+          "id": "s32",
+          "name": "造船",
+          "description": "越国造船业发达，水师突出"
+        },
+        {
+          "id": "s34",
+          "name": "吴越罗绢",
+          "description": "越国丝绸产业突出，品质上乘，政府从中获益"
+        },
+        {
+          "id": "s36",
+          "name": "邗沟",
+          "description": "邗沟维护给淮南百姓带来了沉重的徭役负担"
+        }
+      ]
+    },
+    {
+      "id": "chu",
+      "name": "楚",
+      "reserve": 8.0,
+      "adminLevel": 0.6,
+      "militaryDiscipline": 0.6,
+      "corruption": 0.3,
+      "treasury": 200.0,
+      "weights": {
+        "du": 120.0,
+        "cheng": 50.0,
+        "yi": 23.0
+      },
+      "populationGroups": [
+        {
+          "id": "g43",
+          "name": "三闾",
+          "du": 0.0,
+          "cheng": 4.0,
+          "yi": 25.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.7,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 50.0,
+          "weightYi": 23.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g44",
+          "name": "南阳",
+          "du": 0.0,
+          "cheng": 2.0,
+          "yi": 23.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.7,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 50.0,
+          "weightYi": 25.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g45",
+          "name": "商於",
+          "du": 0.0,
+          "cheng": 1.0,
+          "yi": 14.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.7,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 50.0,
+          "weightYi": 18.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g46",
+          "name": "江夏唐随",
+          "du": 1.0,
+          "cheng": 1.0,
+          "yi": 30.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.7,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 50.0,
+          "weightYi": 22.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g47",
+          "name": "西陲",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 5.0,
+          "wild": 20.0,
+          "adjustment": 0.0,
+          "development": 0.7,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 50.0,
+          "weightYi": 20.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g48",
+          "name": "江南",
+          "du": 0.0,
+          "cheng": 0.0,
+          "yi": 11.0,
+          "wild": 20.0,
+          "adjustment": 0.0,
+          "development": 0.7,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 50.0,
+          "weightYi": 15.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g49",
+          "name": "淮北",
+          "du": 0.0,
+          "cheng": 3.0,
+          "yi": 30.0,
+          "wild": 0.0,
+          "adjustment": 0.0,
+          "development": 0.7,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 120.0,
+          "weightCheng": 50.0,
+          "weightYi": 22.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        },
+        {
+          "id": "g50",
+          "name": "淮南",
+          "du": 1.0,
+          "cheng": 1.0,
+          "yi": 19.0,
+          "wild": 30.0,
+          "adjustment": 0.0,
+          "development": 0.7,
+          "household": 0.7,
+          "base": 12.0,
+          "weightDu": 80.0,
+          "weightCheng": 50.0,
+          "weightYi": 20.0,
+          "coreCity": null,
+          "popType": "农民",
+          "note": null
+        }
+      ],
+      "taxes": [
+        {
+          "id": "t3",
+          "name": "农业普税",
+          "baseLabel": "全国国人",
+          "groupIds": [
+            "g44",
+            "g45",
+            "g46",
+            "g47",
+            "g48",
+            "g49",
+            "g50"
+          ],
+          "amount": 8000.0,
+          "efficiency": 0.8
+        },
+        {
+          "id": "t4",
+          "name": "苛捐杂税",
+          "baseLabel": "全国国人",
+          "groupIds": [
+            "g44",
+            "g45",
+            "g46",
+            "g47",
+            "g48",
+            "g49",
+            "g50"
+          ],
+          "amount": 2000.0,
+          "efficiency": 0.5
+        },
+        {
+          "id": "t5",
+          "name": "贵族杂捐",
+          "baseLabel": "各家贵族",
+          "groupIds": [
+            "g43"
+          ],
+          "amount": 1000.0,
+          "efficiency": 0.75
+        }
+      ],
+      "expenses": [
+        {
+          "id": "e517",
+          "name": "纪郢",
+          "kind": "Project",
+          "amount": -80.0
+        },
+        {
+          "id": "e617",
+          "name": "章华台",
+          "kind": "Project",
+          "amount": -150.0
+        },
+        {
+          "id": "e717",
+          "name": "大方城",
+          "kind": "Project",
+          "amount": -300.0
+        },
+        {
+          "id": "e519",
+          "name": "随国",
+          "kind": "Modifier",
+          "amount": 30.0
+        },
+        {
+          "id": "e619",
+          "name": "下邳国",
+          "kind": "Modifier",
+          "amount": 20.0
+        },
+        {
+          "id": "e719",
+          "name": "贵族治理",
+          "kind": "Modifier",
+          "amount": 600.0
+        },
+        {
+          "id": "e819",
+          "name": "金道锡行",
+          "kind": "Modifier",
+          "amount": 600.0
+        }
+      ],
+      "armies": [
+        {
+          "id": "a26",
+          "name": "王师",
+          "infantry": 1.0,
+          "elite": 2.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 50.0,
+          "station": "安陆",
+          "commander": null,
+          "note": "犀甲军全灭",
+          "readiness": 1.0,
+          "supply": 1.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C26*60+D26*150+E26*180+F26*300)*(1+G26/100)^0.5*L26^0.5*M26"
+        },
+        {
+          "id": "a28",
+          "name": "南军",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C28*60+D28*150+E28*180+F28*300)*(1+G28/100)^0.5*L28^0.5*M28"
+        },
+        {
+          "id": "a30",
+          "name": "下军",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C30*60+D30*150+E30*180+F30*300)*(1+G30/100)^0.5*L30^0.5*M30"
+        },
+        {
+          "id": "a32",
+          "name": "新军",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 60.0,
+          "costElite": 150.0,
+          "costCavalry": 180.0,
+          "costChariots": 300.0,
+          "upkeepFormula": "=(C32*60+D32*150+E32*180+F32*300)*(1+G32/100)^0.5*L32^0.5*M32"
+        },
+        {
+          "id": "a34",
+          "name": "独立骑兵",
+          "infantry": 0.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": "未建设",
+          "readiness": 0.0,
+          "supply": 0.0,
+          "costInfantry": 220.0,
+          "costElite": 0.0,
+          "costCavalry": 0.0,
+          "costChariots": 0.0,
+          "upkeepFormula": "=C34*220*(1+G34/100)^0.5*L34^0.5*M34"
+        },
+        {
+          "id": "a36",
+          "name": "水师",
+          "infantry": 2.0,
+          "elite": 0.0,
+          "cavalry": 0.0,
+          "chariots": 0.0,
+          "training": 0.0,
+          "station": null,
+          "commander": null,
+          "note": null,
+          "readiness": 1.0,
+          "supply": 1.0,
+          "costInfantry": 300.0,
+          "costElite": 0.0,
+          "costCavalry": 0.0,
+          "costChariots": 0.0,
+          "upkeepFormula": "=C36*300*(1+G36/100)^0.5*L36^0.5*M36"
+        }
+      ],
+      "institutions": [
+        {
+          "id": "i4",
+          "name": "军团架构与指挥系统",
+          "description": "我们的军事指挥体系混乱不堪，军团架构混乱不清，中央军和地方军界限模糊",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i6",
+          "name": "征兵与预备役制度",
+          "description": "我们的兵役制度并不完善，募兵征兵条例不清晰，预备役制度潦草",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i8",
+          "name": "后勤运输与保障能力",
+          "description": "我们的后勤体系极其低效，辎重运输和物资保障不足",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i10",
+          "name": "武备生产技术",
+          "description": "我们的武备生产极其低效，基本是士兵自筹、民间工匠不成标准的制造",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i12",
+          "name": "工程建造技术",
+          "description": "我们的工程建造技术缺乏组织，分散各地，产能有限，但具备基本建造能力",
+          "level": 2,
+          "reformPoint": null
+        },
+        {
+          "id": "i14",
+          "name": "军功制度",
+          "description": "我们国家的军功制度并未体系化，依赖于君王的一时恩德",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i16",
+          "name": "军事训练模式",
+          "description": "我们的军事训练依靠将军的个人理解，并未系统性的培训与传承",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i18",
+          "name": "军事人才发掘、培养与晋升",
+          "description": "我们的军事人才更多依靠将军的代传、举荐，并无系统性的发掘与培养",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i20",
+          "name": "军法与军纪建设",
+          "description": "我国的军法军纪建设几乎是空白，全凭士兵的朴素道德来管，以至于劫掠屠城频发",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i22",
+          "name": "土地所有、开发与流转制度",
+          "description": "我们的土地制度为事实上的土地私有，但缺乏国家层面的详尽田籍",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i24",
+          "name": "中央官僚架构、协作与运行",
+          "description": "我们的中央官僚架构延续春秋形制，已经与时代略有脱节",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i26",
+          "name": "地方管理与治理",
+          "description": "地方上我们完全依赖地方势力的治理，管理松散，缺乏体系",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i28",
+          "name": "法律体系与执法",
+          "description": "我们的法律体系停留在琐碎的案例，依仗于执法官员的个人理解",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i30",
+          "name": "国家指导理念",
+          "description": "我们国家并无确切的指导理念，朝臣各执己见，缺乏长期执行的原则",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i32",
+          "name": "行政人才发掘、培养与晋升",
+          "description": "我们的行政人才依靠老人对新人的举荐、培养和提拔，范围窄且亲亲相护现象明显",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i34",
+          "name": "商业发展与管制",
+          "description": "我们的商业缺乏管制，野蛮粗放发展，后劲严重不足，不成气候",
+          "level": 1,
+          "reformPoint": null
+        },
+        {
+          "id": "i36",
+          "name": "贵族的清退机制",
+          "description": "贵族并不会轻易清退，没有犯大错的情况下完全是世卿世禄，成为国家机器的蠹虫",
+          "level": 1,
+          "reformPoint": null
+        }
+      ],
+      "situations": [
+        {
+          "id": "s28",
+          "name": "金道锡行",
+          "description": "南方富饶的矿产由楚国官方设卡收税"
+        },
+        {
+          "id": "s30",
+          "name": "犀甲",
+          "description": "云梦泽的犀牛保障了犀甲产出，可以武装3队犀甲兵"
+        },
+        {
+          "id": "s32",
+          "name": "淮南水利",
+          "description": "芍陂、期思陂、巢肥沟需要长期维护，当地人徭役负担重"
+        }
+      ]
+    }
+  ]
+}

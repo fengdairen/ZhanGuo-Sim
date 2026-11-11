@@ -22,6 +22,18 @@ pops = [{"id": r["id"], "city": r["city_id"], "group": r["group"],
          "amount": float(r["amount"]), "note": r.get("note", "")}
         for r in csv.DictReader((ROOT / "data" / "map" / "populations.csv").open(encoding="utf-8-sig"))]
 
+# 归属：国别清单 + 城池归属表
+state = json.loads((ROOT / "data" / "state.json").read_text(encoding="utf-8"))
+PALETTE = ["#c0392b", "#2980b9", "#27ae60", "#8e44ad", "#d35400",
+           "#16a085", "#2c3e50", "#c2185b", "#7f8c8d", "#f39c12"]
+nations = []
+for i, n in enumerate(state["nations"]):
+    nations.append({"id": n["id"], "name": n["name"], "color": PALETTE[i % len(PALETTE)]})
+owner = {}
+for r in csv.DictReader((ROOT / "data" / "map" / "ownership.csv").open(encoding="utf-8-sig")):
+    if r["owner"]:
+        owner[r["city_id"]] = r["owner"]
+
 TPL = r"""<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8">
 <title>战国演义 · 地图编辑器</title>
@@ -88,7 +100,8 @@ TPL = r"""<!DOCTYPE html>
   <button onclick="undo()">撤销</button>
   <button onclick="exportCSV()">导出地图 CSV</button>
   <button onclick="exportPops()">导出人口 CSV</button>
-  <button id="bindBtn" onclick="bindFile()">绑定本地文件（自动保存）</button>
+  <button id="bindBtn" onclick="bindFile()">绑定本地文件</button>
+  <button onclick="bindOwnerFile()">绑定归属文件</button>
   <span id="fstat" style="font-size:12px;color:#8a8d91"></span>
   <span id="stat"></span>
 </div>
@@ -129,6 +142,21 @@ TPL = r"""<!DOCTYPE html>
         <button onclick="setKind('邑')">邑</button>
         <button onclick="setKind('部族')">部族</button></div>
     </div>
+    <div class="box" id="ownBox">
+      <div class="k">城池归属（选中后可批量分配）</div>
+      <div class="k" id="ownNow" style="color:#ffd166"></div>
+      <div class="row">
+        <select id="ownNation" style="flex:1;background:#0f1115;color:#fff;border:1px solid #3a3d44;
+          border-radius:5px;padding:5px;font-family:inherit;font-size:12px"></select>
+      </div>
+      <div class="row">
+        <button onclick="assignSel(document.getElementById('ownNation').value)">分配</button>
+        <button onclick="assignSel('')">清除归属</button>
+      </div>
+      <div class="row">
+        <button onclick="exportOwner()">导出 ownership.csv</button>
+      </div>
+    </div>
     <div class="box" id="popBox" style="display:none">
       <div class="k">人口构成（改动即改总量）</div>
       <table style="width:100%;border-collapse:collapse;font-size:12px">
@@ -164,14 +192,18 @@ TPL = r"""<!DOCTYPE html>
 const DATA = __DATA__;
 const GROUPS0 = __GROUPS__;
 const POPS0 = __POPS__;
+const NATIONS = __NATIONS__;
+const OWNER0 = __OWNER__;
 const KEY = "zg_mapedit_v2";
 let items = DATA.map(d => Object.assign({}, d, {
   oname: d.name, opop: d.pop, ox: d.x, oy: d.y, del: false
 }));
 let groups = GROUPS0.map(g => Object.assign({}, g));
 let pops = POPS0.map(p => Object.assign({}, p));
+let owner = Object.assign({}, OWNER0);
 try { const s = localStorage.getItem(KEY); if (s) { const a = JSON.parse(s);
-  if (a && a.items && a.items.length === items.length) { items = a.items; pops = a.pops || pops; } } } catch(e) {}
+  if (a && a.items && a.items.length === items.length) {
+    items = a.items; pops = a.pops || pops; owner = a.owner || owner; } } } catch(e) {}
 const sel = new Set();
 let hist = [];
 let z = 1.2, tx = 0, ty = 0, mode = "sel";
@@ -188,6 +220,26 @@ function rowsOf(id){ return pops.filter(p => p.city === id); }
 function cityTotal(id){ return rowsOf(id).reduce((s,p) => s + p.amount, 0); }
 function syncPops(){ for (const it of items) it.pop = Math.round(cityTotal(it.id)*100)/100; }
 syncPops();
+
+/* ---------- 归属 ---------- */
+const NATION_BY_ID = {}; NATIONS.forEach(n => NATION_BY_ID[n.id] = n);
+function ownerColor(id){ const o = owner[id]; return o && NATION_BY_ID[o] ? NATION_BY_ID[o].color : null; }
+function paintOwner(){
+  for (const it of items){
+    if (!it._mk) continue;
+    const c = ownerColor(it.id);
+    it._mk.style.background = c ? c : "transparent";
+    it._mk.style.borderColor = c ? c : "";
+    it._mk.style.opacity = c ? "1" : "0.55";
+  }
+}
+function assignSel(nid){
+  if (!sel.size) return alert("请先选择城池");
+  snapshot();
+  for (const id of sel){ if (nid) owner[id] = nid; else delete owner[id]; }
+  save(); repaint();
+}
+function ownerLabel(id){ const o = owner[id]; return o && NATION_BY_ID[o] ? NATION_BY_ID[o].name : "未归属"; }
 
 function fmt(p){ return p>=10? p.toFixed(0) : (p<1? p.toFixed(2) : p.toFixed(1)); }
 function apply(){ world.style.transform = `translate(${tx}px,${ty}px) scale(${z})`;
@@ -237,6 +289,10 @@ function repaint(){
     arr.slice(0,12).map(it=>it.name||it.id).join("、") + (arr.length>12? " …" : "");
   document.getElementById("stat").innerHTML =
     `城邑/部族 <b>${alive}</b>　总人口 <b>${tot.toFixed(0)}</b> 万　已改 <b style="color:#ffd166">${chg}</b> 条`;
+  paintOwner();
+  const ov = sel.size===1 ? ownerLabel([...sel][0]) : "";
+  const oe = document.getElementById("ownNow");
+  if (oe) oe.textContent = sel.size===1 ? ("当前归属：" + ov) : "";
   const box=document.getElementById("list");
   box.innerHTML = arr.slice(0,200).map(it=>
     `<div class="it sel"><span>${it.name||'⌀'} <span class="k">${it.kind}</span></span><span>${fmt(it.pop)}</span></div>`
@@ -256,8 +312,8 @@ function undo(){
 }
 function save(){
   try { localStorage.setItem(KEY, JSON.stringify({
-    items: items.map(({_mk,_lb,...r})=>r), pops: pops })); } catch(e){}
-  scheduleWrite();
+    items: items.map(({_mk,_lb,...r})=>r), pops: pops, owner: owner })); } catch(e){}
+  scheduleWrite(); ownerSchedule();
 }
 
 /* ---------- 绑定本地文件，自动写盘 ---------- */
@@ -589,13 +645,60 @@ function exportPops(){
   a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
   a.download="populations.csv"; a.click(); URL.revokeObjectURL(a.href);
 }
+function ownerCsv(){
+  const rows=[["city_id","owner","note"]];
+  items.forEach(it=>rows.push([it.id, owner[it.id]||"", ""]));
+  return "\ufeff"+rows.map(r=>r.join(",")).join("\r\n");
+}
+function exportOwner(){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([ownerCsv()],{type:"text/csv;charset=utf-8"}));
+  a.download="ownership.csv"; a.click(); URL.revokeObjectURL(a.href);
+}
+/* 绑定归属文件（自动保存） */
+let ofh=null, otimer=null, owriting=false;
+async function bindOwnerFile(){
+  if(!window.showSaveFilePicker){ alert("需要 Chrome / Edge"); return; }
+  try{
+    ofh=await window.showSaveFilePicker({suggestedName:"ownership.csv",
+      types:[{description:"CSV",accept:{"text/csv":[".csv"]}}]});
+    await ownerWrite();
+  }catch(e){ if(e.name!=="AbortError") alert("绑定失败："+e.message); }
+}
+async function ownerWrite(){
+  if(!ofh||owriting) return; owriting=true;
+  try{
+    const w=await ofh.createWritable();
+    await w.write(new Blob([ownerCsv()],{type:"text/csv"}));
+    await w.close();
+    const el=document.getElementById("fstat");
+    if(el){ el.textContent="归属已保存 → "+ofh.name+"（"+new Date().toLocaleTimeString()+"）"; el.style.color="#7dd3a0"; }
+  }catch(e){
+    const el=document.getElementById("fstat");
+    if(el){ el.textContent="归属写入失败："+e.message; el.style.color="#f0a8a8"; }
+  }finally{ owriting=false; }
+}
+function ownerSchedule(){ if(!ofh) return; clearTimeout(otimer); otimer=setTimeout(ownerWrite,800); }
 
 fitCanvas(); build(); center(5000,3700,1.2);
+(function initNations(){
+  const s=document.getElementById("ownNation");
+  s.innerHTML = NATIONS.map(n=>`<option value="${n.id}">${n.name}</option>`).join("");
+})();
+/* 深链：#n0123 → 定位该城 */
+(function deepLink(){
+  const h = (location.hash || "").replace(/^#/, "");
+  if (!h) return;
+  const it = byId[h];
+  if (it){ sel.clear(); sel.add(h); center(it.x, it.y, Math.max(z, 1.8)); repaint(); }
+})();
 </script></body></html>"""
 
 html = (TPL.replace("__DATA__", json.dumps(items, ensure_ascii=False))
            .replace("__GROUPS__", json.dumps(groups, ensure_ascii=False))
            .replace("__POPS__", json.dumps(pops, ensure_ascii=False))
+           .replace("__NATIONS__", json.dumps(nations, ensure_ascii=False))
+           .replace("__OWNER__", json.dumps(owner, ensure_ascii=False))
            .replace("W_PX", str(W)).replace("H_PX", str(H)))
 
 OUT.write_text(html.replace("__IMG__", "../../../ditu.png"), encoding="utf-8")
@@ -608,5 +711,7 @@ PKG.mkdir(parents=True, exist_ok=True)
 shutil.copy2(ROOT / "ditu.png", PKG / "ditu.png")
 
 print("items", len(items), "->", OUT, round(OUT.stat().st_size/1024), "KB")
+
+
 
 

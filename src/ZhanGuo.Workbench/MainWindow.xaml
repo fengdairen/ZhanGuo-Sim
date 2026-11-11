@@ -272,6 +272,44 @@
                 </TabItem>
 
                 <!-- ============ 时局 ============ -->
+                <!-- ============ 城池（地图层） ============ -->
+                <TabItem Header="城池">
+                    <DockPanel Margin="6">
+                        <Border DockPanel.Dock="Top" Padding="0,0,0,6">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="搜索" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBox x:Name="CitySearch" Width="140" Margin="0,0,12,0"
+                                         TextChanged="CitySearch_Changed"/>
+                                <TextBlock Text="类型" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <ComboBox x:Name="CityKind" Width="90" Margin="0,0,12,0"
+                                          SelectionChanged="CityFilter_Changed"/>
+                                <TextBlock Text="归属" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <ComboBox x:Name="CityOwnerFilter" Width="110" Margin="0,0,18,0"
+                                          SelectionChanged="CityFilter_Changed"/>
+                                <TextBlock Text="分配到" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <ComboBox x:Name="CityAssignTo" Width="110" Margin="0,0,8,0"/>
+                                <Button Content="分配归属" Click="AssignOwner_Click" Padding="10,3" Margin="0,0,6,0"/>
+                                <Button Content="清除归属" Click="ClearOwner_Click" Padding="10,3" Margin="0,0,6,0"/>
+                                <Button Content="保存归属" Click="SaveOwner_Click" Padding="10,3" Margin="0,0,6,0"/>
+                                <Button Content="在地图中打开" Click="OpenInMap_Click" Padding="10,3"/>
+                                <TextBlock x:Name="CityStat" VerticalAlignment="Center" Margin="14,0,0,0"
+                                           Foreground="#8A8D91"/>
+                            </StackPanel>
+                        </Border>
+                        <DataGrid x:Name="CityGrid" SelectionMode="Extended"
+                                  AutoGenerateColumns="False" IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="70"/>
+                                <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="120"/>
+                                <DataGridTextColumn Header="类型" Binding="{Binding Kind}" Width="60"/>
+                                <DataGridTextColumn Header="人口(万)" Binding="{Binding Pop, StringFormat={}{0:N1}}" Width="90"/>
+                                <DataGridTextColumn Header="归属" Binding="{Binding Owner}" Width="100"/>
+                                <DataGridTextColumn Header="坐标" Binding="{Binding Pos}" Width="130"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </TabItem>
+
                 <TabItem Header="国家时局">
                     <DataGrid x:Name="SituationGrid" Margin="6">
                         <DataGrid.Columns>

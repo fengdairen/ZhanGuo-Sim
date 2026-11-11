@@ -1,21 +1,18 @@
 # -*- coding: utf-8 -*-
-"""把三张参考位图矢量化成画布坐标下的折线/多边形。
+"""把参考位图矢量化成画布坐标下的折线/多边形（全分辨率走线版）。
 
 输入（全部 9101x8509 全画布，偏移 0,0）：
   底图河道湖泊.png   红(255,0,0)=河 蓝(0,42,255)=湖 棕(101,55,0)=边界
   底图海岸线.png     黑=海岸线
   ditu.png           仅用于取海面色块（导出海的多边形）
 
-输出：data/map/vector/*.json（坐标单位=画布像素，y 向下）
-  rivers.json   [[x,y,...], ...]  折线
-  lakes.json    [[x,y,...], ...]  闭合多边形
-  borders.json  [[x,y,...], ...]
-  coast.json    {"lines":[...], "sea":[...], "islands":[...]}
+关键经验：这几张图在原分辨率下已经是 1px 线条，**不能降采样**——
+1/2 尺度 max 池化会把 1px 撑成 2px，8 邻接度直方图从「全是 2」变成
+「3 和 4 占一半」，Zhang-Suen 细化随即卡死，走线被切碎。
 
-算法：1/2 尺度做掩膜 -> Zhang-Suen 细化成 1px 骨架 -> 8 邻接图走线 ->
-      拆成端点/交点之间的折线 -> 去毛刺 -> Ramer-Douglas-Peucker 简化。
-湖泊特殊处理：每个湖都被一圈红线包着（那是湖岸，不是河），
-      所以先把蓝块膨胀后覆盖的红像素剔掉，湖岸改由湖多边形自己的描边负责。
+输出 data/map/vector/*.json，坐标单位=画布像素，y 向下。
+湖的特殊处理：每个湖都被一圈红线包着（那是湖岸不是河），
+先把蓝块膨胀后覆盖的红像素剔掉，湖岸交给湖多边形自己描边。
 """
 import json
 import math
@@ -24,28 +21,36 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-S = 2
 W, H = 9101, 8509
-W2, H2 = W // S, H // S
+S_SEA = 2                      # 只有海多边形降采样（轮廓长，全分辨率太慢）
 ROOT = Path(__file__).resolve().parent.parent
 OUTDIR = ROOT / "data" / "map" / "vector"
 REPORT = ROOT / "tools" / "_vec_report.txt"
-log_lines = []
+lines = []
 
 
 def log(m):
-    log_lines.append(str(m))
+    lines.append(str(m))
 
 
-# ---------------- 基础 ----------------
-def load_rgb(path):
-    return np.array(Image.open(ROOT / path).convert("RGB")).astype(np.int16)
+def load_rgb(name):
+    return np.array(Image.open(ROOT / name).convert("RGB")).astype(np.int16)
 
 
-def pool(mask):
-    h, w = mask.shape
-    h2, w2 = h // S, w // S
-    return mask[:h2 * S, :w2 * S].reshape(h2, S, w2, S).max(axis=(1, 3))
+# ---------------- 掩膜 ----------------
+riv = load_rgb("底图河道湖泊.png")
+red = (riv[..., 0] > 200) & (riv[..., 1] < 80) & (riv[..., 2] < 80)
+blue = (riv[..., 2] > 200) & (riv[..., 0] < 80) & (riv[..., 1] < 80)
+brown = (np.abs(riv[..., 0] - 101) <= 30) & (np.abs(riv[..., 1] - 55) <= 30) & (riv[..., 2] <= 45)
+del riv
+coa_rgb = load_rgb("底图海岸线.png")
+coast = coa_rgb.max(axis=2) < 60
+del coa_rgb
+ditu = load_rgb("ditu.png")
+water = ((np.abs(ditu[..., 0] - 199) <= 5) & (np.abs(ditu[..., 1] - 154) <= 5)
+         & (np.abs(ditu[..., 2] - 102) <= 5))
+del ditu
+log(f"掩膜: 河 {int(red.sum())}  湖 {int(blue.sum())}  边界 {int(brown.sum())}  海岸 {int(coast.sum())}")
 
 
 def dilate(m, n=1):
@@ -60,36 +65,9 @@ def dilate(m, n=1):
     return out
 
 
-print("读取位图 ...")
-riv = load_rgb("底图河道湖泊.png")
-red_full = (riv[..., 0] > 200) & (riv[..., 1] < 80) & (riv[..., 2] < 80)
-blue_full = (riv[..., 2] > 200) & (riv[..., 0] < 80) & (riv[..., 1] < 80)
-brown_full = (np.abs(riv[..., 0] - 101) <= 30) & (np.abs(riv[..., 1] - 55) <= 30) & (riv[..., 2] <= 45)
-del riv
-coast_rgb = load_rgb("底图海岸线.png")
-coast_full = (coast_rgb.max(axis=2) < 60)
-del coast_rgb
-ditu = load_rgb("ditu.png")
-water_full = (
-    (np.abs(ditu[..., 0] - 199) <= 5)
-    & (np.abs(ditu[..., 1] - 154) <= 5)
-    & (np.abs(ditu[..., 2] - 102) <= 5)
-)
-del ditu
-
-red = pool(red_full)
-blue = pool(blue_full)
-brown = pool(brown_full)
-coast = pool(coast_full)
-sea = pool(water_full)
-del red_full, blue_full, brown_full, coast_full, water_full
-log(f"掩膜(1/{S}): 河 {int(red.sum())}  湖 {int(blue.sum())}  边界 {int(brown.sum())}  海岸 {int(coast.sum())}  海 {int(sea.sum())}")
-
-
-# ---------------- 细化 ----------------
-def thin(img, max_iter=40):
+def thin(img, max_iter=20):
     p = img.copy()
-    for it in range(max_iter):
+    for _ in range(max_iter):
         changed = False
         for step in (0, 1):
             pad = np.pad(p, 1)
@@ -121,90 +99,113 @@ def thin(img, max_iter=40):
     return p
 
 
+# 湖岸红线剔除
+# 河线 = 红芯 ∪ 棕色描边：线条细的地方只有描边没有红芯，
+# 只取红色会得到断断续续的虚线。
+blue_d = dilate(blue, 3)
+# 每条河在源图里的深色描边是一个「闭合环」（沿左岸出去、沿右岸回来）。
+# 走这条环得到一条闭合折线，再用 collapse_hairpins 对折成河心线。
+# 不能直接用红水面：水面在变窄处被描边盖住，会断成一串虚线。
+red_clean = brown & ~blue_d
+log(f"河用深色描边环 {int(red_clean.sum())}（稍后对折成中线；红水面 {int(red.sum())}）")
+
+
 # ---------------- 走线 ----------------
 def trace_skeleton(sk):
-    """返回 [(点列表, 是否闭合)]，点仍是 1/S 网格坐标 (x,y)。"""
+    Hh, Ww = sk.shape
     idx = np.flatnonzero(sk.ravel()).tolist()
     ptset = set(idx)
     adj = {}
     for i in idx:
-        y, x = divmod(i, W2)
+        y, x = divmod(i, Ww)
         nb = []
         for dy in (-1, 0, 1):
             yy = y + dy
-            if yy < 0 or yy >= H2:
+            if yy < 0 or yy >= Hh:
                 continue
-            base = yy * W2
+            base = yy * Ww
             for dx in (-1, 0, 1):
                 if dy == 0 and dx == 0:
                     continue
                 xx = x + dx
-                if 0 <= xx < W2:
-                    j = base + xx
-                    if j in ptset:
-                        nb.append(j)
+                if not (0 <= xx < Ww):
+                    continue
+                # 斜向台阶会形成三角形：若两条正交边都存在，跳过这条对角边
+                if dy != 0 and dx != 0:
+                    if (base + x) in ptset and (yy * Ww + xx) in ptset:
+                        continue
+                j = base + xx
+                if j in ptset:
+                    nb.append(j)
         adj[i] = nb
     deg = {i: len(v) for i, v in adj.items()}
     nodes = {i for i in idx if deg[i] != 2}
-    used = set()
+
+    # 按「像素」记访问，每条链只走一次。
+    # 早期版本按「边」记访问，结果同一段骨架会被走两遍，
+    # 渲染成两条几乎重合的粗线，放大后河中央露出一条发丝浅缝。
+    visited = set()
     paths = []
 
-    def key(a, b):
-        return (a, b) if a < b else (b, a)
+    def walk(start, first):
+        path = [start, first]
+        visited.add(first)
+        prev, cur = start, first
+        while cur not in nodes:
+            nxt = [k for k in adj[cur] if k != prev]
+            if not nxt:
+                break
+            prev, cur = cur, nxt[0]
+            if cur in visited:
+                # 回到走过的点：收尾成环
+                path.append(cur)
+                return path, True
+            path.append(cur)
+            visited.add(cur)
+        return path, False
 
+    # ① 从节点射出的链
     for n in nodes:
         for m in adj[n]:
-            if key(n, m) in used:
+            if m in visited:
                 continue
-            used.add(key(n, m))
-            path = [n, m]
-            prev, cur = n, m
-            while cur not in nodes:
-                nxt = [k for k in adj[cur] if k != prev]
-                if not nxt:
-                    break
-                n2 = nxt[0]
-                used.add(key(cur, n2))
-                path.append(n2)
-                prev, cur = cur, n2
-            paths.append((path, False))
+            visited.add(n)
+            p, closed = walk(n, m)
+            paths.append((p, closed))
 
-    # 纯环
+    # ② 剩下的纯环 / 孤立链
     for i in idx:
-        if deg[i] != 2:
+        if i in visited:
             continue
-        for m in adj[i]:
-            if key(i, m) in used:
-                continue
-            used.add(key(i, m))
-            path = [i, m]
-            prev, cur = i, m
-            while True:
-                nxt = [k for k in adj[cur] if k != prev]
-                if not nxt:
-                    break
-                n2 = nxt[0]
-                if n2 == i:
-                    used.add(key(cur, n2))
-                    path.append(n2)
-                    break
-                if key(cur, n2) in used:
-                    break
-                used.add(key(cur, n2))
-                path.append(n2)
-                prev, cur = cur, n2
-            paths.append((path, True))
+        if not adj[i]:
+            visited.add(i)
+            continue
+        visited.add(i)
+        head, closed_h = walk(i, adj[i][0])
+        if closed_h:
+            paths.append((head, True))
+            continue
+        # 反向再走一段
+        rest = [k for k in adj[i] if k not in visited]
+        tail = []
+        if rest:
+            p2, _ = walk(i, rest[0])
+            tail = p2[1:]
+        paths.append((list(reversed(tail)) + head, False))
 
     out = []
+    covered = 0
     for path, closed in paths:
-        xy = [(int(p % W2) * S, int(p // W2) * S) for p in path]
+        xy = [(int(p % Ww), int(p // Ww)) for p in path]
+        covered += len(path)
         out.append((xy, closed))
+    log(f"  走线 {len(out)} 段，覆盖 {covered}/{len(idx)} 像素（{covered / max(1, len(idx)) * 100:.0f}%）")
     return out
 
 
 def rdp(points, eps):
     if len(points) < 3:
-        return points
+        return list(points)
     keep = np.zeros(len(points), dtype=bool)
     keep[0] = keep[-1] = True
     stack = [(0, len(points) - 1)]
@@ -231,58 +232,158 @@ def rdp(points, eps):
 def prune(paths, min_len):
     out = []
     for xy, closed in paths:
-        if not closed and len(xy) < 2:
+        if len(xy) < 2:
             continue
-        L = sum(math.hypot(xy[i + 1][0] - xy[i][0], xy[i + 1][1] - xy[i][1]) for i in range(len(xy) - 1))
-        if L >= min_len:
-            out.append((xy, closed))
+        L = sum(math.hypot(xy[i + 1][0] - xy[i][0], xy[i + 1][1] - xy[i][1])
+                for i in range(len(xy) - 1))
+        if closed or L >= min_len:
+            out.append((xy, closed, L))
     return out
 
 
-# ---------------- 湖岸特殊处理 ----------------
-# 湖被红线圈着：把蓝块膨胀后覆盖的红像素去掉，湖岸交给湖多边形描边
-blue_big = dilate(blue, 3)
-red_clean = red & ~blue_big
-log(f"剔除湖岸红线: 河 {int(red.sum())} -> {int(red_clean.sum())}")
+def collapse_hairpins(paths, max_width=26.0, min_pts=24):
+    """把「一去一回」的闭合环对折成一条中线。
 
-print("细化河网 ...")
-riv_sk = thin(red_clean)
-print("细化边界 ...")
-bor_sk = thin(brown)
-print("细化海岸 ...")
-coa_sk = thin(coast)
-log(f"骨架像素: 河 {int(riv_sk.sum())}  边界 {int(bor_sk.sum())}  海岸 {int(coa_sk.sum())}")
+    源图里每条河的深色描边是一个闭合环：沿左岸出去、沿右岸回来。
+    直接按折线描粗，会得到两条岸线中间夹一道缝（玩家看到的"河中央劈缝"）。
+    这种环有个好性质：第 i 个点和第 n-1-i 个点正是两岸的对应点，
+    取中点就还原出河心线。
 
-print("走线 ...")
-riv_paths = prune(trace_skeleton(riv_sk), 24)
-bor_paths = prune(trace_skeleton(bor_sk), 40)
-coa_paths = prune(trace_skeleton(coa_sk), 40)
-log(f"折线数: 河 {len(riv_paths)}  边界 {len(bor_paths)}  海岸 {len(coa_paths)}")
-import statistics as _st
-for _n,_ps in (("河",riv_paths),("边界",bor_paths),("海岸",coa_paths)):
-    _l=[len(_p) for _p,_c in _ps]
-    log(f"    {_n} 每段点数 中位{int(_st.median(_l))} 最大{max(_l)} 最小{min(_l)}")
-
-
-def simplify(paths, eps, closed_by_flag=False):
+    判定：闭合 + 点数够 + 全部对折距离 <= max_width。
+    """
     out = []
-    for xy, closed in paths:
-        if closed:
-            simp = rdp(xy, eps)
+    folded = 0
+    for xy, closed, L in paths:
+        if not closed or len(xy) < min_pts:
+            out.append((xy, closed, L))
+            continue
+        n = len(xy)
+        ds = []
+        for i in range(1, n // 2):
+            j = n - 1 - i
+            ds.append(math.hypot(xy[i][0] - xy[j][0], xy[i][1] - xy[j][1]))
+        if not ds:
+            out.append((xy, closed, L))
+            continue
+        ds_sorted = sorted(ds)
+        med = ds_sorted[len(ds_sorted) // 2]
+        if med <= max_width and ds_sorted[int(len(ds_sorted) * 0.9)] <= max_width * 1.4:
+            mid = [xy[0]]
+            for i in range(1, n // 2):
+                j = n - 1 - i
+                mid.append(((xy[i][0] + xy[j][0]) / 2.0, (xy[i][1] + xy[j][1]) / 2.0))
+            L2 = sum(math.hypot(mid[i + 1][0] - mid[i][0], mid[i + 1][1] - mid[i][1])
+                     for i in range(len(mid) - 1))
+            out.append((mid, False, L2))
+            folded += 1
         else:
-            simp = rdp(xy, eps)
+            out.append((xy, closed, L))
+    log(f"闭合环对折：{folded} 条（一去一回的描边环 → 单条中线）")
+    return out
+
+
+def simplify(paths, eps):
+    out = []
+    for xy, closed, _ in paths:
+        simp = rdp(xy, eps)
+        if closed and simp[0] != simp[-1]:
+            simp = simp + [simp[0]]
         if len(simp) >= 2:
             out.append(simp)
     return out
 
 
-rivers = simplify(riv_paths, 2.2)
-borders = simplify(bor_paths, 2.5)
-coast_lines = simplify(coa_paths, 1.8)
-log(f"简化后点数: 河 {sum(len(p) for p in rivers)}  边界 {sum(len(p) for p in borders)}  海岸 {sum(len(p) for p in coast_lines)}")
+def dedup_parallel(polys, radius=9.0, cover=0.85, len_tol=0.35, end_tol=14.0):
+    """去掉「同一条线被走了两遍」的重复折线。
+
+    实测：走线器偶尔会把同一段骨架走两次，得到两条长度完全相同、
+    平均距离 0.0–0.3px 的折线。两条几乎重合的描边叠在一起，
+    浏览器抗锯齿边缘会露出一条发丝般的浅缝——玩家看到的就是"河里劈缝"。
+
+    判据（三条同时成立才算重复）：
+      1. 两端各自靠近（同向或反向都算）；
+      2. 长度相当（|ΔL|/max < len_tol）；
+      3. 抽样点到对方的最近距离，cover 以上 <= radius，且平均距离 < 1.2px
+         （平均距离大于 1.2 的是真正的双岸线，另案处理）。
+    """
+
+    def length(p):
+        return sum(math.hypot(p[i + 1][0] - p[i][0], p[i + 1][1] - p[i][1])
+                   for i in range(len(p) - 1))
+
+    def near_stats(p, q, step):
+        qs = q[::max(1, len(q) // 200)] or q
+        ok = 0
+        total = 0.0
+        n = 0
+        for x, y in p[::step]:
+            d = min((x - qx) ** 2 + (y - qy) ** 2 for qx, qy in qs) ** 0.5
+            total += d
+            n += 1
+            if d <= radius:
+                ok += 1
+        return ok / max(1, n), total / max(1, n)
+
+    def close(a, b):
+        return math.hypot(a[0] - b[0], a[1] - b[1]) <= end_tol
+
+    lens = [length(p) for p in polys]
+    order = sorted(range(len(polys)), key=lambda i: -lens[i])
+    kept = []
+    dropped = 0
+    merged_pts = 0
+    for i in order:
+        p = polys[i]
+        step = max(1, len(p) // 40)
+        dup = False
+        for j in kept:
+            q = polys[j]
+            if abs(lens[i] - lens[j]) / max(1.0, max(lens[i], lens[j])) > len_tol:
+                continue
+            if not ((close(p[0], q[0]) and close(p[-1], q[-1]))
+                    or (close(p[0], q[-1]) and close(p[-1], q[0]))):
+                continue
+            cov, mean = near_stats(p, q, step)
+            if cov >= cover and mean < 1.2:
+                dup = True
+                merged_pts += len(p)
+                break
+        if dup:
+            dropped += 1
+        else:
+            kept.append(i)
+    log(f"重复走线去重：原有 {len(polys)} 段，去掉重复 {dropped} 段（{merged_pts} 点），保留 {len(kept)} 段")
+    return [polys[i] for i in kept]
 
 
-# ---------------- 湖泊多边形 ----------------
+print("thin + trace ...")
+riv_sk = thin(red_clean)
+log(f"骨架像素 河 {int(riv_sk.sum())}")
+riv_paths = prune(trace_skeleton(riv_sk), 6)
+del riv_sk
+bor_sk = thin(brown)
+log(f"骨架像素 边界 {int(bor_sk.sum())}")
+bor_paths = prune(trace_skeleton(bor_sk), 8)
+del bor_sk
+coa_sk = thin(coast)
+log(f"骨架像素 海岸 {int(coa_sk.sum())}")
+coa_paths = prune(trace_skeleton(coa_sk), 8)
+del coa_sk
+
+log(f"折线数 河 {len(riv_paths)}  边界 {len(bor_paths)}  海岸 {len(coa_paths)}")
+
+riv_paths = collapse_hairpins(riv_paths)
+rivers = simplify(riv_paths, 1.8)
+borders = simplify(bor_paths, 2.2)
+coast_lines = simplify(coa_paths, 1.5)
+log(f"简化后 河 {len(rivers)} 段/{sum(len(p) for p in rivers)} 点")
+log(f"       边界 {len(borders)} 段/{sum(len(p) for p in borders)} 点")
+log(f"       海岸 {len(coast_lines)} 段/{sum(len(p) for p in coast_lines)} 点")
+rivers = dedup_parallel(rivers)
+log(f"去重后 河 {len(rivers)} 段/{sum(len(p) for p in rivers)} 点")
+
+
+# ---------------- 连通域与轮廓 ----------------
 def label_runs(mask):
     Hh, Ww = mask.shape
     runs = []
@@ -297,8 +398,7 @@ def label_runs(mask):
         en = np.flatnonzero(d == -1) - 1
         b = len(runs)
         span.append((b, b + len(st)))
-        for x0, x1 in zip(st.tolist(), en.tolist()):
-            runs.append((y, x0, x1))
+        runs.extend((y, int(x0), int(x1)) for x0, x1 in zip(st, en))
     par = list(range(len(runs)))
 
     def find(a):
@@ -329,111 +429,102 @@ def comp_masks(mask, min_area):
     runs, find = label_runs(mask)
     groups = {}
     for k, (y, x0, x1) in enumerate(runs):
-        r = find(k)
-        groups.setdefault(r, []).append((y, x0, x1))
+        groups.setdefault(find(k), []).append((y, x0, x1))
     out = []
-    for r, rs in groups.items():
+    for rs in groups.values():
         area = sum(x1 - x0 + 1 for _, x0, x1 in rs)
-        if area >= min_area:
-            y0 = min(t[0] for t in rs)
-            y1 = max(t[0] for t in rs)
-            x0 = min(t[1] for t in rs)
-            x1 = max(t[2] for t in rs)
-            m = np.zeros((y1 - y0 + 3, x1 - x0 + 3), dtype=bool)
-            for y, a, b in rs:
-                m[y - y0 + 1, a - x0 + 1:b - x0 + 2] = True
-            out.append((m, x0 - 1, y0 - 1, area))
+        if area < min_area:
+            continue
+        y0 = min(t[0] for t in rs)
+        y1 = max(t[0] for t in rs)
+        x0 = min(t[1] for t in rs)
+        x1 = max(t[2] for t in rs)
+        m = np.zeros((y1 - y0 + 3, x1 - x0 + 3), dtype=bool)
+        for y, a, b in rs:
+            m[y - y0 + 1, a - x0 + 1:b - x0 + 2] = True
+        out.append((m, x0 - 1, y0 - 1, area))
     out.sort(key=lambda t: -t[3])
     return out
 
 
 def trace_contour(m):
-    """Moore 邻域边界跟踪，返回相对坐标点列（m 外圈留 1px 空白）。"""
     ys, xs = np.nonzero(m)
     if len(ys) == 0:
         return []
-    sy, sx = ys[0], xs[0]
-    start = (sy, sx)
+    start = (int(ys[0]), int(xs[0]))
     dirs = [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
-    contour = [start]
-    cur = start
-    backtrack = (sy, sx - 1)
     Hh, Ww = m.shape
 
     def inside(y, x):
         return 0 <= y < Hh and 0 <= x < Ww and m[y, x]
 
-    for _ in range(len(ys) * 8 + 10):
+    contour = [start]
+    cur = start
+    backtrack = (start[0], start[1] - 1)
+    for _ in range(int(m.sum()) * 8 + 20):
         di = dirs.index((backtrack[0] - cur[0], backtrack[1] - cur[1]))
         found = None
         for k in range(1, 9):
-            dy, dx = dirs[(di + k) % 8]
-            ny, nx = cur[0] + dy, cur[1] + dx
+            d = dirs[(di + k) % 8]
+            ny, nx = cur[0] + d[0], cur[1] + d[1]
             if inside(ny, nx):
-                found = ((ny, nx), (cur[0] + dirs[(di + k - 1) % 8][0], cur[1] + dirs[(di + k - 1) % 8][1]))
+                nb = dirs[(di + k - 1) % 8]
+                found = ((ny, nx), (cur[0] + nb[0], cur[1] + nb[1]))
                 break
         if found is None:
             break
-        nxt, nb = found
-        contour.append(nxt)
-        backtrack = nb
-        cur = nxt
+        cur, backtrack = found
+        contour.append(cur)
         if cur == start and len(contour) > 3:
             break
     return [(x, y) for y, x in contour]
 
 
-print("提取湖泊 ...")
+print("lakes ...")
 lakes = []
-for m, ox, oy, area in comp_masks(blue, 40 * S):
+for m, ox, oy, area in comp_masks(blue, 60):
     c = trace_contour(m)
-    if len(c) < 6:
+    if len(c) < 8:
         continue
-    pts = [((x + ox) * S, (y + oy) * S) for x, y in c]
-    pts = rdp(pts, 1.8)
+    pts = [(x + ox, y + oy) for x, y in c]
+    pts = rdp(pts, 1.6)
     if len(pts) >= 4:
         lakes.append(pts)
 log(f"湖泊 {len(lakes)} 个")
 
-# ---------------- 海 ----------------
-print("提取海面 ...")
-sea_comps = comp_masks(sea, 1000)
-sea_out = []
-islands = []
-for m, ox, oy, area in sea_comps[:1]:
+print("sea ...")
+sea_small = water[: (H // S_SEA) * S_SEA, : (W // S_SEA) * S_SEA]
+sea_small = sea_small.reshape(H // S_SEA, S_SEA, W // S_SEA, S_SEA).max(axis=(1, 3))
+sea_comps = comp_masks(sea_small, 2000)
+sea_polys = []
+if sea_comps:
+    m, ox, oy, area = sea_comps[0]
     c = trace_contour(m)
-    pts = [((x + ox) * S, (y + oy) * S) for x, y in c]
-    pts = rdp(pts, 2.0)
-    sea_out.append(pts)
-    log(f"海多边形 点数 {len(pts)}  area(1/{S}^2) {area}")
+    pts = [((x + ox) * S_SEA, (y + oy) * S_SEA) for x, y in c]
+    sea_polys.append(rdp(pts, 2.2))
+    log(f"海多边形 {len(sea_polys[0])} 点  面积 {area * S_SEA * S_SEA}")
 
-# 岛：海岸线里的闭合环
-for xy, closed in coa_paths:
-    if closed and len(xy) > 8:
-        islands.append(rdp(xy, 1.5))
-log(f"岛/闭合环 {len(islands)} 个")
+islands = [p for p in coast_lines if len(p) > 8 and p[0] == p[-1]]
+log(f"闭合环/岛 {len(islands)}")
+
 
 # ---------------- 输出 ----------------
 OUTDIR.mkdir(parents=True, exist_ok=True)
 
 
 def _js(o):
-    try:
-        return int(o)
-    except Exception:
-        return float(o)
+    return int(o) if float(o).is_integer() else float(o)
 
 
 def dump(name, obj):
     p = OUTDIR / name
     p.write_text(json.dumps(obj, separators=(",", ":"), default=_js), encoding="utf-8")
-    log(f"{name}: {p.stat().st_size/1024:.0f} KB")
+    log(f"{name}: {p.stat().st_size / 1024:.0f} KB")
 
 
 dump("rivers.json", rivers)
 dump("lakes.json", lakes)
 dump("borders.json", borders)
-dump("coast.json", {"lines": coast_lines, "sea": sea_out, "islands": islands})
-
-REPORT.write_text("\n".join(log_lines), encoding="utf-8")
+dump("coast.json", {"lines": coast_lines, "sea": sea_polys, "islands": islands})
+REPORT.write_text("\n".join(lines), encoding="utf-8")
 print("done")

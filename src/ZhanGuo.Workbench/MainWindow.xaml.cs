@@ -122,6 +122,7 @@ public partial class MainWindow : Window
                 BindNation(first);
             }
             StatusText.Text = $"已载入 {_state.Nations.Count} 国";
+            InitCityTab(path);
         }
         catch (Exception ex)
         {

@@ -23,8 +23,12 @@ def load(name):
 
 
 rivers = load("rivers_w.json")
+river_labels = load("river_labels.json") if (VEC / "river_labels.json").exists() else []
+coast_drawn = load("coast_drawn.json") if (VEC / "coast_drawn.json").exists() else []
+lakes_drawn = load("lakes_drawn.json") if (VEC / "lakes_drawn.json").exists() else []
 lakes = load("lakes.json")
-coast = load("coast.json")
+coast = load("coast.json")           # 旧位图海岸线：只留文件，地图不再使用
+sea_polys = load("sea_from_coast.json") if (VEC / "sea_from_coast.json").exists() else coast["sea"]
 
 cities = []
 for r in csv.DictReader(open(ROOT / "data" / "map" / "nodes.csv", encoding="utf-8-sig")):
@@ -47,11 +51,14 @@ def flat(poly):
 
 data = {
     "meta": {"canvas": [9101, 8509], "source": "底图河道湖泊.png / 底图海岸线.png"},
-    "sea": [flat(p) for p in coast["sea"]],
-    "islands": [flat(p) for p in coast["islands"]],
-    "coast": [flat(p) for p in coast["lines"]],
-    "lakes": [flat(p) for p in lakes],
+    "sea": [flat(p) for p in sea_polys],
+    "islands": [],
+    "coast": [],
+    "lakes": [],
     "rivers": rivers,
+    "riverLabels": river_labels,
+    "coastDrawn": coast_drawn,
+    "lakesDrawn": lakes_drawn,
     "cities": cities,
     "regions": regions,
 }
@@ -71,7 +78,7 @@ HTML = r"""<!doctype html>
     --river:#3e7ca6; --river-case:#8a6a48; --lake:#7fb0c9;
   }
   *{box-sizing:border-box}
-  html,body{margin:0;height:100%;overflow:hidden;background:var(--paper);
+  html,body{margin:0;height:100%;overflow:hidden;background:#54483a;
     font-family:"Songti SC","STSong","SimSun","Noto Serif CJK SC",serif;color:var(--ink)}
   #cv{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
   #cv.drag{cursor:grabbing}
@@ -86,6 +93,8 @@ HTML = r"""<!doctype html>
   .sw.sea{background:var(--sea)}
   .sw.lake{background:var(--lake)}
   .sw.river{background:var(--river)}
+  .sw.auto{background:#b9c4c9}
+  .sw.coast{background:#5d7280}
   .sw.city{background:#8b2e1e;height:7px;width:7px;border-radius:50%}
   .sw.region{background:#a2543a;height:7px;width:7px;border-radius:50%;opacity:.75}
   .legend{display:flex;gap:14px;margin:9px 0 2px;font-size:12px;color:#5b4a37;align-items:center}
@@ -115,8 +124,10 @@ HTML = r"""<!doctype html>
   <h1>战国演义 · 舆图</h1>
   <div class="sub">BC 390 · 矢量版（无底图）</div>
   <label class="row"><input type="checkbox" id="lSea" checked><span class="sw sea"></span>海岸与海域</label>
-  <label class="row"><input type="checkbox" id="lLake" checked><span class="sw lake"></span>湖泊</label>
-  <label class="row"><input type="checkbox" id="lRiver" checked><span class="sw river"></span>河流</label>
+  <label class="row"><input type="checkbox" id="lRiver" checked><span class="sw river"></span>河流（描迹）</label>
+  <label class="row"><input type="checkbox" id="lRName" checked>河名</label>
+  <label class="row"><input type="checkbox" id="lCoastDrawn" checked><span class="sw coast"></span>海岸线（描迹）</label>
+  <label class="row"><input type="checkbox" id="lLakesDrawn" checked><span class="sw lake"></span>湖泽（描迹）</label>
   <label class="row"><input type="checkbox" id="lCity" checked><span class="sw city"></span>城邑</label>
   <label class="row"><input type="checkbox" id="lLabel" checked>地名标注</label>
   <label class="row"><input type="checkbox" id="lRegion"><span class="sw region"></span>部族</label>
@@ -159,8 +170,11 @@ function resize(){
   cv.width = Math.round(cw*dpr); cv.height = Math.round(ch*dpr);
   draw();
 }
+const FRAME_MAT = 220;              // 与 draw() 里的装裱边宽一致
+
 function fit(){
-  const s = Math.min(cw/CW, ch/CH) * 0.98;
+  // 连装裱一起放进画面，否则绫边会被裁掉
+  const s = Math.min(cw/(CW + FRAME_MAT*2), ch/(CH + FRAME_MAT*2)) * 0.97;
   V.scale = s; V.tx = (cw - CW*s)/2; V.ty = (ch - CH*s)/2;
   draw();
 }
@@ -181,6 +195,25 @@ for (const poly of DATA.sea) G.sea.addPath(pathOf(poly, true));
 for (const poly of DATA.islands) G.islands.addPath(pathOf(poly, true));
 for (const poly of DATA.lakes) G.lakes.addPath(pathOf(poly, true));
 for (const line of DATA.coast) G.coast.addPath(pathOf(line, false));
+// 描迹海岸线：开放线做描边，闭合环按岛处理（填陆地色）
+G.coastDrawnLine = new Path2D();
+G.islandDrawn = new Path2D();
+G.lakesDrawn = new Path2D();
+for (const l of (DATA.lakesDrawn || [])) G.lakesDrawn.addPath(pathOf(l.pts, true));
+for (const c of (DATA.coastDrawn || [])){
+  if (c.closed) G.islandDrawn.addPath(pathOf(c.pts, true));
+  else G.coastDrawnLine.addPath(pathOf(c.pts, false));
+}
+
+// 自动提取的河网：只做淡色底衬，提示"这些还没描"
+(function(){
+  const p = new Path2D();
+  for (const e of (DATA.auto || [])){
+    p.moveTo(e[1], e[2]);
+    for (let i=3;i<e.length;i+=2) p.lineTo(e[i], e[i+1]);
+  }
+  G.auto = p;
+})();
 
 (function(){
   const buckets = new Map();
@@ -195,24 +228,67 @@ for (const line of DATA.coast) G.coast.addPath(pathOf(line, false));
 })();
 
 const CITIES = DATA.cities.map(c => ({id:c[0], name:c[1], kind:c[2], x:c[3], y:c[4], pop:c[5]}));
+
+// 几何规模：用于性能读数
+const GEOM_POINTS = (() => {
+  let n = 0;
+  for (const p of DATA.coast) n += p.length / 2;
+  for (const p of DATA.sea) n += p.length / 2;
+  for (const p of DATA.lakes) n += p.length / 2;
+  for (const e of DATA.rivers) n += (e.length - 1) / 2;
+  for (const c of (DATA.coastDrawn || [])) n += c.pts.length / 2;
+  return Math.round(n);
+})();
 const REGIONS = DATA.regions.map(r => ({id:r[0], name:r[1], x:r[2], y:r[3], pop:r[4]}));
 
 const el = id => document.getElementById(id);
 const state = () => ({
-  sea: el('lSea').checked, lake: el('lLake').checked, river: el('lRiver').checked,
+  sea: el('lSea').checked, river: el('lRiver').checked, rname: el('lRName').checked,
+  coastDrawn: el('lCoastDrawn').checked, lakesDrawn: el('lLakesDrawn').checked,
   city: el('lCity').checked, label: el('lLabel').checked, region: el('lRegion').checked
 });
 let hoverCity = null, flash = null;
 
+let perfOn = false, drawMs = 0;
+
 function draw(){
+  const t0 = performance.now();
   const L = state();
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,cw,ch);
 
-  const g = ctx.createRadialGradient(cw*0.5, ch*0.42, Math.min(cw,ch)*0.12,
-                                     cw*0.5, ch*0.55, Math.max(cw,ch)*0.8);
-  g.addColorStop(0, '#f7efd8'); g.addColorStop(1, '#e5d5ae');
-  ctx.fillStyle = g; ctx.fillRect(0,0,cw,ch);
+  // 桌面
+  ctx.fillStyle = '#54483a';
+  ctx.fillRect(0,0,cw,ch);
+
+  // 装裱：绫边 + 双框 + 纸面
+  const MAT = 220;                       // 绫边宽度（世界像素）
+  ctx.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(18,10,4,.55)';
+  ctx.shadowBlur = 34 / V.scale;
+  ctx.shadowOffsetY = 10 / V.scale;
+  ctx.fillStyle = '#c9b389';
+  ctx.fillRect(-MAT, -MAT, CW + MAT*2, CH + MAT*2);
+  ctx.restore();
+
+  ctx.strokeStyle = '#7a5c3a'; ctx.lineWidth = Math.max(2, 8 / V.scale);
+  ctx.strokeRect(-MAT, -MAT, CW + MAT*2, CH + MAT*2);
+  ctx.strokeStyle = 'rgba(226,211,173,.9)'; ctx.lineWidth = Math.max(1, 2.5 / V.scale);
+  ctx.strokeRect(-MAT + 10/V.scale, -MAT + 10/V.scale,
+                 CW + MAT*2 - 20/V.scale, CH + MAT*2 - 20/V.scale);
+
+  ctx.fillStyle = '#f3e8cf';
+  ctx.fillRect(0, 0, CW, CH);
+  const pg = ctx.createRadialGradient(CW/2, CH*0.45, Math.min(CW,CH)*0.12,
+                                      CW/2, CH*0.55, Math.max(CW,CH)*0.78);
+  pg.addColorStop(0, 'rgba(255,250,235,.55)');
+  pg.addColorStop(1, 'rgba(190,165,120,.35)');
+  ctx.fillStyle = pg;
+  ctx.fillRect(0, 0, CW, CH);
+  ctx.strokeStyle = 'rgba(120,90,56,.45)'; ctx.lineWidth = Math.max(1, 2/V.scale);
+  ctx.strokeRect(0, 0, CW, CH);
 
   ctx.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
 
@@ -224,10 +300,7 @@ function draw(){
       ctx.strokeStyle = COL.coast; ctx.lineWidth = Math.max(0.7/V.scale, 1); ctx.stroke(G.islands);
     }
   }
-  if (L.lake){
-    ctx.fillStyle = COL.lake; ctx.fill(G.lakes, 'evenodd');
-    ctx.strokeStyle = COL.lakeEdge; ctx.lineWidth = Math.max(0.6, 1.0/V.scale); ctx.stroke(G.lakes);
-  }
+
   if (L.river){
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
     // 先描边（深），再压主色，还原参考图的「深色裹边」观感
@@ -242,9 +315,25 @@ function draw(){
       ctx.stroke(p);
     }
   }
-  if (L.sea){
-    ctx.strokeStyle = COL.coast; ctx.lineWidth = Math.max(0.7/V.scale, 1.1);
-    ctx.stroke(G.coast);
+
+  if (L.lakesDrawn && (DATA.lakesDrawn || []).length){
+    // 填色与描边在下面；名字单独一趟（在 drawRiverNames 里统一画）
+    ctx.fillStyle = '#8ec3d8';
+    ctx.fill(G.lakesDrawn, 'evenodd');
+    ctx.strokeStyle = '#3e7ca6';
+    ctx.lineWidth = Math.max(0.9/V.scale, 2.2);
+    ctx.stroke(G.lakesDrawn);
+  }
+  if (L.coastDrawn){
+    if (DATA.coastDrawn && DATA.coastDrawn.some(c => c.closed)){
+      ctx.fillStyle = '#efe2c2';
+      ctx.fill(G.islandDrawn, 'evenodd');
+    }
+    ctx.strokeStyle = '#40606f';
+    // 海岸线要比河流显得"重"：至少 1 屏幕像素，放大时保持 5.5 世界像素
+    ctx.lineWidth = Math.max(1.0/V.scale, 5.5);
+    ctx.stroke(G.islandDrawn);
+    ctx.stroke(G.coastDrawnLine);
   }
 
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -285,6 +374,7 @@ function draw(){
   }
 
   if (L.label) drawLabels(L);
+  if (L.rname && DATA.riverLabels) drawRiverNames();
 
   if (hoverCity){
     const [sx,sy] = w2s(hoverCity.x, hoverCity.y);
@@ -301,7 +391,48 @@ function draw(){
       requestAnimationFrame(draw);
     } else flash = null;
   }
-  zoomEl.textContent = '缩放 ' + (V.scale*100).toFixed(0) + '%';
+  drawMs = drawMs ? drawMs * 0.8 + (performance.now() - t0) * 0.2 : (performance.now() - t0);
+  zoomEl.textContent = '缩放 ' + (V.scale*100).toFixed(0) + '%' +
+    (perfOn ? ('  ·  ' + drawMs.toFixed(1) + ' ms  ·  ' + (GEOM_POINTS/1000).toFixed(1) + 'k 点') : '');
+}
+
+function drawRiverNames(){
+  const list = DATA.riverLabels || [];
+  if (!list.length && !(DATA.lakesDrawn || []).length) return;
+  // 湖名
+  if (el('lLakesDrawn').checked){
+    ctx.font = 'italic 13px "Songti SC","SimSun",serif';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
+    for (const l of (DATA.lakesDrawn || [])){
+      if (!l.name) continue;
+      const [sx, sy] = w2s(l.cx, l.cy);
+      if (sx < -80 || sy < -20 || sx > cw + 80 || sy > ch + 20) continue;
+      ctx.lineWidth = 3.4;
+      ctx.strokeStyle = 'rgba(246,238,216,.9)';
+      ctx.strokeText(l.name, sx, sy);
+      ctx.fillStyle = '#2f6f8f';
+      ctx.fillText(l.name, sx, sy);
+    }
+    ctx.textAlign = 'left';
+  }
+  if (!list.length) return;
+  ctx.font = '13px "Songti SC","SimSun",serif';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  ctx.font = '13px "Songti SC","SimSun",serif';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  for (const r of list){
+    const [sx, sy] = w2s(r.x, r.y);
+    if (sx < -80 || sy < -20 || sx > cw + 80 || sy > ch + 20) continue;
+    ctx.lineWidth = 3.4;
+    ctx.strokeStyle = 'rgba(246,238,216,.9)';
+    ctx.strokeText(r.name, sx, sy);
+    ctx.fillStyle = '#2d5d80';
+    ctx.fillText(r.name, sx, sy);
+  }
+  ctx.textAlign = 'left';
 }
 
 function drawLabels(L){
@@ -406,7 +537,7 @@ function flyTo(c){
 el('bFit').onclick = fit;
 el('bIn').onclick = () => zoomAt(cw/2, ch/2, 1.35);
 el('bOut').onclick = () => zoomAt(cw/2, ch/2, 1/1.35);
-for (const id of ['lSea','lLake','lRiver','lCity','lLabel','lRegion'])
+for (const id of ['lSea','lRiver','lRName','lCoastDrawn','lLakesDrawn','lCity','lLabel','lRegion'])
   el(id).addEventListener('change', draw);
 
 const q = el('q'), hits = el('hits');
@@ -427,13 +558,14 @@ window.addEventListener('keydown', e => {
   if (e.key === '+' || e.key === '=') zoomAt(cw/2, ch/2, 1.35);
   if (e.key === '-') zoomAt(cw/2, ch/2, 1/1.35);
   if (e.key === '0') fit();
+  if (e.key === 'p' || e.key === 'P'){ perfOn = !perfOn; draw(); }
 });
 window.addEventListener('resize', resize);
 
 resize(); fit();
 el('foot').textContent =
-  '河 ' + DATA.rivers.length + ' 段 · 湖 ' + DATA.lakes.length + ' 处 · 城邑 ' + CITIES.length +
-  ' 座 · 部族 ' + REGIONS.length + '　｜　滚轮缩放 · 拖拽平移 · 双击放大';
+  '河 ' + DATA.rivers.length + ' 段 · 湖 ' + (DATA.lakesDrawn || []).length + ' 处 · 城邑 ' + CITIES.length +
+  ' 座 · 部族 ' + REGIONS.length + '　｜　滚轮缩放 · 拖拽平移 · 双击放大 · P 看性能';
 </script>
 </body>
 </html>

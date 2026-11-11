@@ -1,0 +1,2121 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>战国演义 · 河流描迹器</title>
+<style>
+  :root{
+    --paper:#f2e7cb; --ink:#33241a; --panel:rgba(250,244,229,.95);
+    --l1:#1b5e8c; --l2:#2e86b8; --l3:#5aa9cf; --l4:#8a5ea8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#d9cdb2;
+    font-family:"Songti SC","STSong","SimSun","Noto Serif CJK SC",serif;color:var(--ink)}
+  #cv{display:block;width:100%;height:100%;cursor:crosshair;touch-action:none}
+  #cv.pan{cursor:grab}
+  #cv.panning{cursor:grabbing}
+  .panel{position:fixed;background:var(--panel);border:1px solid rgba(120,90,56,.35);
+    border-radius:10px;box-shadow:0 6px 22px rgba(80,55,30,.18);backdrop-filter:blur(6px)}
+
+  #rail{top:12px;left:12px;width:64px;padding:6px 5px;display:flex;flex-direction:column;gap:5px;z-index:7}
+  #rail .mode{width:100%;padding:9px 0;font-size:13px;letter-spacing:1px;border-radius:7px}
+  #bar{top:12px;left:88px;right:336px;padding:8px 10px;display:flex;flex-wrap:wrap;
+    align-items:center;gap:8px;font-size:13px;z-index:6}
+  #bar{max-width:calc(100% - 348px)}
+  #layers{top:56px;left:88px;width:196px;padding:8px 10px;display:none;z-index:8;font-size:12.5px}
+  #layers.on{display:block}
+  #layers .chk{margin:5px 0}
+  #layers .chk i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:2px}
+  #layers .sep{height:1px;background:rgba(120,90,56,.22);margin:7px 0}
+  #bar .grp{display:flex;align-items:center;gap:4px;padding-right:8px;border-right:1px solid rgba(120,90,56,.2)}
+  #bar .grp:last-child{border-right:none}
+  button{font:inherit;font-size:12.5px;padding:5px 10px;border-radius:7px;cursor:pointer;
+    background:#fffdf6;border:1px solid rgba(120,90,56,.4);color:#4a3524}
+  button:hover{background:#fff}
+  button.on{background:#4a3524;color:#f6eeda;border-color:#4a3524}
+  button.rank{position:relative;padding-left:20px}
+  button.rank i{position:absolute;left:7px;top:50%;transform:translateY(-50%);
+    width:8px;height:8px;border-radius:50%;display:block}
+  button.rank[data-r="1"] i{background:var(--l1)}
+  button.rank[data-r="2"] i{background:var(--l2)}
+  button.rank[data-r="3"] i{background:var(--l3)}
+  button.rank[data-r="4"] i{background:var(--l4)}
+  label.chk{display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12.5px}
+  input[type=checkbox]{accent-color:#8b6a3f;margin:0}
+
+  #side{top:12px;right:12px;width:312px;max-height:calc(100% - 130px);display:flex;flex-direction:column;
+    font-size:12.5px;z-index:5}
+  #side h2{margin:9px 11px 4px;font-size:13px;letter-spacing:1px;font-weight:600}
+  #editor{border-bottom:1px solid rgba(120,90,56,.22);padding:0 11px 9px}
+  #editor.off{opacity:.45;pointer-events:none}
+  #lakeEditor.off{display:none}
+  #lakeEditor{border-bottom:1px solid rgba(120,90,56,.22);padding:0 11px 9px}
+  #lakeEditor .fld input{flex:1;min-width:0;padding:4px 7px;border:1px solid rgba(120,90,56,.4);
+    border-radius:6px;background:#fffdf6;font:inherit;font-size:12.5px;color:inherit}
+  .fld{display:flex;align-items:center;gap:7px;margin:7px 0}
+  .fld > span:first-child{color:#6d5c47;flex:none;width:42px}
+  .fld input[type=text]{flex:1;min-width:0;padding:4px 7px;border:1px solid rgba(120,90,56,.4);border-radius:6px;
+    background:#fffdf6;font:inherit;font-size:12.5px;color:inherit}
+  .fld input[type=text]:focus{outline:2px solid rgba(27,94,140,.25);outline-offset:1px}
+  .wbtn{width:26px;height:24px;padding:0;border-radius:6px;line-height:22px;text-align:center;font-size:12px}
+  .wbtn.on{background:#2e5f80;color:#fff;border-color:#2e5f80}
+  .mini{display:flex;gap:4px;flex-wrap:wrap}
+  .mini button{padding:3px 7px;font-size:11.5px}
+  #parentInfo{font-size:11.5px;color:#5b7f99;margin:2px 0 0 49px;min-height:16px}
+  #list{overflow:auto;padding:0 7px 8px;flex:1}
+  .grp-h{display:flex;align-items:center;gap:6px;margin:8px 4px 2px;font-size:12px;color:#4a3524;font-weight:600}
+  .grp-h .cnt{color:#8a7a63;font-weight:400;font-size:11px}
+  .grp-h .caret{display:inline-block;width:10px;color:#8a7a63;font-size:10px}
+  .grp-h{cursor:pointer;user-select:none}
+  .grp-h:hover{color:#2d5d80}
+  .row.foldnote{color:#9a8a73;font-style:italic;cursor:default}
+  .row{display:flex;align-items:center;gap:6px;padding:4px 5px;border-radius:6px;cursor:pointer}
+  .row:hover{background:rgba(139,106,63,.1)}
+  .row.sel{background:rgba(27,94,140,.14);box-shadow:inset 0 0 0 1px rgba(27,94,140,.4)}
+  .dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .row .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row .w{font-size:10.5px;color:#5b7f99;letter-spacing:1px;flex:none}
+  .row .len{color:#7a6a55;font-variant-numeric:tabular-nums;font-size:11px;flex:none}
+  .row .x{color:#a0503c;cursor:pointer;padding:0 3px}
+  #stat{margin:0;padding:8px 11px;border-top:1px solid rgba(120,90,56,.2);color:#6d5c47;font-size:11.5px;line-height:1.7}
+
+  #hint{bottom:12px;left:12px;padding:7px 11px;font-size:11.5px;color:#5d4c37;line-height:1.7;z-index:5}
+  #hint b{font-weight:600}
+  #toast{position:fixed;left:50%;top:70px;transform:translateX(-50%);padding:8px 14px;border-radius:8px;
+    background:rgba(48,33,20,.92);color:#f6eeda;font-size:12.5px;opacity:0;transition:opacity .2s;z-index:20;
+    pointer-events:none;white-space:nowrap}
+  #filebar{bottom:12px;right:12px;padding:7px 10px;display:flex;gap:6px;align-items:center;font-size:12px;z-index:6}
+  #fstate{color:#7a6a55;font-size:11.5px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #fstate.warn{color:#a0503c;font-weight:600}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div id="rail" class="panel">
+  <button class="mode on" id="bDraw"   title="画河流 (1-4 选等级)">河流</button>
+  <button class="mode" id="bLake"      title="画湖泽：首尾落在河上会自动闭合">湖泽</button>
+  <button class="mode" id="bCoast"     title="画海岸线 / 岛屿">海岸</button>
+  <button class="mode" id="bSelect"    title="选择与编辑">选择</button>
+</div>
+
+<div id="bar" class="panel">
+  <div class="grp" id="rankGrp">
+    <button class="rank on" data-r="1"><i></i>干流</button>
+    <button class="rank" data-r="2"><i></i>一级</button>
+    <button class="rank" data-r="3"><i></i>二级</button>
+    <button class="rank" data-r="4"><i></i>运河</button>
+  </div>
+  <div class="grp">
+    <button id="bUndo" title="Ctrl+Z">撤销</button>
+    <button id="bRedo" title="Ctrl+Shift+Z">重做</button>
+    <button id="bDel" title="Delete">删除</button>
+    <button id="bSmooth" title="简化选中河段">简化</button>
+  </div>
+  <div class="grp">
+    <button id="bFit">全图</button>
+    <button id="bLayers">图层 ▾</button>
+  </div>
+</div>
+
+<div id="layers" class="panel">
+  <label class="chk"><input type="checkbox" id="cRivers" checked>河道参考图</label>
+  <label class="chk"><input type="checkbox" id="cArt">美术底图</label>
+  <label class="chk"><input type="checkbox" id="cNodes" checked>城邑</label>
+  <div class="sep"></div>
+  <label class="chk"><input type="checkbox" id="cRank1" checked><i style="background:#1b5e8c"></i>干流</label>
+  <label class="chk"><input type="checkbox" id="cRank2" checked><i style="background:#2e86b8"></i>一级支流</label>
+  <label class="chk"><input type="checkbox" id="cRank3" checked><i style="background:#5aa9cf"></i>二级支流</label>
+  <label class="chk"><input type="checkbox" id="cRank4" checked><i style="background:#8a5ea8"></i>运河</label>
+  <label class="chk"><input type="checkbox" id="cLakes" checked><i style="background:#7fb0c9"></i>湖泽</label>
+  <label class="chk"><input type="checkbox" id="cCoasts" checked><i style="background:#40606f"></i>海岸线</label>
+</div>
+</div>
+
+<div id="side" class="panel">
+  <h2>选中河段</h2>
+  <div id="editor" class="off">
+    <div class="fld"><span>河名</span><input id="fName" type="text" placeholder="整条河的名字（各段共用）"></div>
+    <div class="fld"><span>段名</span><input id="fSec" type="text" placeholder="这一段的名字（可空）"></div>
+    <div class="fld"><span>水量</span><span class="mini" id="fWater"></span></div>
+    <div class="fld"><span>等级</span><span class="mini" id="fRank"></span></div>
+    <div class="fld"><span>流向</span>
+      <span id="fFlow" style="color:#4a3524">—</span>
+      <button id="bReverse" title="反转水流方向（河口换到另一端）">反向</button>
+    </div>
+    <div id="linksBox"></div>
+    <div class="fld"><span></span>
+      <button id="bSplit" title="在某个顶点处切成两段，分别设水量/段名">分段</button>
+      <button id="bDel2">删除</button>
+    </div>
+  </div>
+  <div id="lakeEditor" class="off">
+    <h2>选中湖泽</h2>
+    <div class="fld"><span>湖名</span><input id="fLakeName" type="text" placeholder="如：大野泽"></div>
+    <div class="fld"><span></span><button id="bLakeDel">删除</button>
+      <span id="lakeInfo" style="color:#8a7a63;font-size:11px"></span></div>
+  </div>
+  <h2>河流（<span id="cnt">0</span> 段）
+    <span style="float:right;font-weight:400">
+      <button id="bFoldAll" style="padding:1px 6px;font-size:11px">折叠</button>
+      <button id="bUnfoldAll" style="padding:1px 6px;font-size:11px">展开</button>
+    </span>
+  </h2>
+  <div id="list"></div>
+  <div id="stat"></div>
+</div>
+
+<div id="hint" class="panel">
+  <b>单击</b>加点 · <b>双击/回车</b>收笔 · <b>Backspace</b> 退一点 · <b>Esc</b> 取消<br>
+  <b>空格/右键拖</b>平移 · <b>滚轮</b>缩放 · <b>1/2/3/4</b> 等级 · <b>R</b> 反向流向<br>
+  河口（下游端）接上别的河才算支流；上游端贴到邻河是"同源"，不算
+</div>
+
+<div id="filebar" class="panel">
+  <span id="fstate" class="warn">未绑定文件（只在浏览器缓存）</span>
+  <button id="bBind">绑定…</button>
+  <button id="bOpen">打开</button>
+  <button id="bExport">导出</button>
+</div>
+
+<input type="file" id="fOpen" accept=".json" style="display:none">
+<div id="toast"></div>
+
+<script src="nodes.js"></script>
+<script src="river_data.js"></script>
+<script>
+/* ============================================================
+   河流描迹器 v3
+   两条原则（2026-11-11 用户拍板）：
+     1) 地图上谁粗谁细只看「水量」，不看等级——淮河比长江支流水少就该更细；
+        等级只表示「我是谁的支流」。
+     2) 名字分两级：河名（整条河共用）+ 段名（每段单独）。
+
+   数据模型（每条河段）：
+     { id, river, rank, name, section, water, parent, pts, joins }
+       river   : 同一条河的分段共用
+       rank    : 1 干流 / 2 一级 / 3 二级 / 4 运河（由上级链推导，可手动改）
+       name    : 河名（整条河）
+       section : 段名（本段）
+       water   : 1–5，唯一决定线宽
+       parent  : {river, seg, idx} 或 null —— 汇入哪条河的哪个点
+   ============================================================ */
+const CW = 9101, CH = 8509;
+const LS_KEY = 'zgy_river_editor_v3';
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const $ = id => document.getElementById(id);
+let dpr = Math.min(2, window.devicePixelRatio || 1);
+let vw = 0, vh = 0;
+
+const RANK_NAME = {1:'干流', 2:'一级支流', 3:'二级支流', 4:'运河'};
+const RANK_COLOR = {1:'#1b5e8c', 2:'#2e86b8', 3:'#5aa9cf', 4:'#8a5ea8'};
+// 线宽只由水量决定（画布 px）
+const WATER_WIDTH = {1:2.4, 2:3.6, 3:5.2, 4:7.4, 5:10.0};
+const WATER_LABEL = {1:'极少', 2:'少', 3:'中', 4:'多', 5:'丰'};
+
+const S = {
+  segs: [], coasts: [], lakes: [], collapsed: new Set(),
+  mode:'draw', rank:1, sel:null, selCoast:null, selLake:null, draft:null, drag:null, panning:null, hover:null,
+  splitMode:false, linkMode:false, linkAt:null, linkSea:false, dragLake:null,
+  showRivers:true, showArt:false, showNodes:true,
+  vis:{1:true, 2:true, 3:true, 4:true, lakes:true, coast:true}
+};
+const V = { s:0.14, tx:0, ty:0 };
+const hist = [], fut = [];
+
+const w2s = (x,y) => [x*V.s + V.tx, y*V.s + V.ty];
+const s2w = (x,y) => [(x - V.tx)/V.s, (y - V.ty)/V.s];
+
+function fit(){
+  const s = Math.min(vw/CW, vh/CH) * 0.96;
+  V.s = s; V.tx = (vw - CW*s)/2; V.ty = (vh - CH*s)/2;
+  draw();
+}
+
+const imgRivers = new Image(); imgRivers.src = 'base_rivers.png';
+const imgArt = new Image();
+let artLoaded = false;
+imgArt.onerror = () => toast('美术底图没加载到：../map-review/ditu.png（用服务打开时才可跨目录读取）');
+imgArt.onload = () => requestDraw();
+function ensureArt(){ if (!artLoaded){ artLoaded = true; imgArt.src = '../map-review/ditu.png'; } }
+const nodes = window.RIVER_NODES || [];
+
+let dirty = true, raf = null;
+function requestDraw(){
+  dirty = true;
+  if (raf) return;
+  raf = requestAnimationFrame(() => { raf = null; if (dirty){ dirty = false; draw(); } });
+}
+
+const widthOf = seg => WATER_WIDTH[seg.water] || WATER_WIDTH[3];
+
+function draw(){
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle = '#e9dbb8';
+  ctx.fillRect(0,0,vw,vh);
+
+  ctx.setTransform(dpr*V.s,0,0,dpr*V.s,dpr*V.tx,dpr*V.ty);
+  if (S.showArt && imgArt.complete && imgArt.naturalWidth){
+    ctx.globalAlpha = .45; ctx.drawImage(imgArt,0,0,CW,CH); ctx.globalAlpha = 1;
+  }
+  if (S.showRivers && imgRivers.complete && imgRivers.naturalWidth){
+    ctx.drawImage(imgRivers,0,0,CW,CH);
+  }
+
+  ctx.setTransform(dpr*V.s,0,0,dpr*V.s,dpr*V.tx,dpr*V.ty);
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+
+  // 海岸线画在河流之下
+  for (const c of S.coasts){
+    if (!S.vis.coast) break;
+    if (c.pts.length < 2) continue;
+    ctx.beginPath();
+    ctx.moveTo(c.pts[0][0], c.pts[0][1]);
+    for (let i=1;i<c.pts.length;i++) ctx.lineTo(c.pts[i][0], c.pts[i][1]);
+    if (c.closed) ctx.closePath();      // 闭合环（岛屿）
+    if (c.closed){ ctx.fillStyle = 'rgba(242,231,203,.55)'; ctx.fill(); }
+    if (c.id === S.selCoast){
+      ctx.strokeStyle = 'rgba(255,214,102,.95)';
+      ctx.lineWidth = 9/V.s;
+      ctx.stroke();
+    }
+    ctx.strokeStyle = '#40606f';
+    // 海岸线加粗，和河流（2.4–10 世界像素）相称
+    ctx.lineWidth = Math.max(1.0/V.s, 5.0);
+    ctx.stroke();
+  }
+
+  // 绘制顺序：支流先画、干流后画（父压子），这样交汇处支流的圆头会被干流盖住，
+  // 看起来是「汇入」而不是「戳在干流上」。同深度时水量大的后画。
+  const depthCache = new Map();
+  const dv = seg => {
+    if (!depthCache.has(seg.river)) depthCache.set(seg.river, depthOf(seg.river));
+    return depthCache.get(seg.river);
+  };
+  const ordered = S.segs.filter(s => S.vis[s.rank]).sort((a, b) => {
+    const da = dv(a), db = dv(b);
+    if (da !== db) return db - da;            // 深的（支流）先画
+    return (a.water - b.water) || (a.rank - b.rank);
+  });
+  for (const seg of ordered){
+    if (seg.id === S.sel) continue;
+    strokeSeg(seg, false);
+  }
+  if (S.sel){
+    const selSeg = S.segs.find(s => s.id === S.sel);
+    if (selSeg && S.vis[selSeg.rank]) strokeSeg(selSeg, true);
+  }
+
+  // 湖泽：填充水体，压在河流之上
+  if (S.vis.lakes){
+    for (const l of S.lakes){
+      if (l.pts.length < 3) continue;
+      ctx.beginPath();
+      ctx.moveTo(l.pts[0][0], l.pts[0][1]);
+      for (let i=1;i<l.pts.length;i++) ctx.lineTo(l.pts[i][0], l.pts[i][1]);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(127,176,201,.55)';
+      ctx.fill();
+      if (l.id === S.selLake){
+        ctx.strokeStyle = 'rgba(255,214,102,.95)';
+        ctx.lineWidth = 9/V.s;
+        ctx.stroke();
+      }
+      ctx.strokeStyle = '#3e7ca6';
+      ctx.lineWidth = Math.max(1.0/V.s, 2.6);
+      ctx.stroke();
+    }
+  }
+  // 画湖泽时：光标若靠近同一条河，圈出会被吸上的顶点
+  if (S.draft && S.draft.type === 'lake' && S.draft.snapAtStart && S.cursor){
+    const sg = S.segs.find(x => x.id === S.draft.snapAtStart.seg);
+    if (sg){
+      let best = null;
+      for (const s2 of S.segs){
+        if (s2.river !== sg.river) continue;
+        for (let i=0;i<s2.pts.length;i++){
+          const dd = Math.hypot(s2.pts[i][0]-S.cursor[0], s2.pts[i][1]-S.cursor[1]);
+          if (!best || dd < best.d) best = { d:dd, x:s2.pts[i][0], y:s2.pts[i][1] };
+        }
+      }
+      if (best && best.d <= 45 / V.s){
+        ctx.beginPath();
+        ctx.arc(best.x, best.y, 9 / V.s, 0, 6.283);
+        ctx.strokeStyle = 'rgba(255,190,60,.95)';
+        ctx.lineWidth = 2.5 / V.s;
+        ctx.stroke();
+      }
+    }
+  }
+
+  // 选中湖泽时显示可拖的顶点
+  if (S.selLake){
+    const l = S.lakes.find(x => x.id === S.selLake);
+    if (l) for (const q of l.drawn) vdot(q, true);
+  }
+  // 湖名（画在世界坐标里，跟着缩放）
+  if (S.vis.lakes){
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const l of S.lakes){
+      if (!l.name || l.pts.length < 3) continue;
+      let cx = 0, cy = 0;
+      for (const p of l.pts){ cx += p[0]; cy += p[1]; }
+      cx /= l.pts.length; cy /= l.pts.length;
+      const fs = Math.max(14, 16 / V.s);
+      ctx.font = fs + 'px "Songti SC","SimSun",serif';
+      ctx.lineWidth = fs * 0.22;
+      ctx.strokeStyle = 'rgba(246,238,216,.9)';
+      ctx.strokeText(l.name, cx, cy);
+      ctx.fillStyle = '#2d5d80';
+      ctx.fillText(l.name, cx, cy);
+    }
+    ctx.textAlign = 'left';
+  }
+
+  // 箭头单独一趟，画在所有河段之上（否则会被父河盖住）
+  for (const seg of ordered) drawMouthArrow(seg, widthOf(seg));
+
+  // 上级接点标记
+  for (const seg of S.segs){
+    if (!seg.parent || !S.vis[seg.rank]) continue;
+    const p = S.segs.find(s => s.id === seg.parent.seg);
+    if (!p || !p.pts[seg.parent.idx]) continue;
+    const q = p.pts[seg.parent.idx];
+    ctx.beginPath(); ctx.arc(q[0], q[1], 3.6/V.s, 0, 6.283);
+    ctx.fillStyle = 'rgba(255,196,64,.85)';
+    ctx.fill();
+  }
+
+  if (S.draft && S.draft.pts.length){
+    const pts = S.draft.pts;
+    ctx.strokeStyle = RANK_COLOR[S.draft.rank];
+    ctx.lineWidth = WATER_WIDTH[3];
+    ctx.globalAlpha = .75;
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    if (S.hover) ctx.lineTo(S.hover[0], S.hover[1]);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    for (const p of pts) vdot(p);
+  }
+
+  if (S.sel){
+    const seg = S.segs.find(s => s.id === S.sel);
+    if (seg) for (const p of seg.pts) vdot(p, true);
+  }
+
+  // 城邑画在最上层，避免被湖面/河面盖住标签
+  if (S.showNodes && nodes.length){
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.font = '11px "Songti SC","SimSun",serif';
+    ctx.textBaseline = 'middle';
+    for (const n of nodes){
+      const [sx,sy] = w2s(n[3],n[4]);
+      if (sx < -20 || sy < -20 || sx > vw+20 || sy > vh+20) continue;
+      const k = n[2];
+      const r = k === '都' ? 3.2 : (k === '城' ? 2.2 : 1.2);
+      ctx.beginPath(); ctx.arc(sx,sy,r,0,6.283);
+      ctx.fillStyle = k === '都' ? '#8b2e1e' : (k === '城' ? '#6b4a2f' : '#7a6248');
+      ctx.fill();
+      if (k !== '邑' || V.s > 0.5){
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(245,236,213,.85)';
+        ctx.strokeText(n[1], sx+5, sy+1);
+        ctx.fillStyle = 'rgba(60,45,30,.9)';
+        ctx.fillText(n[1], sx+5, sy+1);
+      }
+    }
+  }
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  updateStat();
+}
+
+function strokeSeg(seg, selected){
+  const pts = seg.pts;
+  if (pts.length < 2) return;
+  const w = widthOf(seg);
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0], pts[i][1]);
+  if (seg.rank === 4) ctx.setLineDash([14,9]); else ctx.setLineDash([]);
+  if (selected){
+    ctx.strokeStyle = 'rgba(255,214,102,.95)';
+    ctx.lineWidth = w + 4;
+    ctx.stroke();
+  }
+  ctx.strokeStyle = RANK_COLOR[seg.rank];
+  ctx.lineWidth = w;
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// 流向：flow=1 表示 pts 顺序即水流方向（末点是河口），-1 表示反向（首点是河口）
+function mouthIndex(seg){ return seg.flow === -1 ? 0 : seg.pts.length - 1; }
+function sourceIndex(seg){ return seg.flow === -1 ? seg.pts.length - 1 : 0; }
+function mouthPoint(seg){ return seg.pts[mouthIndex(seg)]; }
+
+// 河口箭头。两处讲究：
+//   1) 单独一趟画在所有河段之后——否则会被父河（后画）盖住，根本看不见；
+//   2) 沿河道往上游退一点再画——河口正好压在干流上，画在原位等于埋进去。
+function drawMouthArrow(seg, w){
+  const pts = seg.pts;
+  if (pts.length < 2) return;
+  const mi = mouthIndex(seg);
+  const m = pts[mi];
+  const inner = pts[mi === 0 ? Math.min(1, pts.length - 1) : Math.max(0, pts.length - 2)];
+  let dx = m[0] - inner[0], dy = m[1] - inner[1];
+  const L = Math.hypot(dx, dy) || 1;
+  dx /= L; dy /= L;
+
+  const size = Math.max(w * 1.35, 14 / V.s);        // 箭头长度（约 14 屏幕像素）
+  const back = Math.max(w * 1.6, size * 1.4);        // 往上游退这么多
+  const cx = m[0] - dx * back, cy = m[1] - dy * back;
+
+  const px = -dy, py = dx;
+  ctx.beginPath();
+  ctx.moveTo(cx + dx * size * 0.62, cy + dy * size * 0.62);
+  ctx.lineTo(cx - dx * size * 0.38 + px * size * 0.45, cy - dy * size * 0.38 + py * size * 0.45);
+  ctx.lineTo(cx - dx * size * 0.38 - px * size * 0.45, cy - dy * size * 0.38 - py * size * 0.45);
+  ctx.closePath();
+  ctx.fillStyle = '#fffdf6';
+  ctx.fill();
+  ctx.strokeStyle = RANK_COLOR[seg.rank];
+  ctx.lineWidth = Math.max(1.2 / V.s, size * 0.18);
+  ctx.stroke();
+}
+
+function vdot(p, big){
+  ctx.beginPath();
+  ctx.arc(p[0], p[1], (big ? 5 : 4)/V.s * 0.5, 0, 6.283);
+  ctx.fillStyle = '#fff8e6'; ctx.fill();
+  ctx.strokeStyle = '#8b2e1e'; ctx.lineWidth = 1.2/V.s; ctx.stroke();
+}
+
+// ---------- 命中 ----------
+// 交汇处支流端点与干流顶点重合，单纯取最近会永远抓到干流，
+// 导致「支流的交汇点挪不动」。这里按 选中优先 > 层级更深（支流）优先 > 更近 排序。
+function hitVertex(wx, wy, tolPx, onlySeg){
+  const tol = tolPx / V.s;
+  const cands = [];
+  for (const seg of S.segs){
+    if (!S.vis[seg.rank]) continue;
+    if (onlySeg && seg.id !== onlySeg) continue;
+    for (let i=0;i<seg.pts.length;i++){
+      const d = Math.hypot(seg.pts[i][0]-wx, seg.pts[i][1]-wy);
+      if (d <= tol) cands.push({ seg:seg.id, idx:i, d, sel: seg.id === S.sel, depth: depthOf(seg.river) });
+    }
+  }
+  if (!cands.length) return null;
+  cands.sort((a, b) =>
+    (b.sel - a.sel) || (b.depth - a.depth) || (a.d - b.d));
+  return cands[0];
+}
+function hitSeg(wx, wy, tolPx, excludeId){
+  const tol = tolPx / V.s;
+  let best = null;
+  for (const seg of S.segs){
+    if (!S.vis[seg.rank]) continue;
+    if (excludeId && seg.id === excludeId) continue;
+    for (let i=1;i<seg.pts.length;i++){
+      const d = distToSeg(wx, wy, seg.pts[i-1], seg.pts[i]);
+      if (d <= tol && (!best || d < best.d)) best = { id:seg.id, d };
+    }
+  }
+  return best;
+}
+function distToSeg(px, py, a, b){
+  const dx = b[0]-a[0], dy = b[1]-a[1];
+  const L2 = dx*dx + dy*dy;
+  if (L2 === 0) return Math.hypot(px-a[0], py-a[1]);
+  let t = ((px-a[0])*dx + (py-a[1])*dy)/L2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px-(a[0]+t*dx), py-(a[1]+t*dy));
+}
+
+// ---------- 河网关系 ----------
+const riverOf = rid => S.segs.filter(s => s.river === rid);
+function riverName(rid){ const g = riverOf(rid); return g.length ? (g[0].name || '') : ''; }
+function depthOf(rid, guard){
+  guard = guard || new Set();
+  if (guard.has(rid)) return 0;
+  guard.add(rid);
+  const g = riverOf(rid);
+  if (!g.length) return 0;
+  const p = g[0].parent;
+  if (!p || !riverOf(p.river).length || p.river === rid) return 0;
+  return 1 + depthOf(p.river, guard);
+}
+function autoRank(seg){
+  if (seg.rank === 4) return 4;               // 运河是类型，不参与层级推导
+  return Math.min(3, depthOf(seg.river) + 1);
+}
+
+function linksOf(seg){ return (seg.links || []).slice(); }
+
+// 把某一条河的**某一端**挂到另一条河上（运河两端都要能挂，所以按端处理）
+// 端点类型：'
+//   'source' 天然源头（自由端，可任意拖）
+//   'branch' 从另一条河岔出来的（分水/同源，不构成父子关系）
+//   'mouth'  汇入另一条河（构成父子关系）
+function endKindOf(seg, at){
+  const L = (seg.links || []).find(x => x.at === at);
+  if (!L) return 'source';
+  return L.kind === 'mouth' ? 'mouth' : 'branch';
+}
+
+function attachEnd(segId, at, parentSegId, wx, wy, kind){
+  const seg = S.segs.find(s => s.id === segId);
+  const par = S.segs.find(s => s.id === parentSegId);
+  if (!seg || !par) return;
+  if (seg.river === par.river) return toast('不能挂到自己身上');
+  at = (at === 0) ? 0 : seg.pts.length - 1;
+
+  // 不指定 kind 时按端自动判：河口端=汇入，另一端=岔出
+  if (!kind){
+    kind = (at === (seg.flow === -1 ? 0 : seg.pts.length - 1)) ? 'mouth' : 'branch';
+  }
+
+  // 环检测只针对"汇入"（岔出是分水，不构成上下游，不会成环）
+  if (kind === 'mouth'){
+    let cur = par.river, hops = 0;
+    const seen = new Set();
+    while (cur && hops++ < 64){
+      if (cur === seg.river) return toast('会形成环，拒绝');
+      if (seen.has(cur)) break;
+      seen.add(cur);
+      const g = riverOf(cur);
+      if (!g.length) break;
+      const pl = (g[0].parent);
+      cur = pl ? pl.river : null;
+    }
+  }
+
+  pushHistory();
+  let bi = 0, bd = Infinity;
+  for (let i=0;i<par.pts.length;i++){
+    const d = Math.hypot(par.pts[i][0]-wx, par.pts[i][1]-wy);
+    if (d < bd){ bd = d; bi = i; }
+  }
+  const t = par.pts[bi];
+  seg.pts[at] = [t[0], t[1]];
+  seg.links = (seg.links || []).filter(L => L.at !== at);
+  seg.links.push({ at, kind, river: par.river, seg: par.id, idx: bi });
+  seg.links.sort((x, y) => x.at - y.at);
+
+  // 只有"汇入"那一端决定父子关系；运河不进支流树
+  const mouthLink = seg.links.find(L => L.kind === 'mouth');
+  seg.parent = (seg.rank === 4 || !mouthLink) ? null
+             : { river: mouthLink.river, seg: mouthLink.seg, idx: mouthLink.idx };
+  if (seg.rank !== 4 && seg.parent) seg.rank = autoRank(seg);
+
+  syncChildren(); syncEditor(); renderList(); requestDraw(); persist();
+  const kn = kind === 'mouth' ? '汇入' : '岔出';
+  toast('已' + kn + '「' + (riverName(par.river) || par.river) + '」第 ' + (bi+1) + ' 点');
+}
+
+// 找最近的海岸线顶点
+function hitCoast(wx, wy, tolPx){
+  const tol = tolPx / V.s;
+  let best = null;
+  for (const c of S.coasts){
+    for (let i=0;i<c.pts.length;i++){
+      const d = Math.hypot(c.pts[i][0]-wx, c.pts[i][1]-wy);
+      if (d <= tol && (!best || d < best.d)) best = { id:c.id, idx:i, d };
+    }
+  }
+  return best;
+}
+
+// 命中湖岸顶点（不含闭合重复的末点）
+function hitLake(wx, wy, tolPx){
+  const tol = tolPx / V.s;
+  let best = null;
+  for (const l of S.lakes){
+    for (let i = 0; i < l.pts.length - 1; i++){
+      const d = Math.hypot(l.pts[i][0]-wx, l.pts[i][1]-wy);
+      if (d <= tol && (!best || d < best.d)) best = { d, lake: l.id, idx: i, x: l.pts[i][0], y: l.pts[i][1] };
+    }
+  }
+  return best;
+}
+
+// 把某一端接到湖岸上（入湖 / 出湖）
+function attachLake(segId, at, lakeId, wx, wy){
+  const seg = S.segs.find(s => s.id === segId);
+  const lk = S.lakes.find(l => l.id === lakeId);
+  if (!seg || !lk) return;
+  at = (at === 0) ? 0 : seg.pts.length - 1;
+  pushHistory();
+  let bi = 0, bd = Infinity;
+  for (let i = 0; i < lk.pts.length - 1; i++){
+    const d = Math.hypot(lk.pts[i][0]-wx, lk.pts[i][1]-wy);
+    if (d < bd){ bd = d; bi = i; }
+  }
+  seg.pts[at] = [lk.pts[bi][0], lk.pts[bi][1]];
+  seg.links = (seg.links || []).filter(L => L.at !== at);
+  const kind = (at === (seg.flow === -1 ? 0 : seg.pts.length - 1)) ? 'mouth' : 'branch';
+  seg.links.push({ at, kind, lake: lk.id, idx: bi });
+  seg.links.sort((x, y) => x.at - y.at);
+  const ml = seg.links.find(L => L.kind === 'mouth' && L.river);
+  seg.parent = (seg.rank === 4 || !ml) ? null : { river: ml.river, seg: ml.seg, idx: ml.idx };
+  syncChildren(); syncEditor(); renderList(); requestDraw(); persist();
+  toast('已接到湖泽 ' + lk.id + '（' + (lk.name || '未命名') + '）第 ' + (bi + 1) + ' 点');
+}
+
+// 把河口端接到海岸线上（入海）
+function attachSea(segId, at, coastId, wx, wy){
+  const seg = S.segs.find(s => s.id === segId);
+  const c = S.coasts.find(x => x.id === coastId);
+  if (!seg || !c) return;
+  at = (at === 0) ? 0 : seg.pts.length - 1;
+  pushHistory();
+  let bi = 0, bd = Infinity;
+  for (let i=0;i<c.pts.length;i++){
+    const d = Math.hypot(c.pts[i][0]-wx, c.pts[i][1]-wy);
+    if (d < bd){ bd = d; bi = i; }
+  }
+  seg.pts[at] = [c.pts[bi][0], c.pts[bi][1]];
+  seg.links = (seg.links || []).filter(L => L.at !== at);
+  seg.links.push({ at, kind: 'sea', coast: c.id, idx: bi });
+  seg.links.sort((x, y) => x.at - y.at);
+  const ml = seg.links.find(L => L.kind === 'mouth');
+  seg.parent = (seg.rank === 4 || !ml) ? null : { river: ml.river, seg: ml.seg, idx: ml.idx };
+  syncChildren(); syncEditor(); renderList(); requestDraw(); persist();
+  toast('已入海：接到 ' + c.id + ' 第 ' + (bi + 1) + ' 点');
+}
+
+function unlinkEnd(segId, at){
+  const seg = S.segs.find(s => s.id === segId);
+  if (!seg) return;
+  at = (at === 0) ? 0 : seg.pts.length - 1;
+  if (!(seg.links || []).some(L => L.at === at)) return toast('这一端本来就没接');
+  pushHistory();
+  seg.links = (seg.links || []).filter(L => L.at !== at);
+  const ml = seg.links.find(L => L.kind === 'mouth');
+  seg.parent = (seg.rank === 4 || !ml) ? null : { river: ml.river, seg: ml.seg, idx: ml.idx };
+  if (seg.rank !== 4 && !seg.parent) seg.rank = 1;
+  syncEditor(); renderList(); requestDraw(); persist();
+  toast('这一端已恢复为天然源头');
+}
+
+// 反转流向：只翻方向，**不动任何坐标**。
+// 之前把这端拽到父河接点上，而另一端本来就焊在同一个接点 → 两端重合，折线闭合成环。
+// 如果这条河挂着上级，反转后"上游端"变成了河口，父子关系不再成立，所以顺手断开，
+// 由用户重新「上级：指定…」。
+function reverseFlow(){
+  const seg = S.segs.find(s => s.id === S.sel);
+  if (!seg) return toast('先选中一条河段');
+  pushHistory();
+  seg.flow = seg.flow === -1 ? 1 : -1;
+  const mi = mouthIndex(seg);
+  let detached = false;
+  if (seg.parent){
+    seg.parent = null;
+    seg.joins = [];
+    if (seg.rank !== 4) seg.rank = 1;
+    detached = true;
+  }
+  syncEditor(); renderList(); requestDraw(); persist();
+  toast('流向已反转：河口在' + (mi === 0 ? '起点' : '终点') +
+        (detached ? '；原上级已断开，需要的话重新「上级：指定…」' : ''));
+}
+
+// 让所有支流的交汇端点跟随上级的那个顶点。
+// 干流节点被拖动 / 简化 / 删除后调用，保证「父动子动」。
+function syncChildren(){
+  for (const seg of S.segs){
+    if (!seg.links || !seg.links.length) continue;
+    seg.links = seg.links.filter(L => {
+      const at = (L.at === 0) ? 0 : seg.pts.length - 1;
+      if (L.kind === 'lake' || L.lake){
+        const lk = S.lakes.find(x => x.id === L.lake);
+        if (!lk) return false;
+        const idx = Math.max(0, Math.min(L.idx, lk.pts.length - 1));
+        L.idx = idx; L.at = at;
+        seg.pts[at] = [lk.pts[idx][0], lk.pts[idx][1]];
+        return true;
+      }
+      if (L.kind === 'sea'){
+        const c = S.coasts.find(x => x.id === L.coast);
+        if (!c) return false;
+        const idx = Math.max(0, Math.min(L.idx, c.pts.length - 1));
+        L.idx = idx; L.at = at;
+        seg.pts[at] = [c.pts[idx][0], c.pts[idx][1]];
+        return true;
+      }
+      const par = S.segs.find(s => s.id === L.seg);
+      if (!par) return false;
+      const idx = Math.max(0, Math.min(L.idx, par.pts.length - 1));
+      L.idx = idx; L.at = at;
+      seg.pts[at] = [par.pts[idx][0], par.pts[idx][1]];
+      return true;
+    });
+    const ml = seg.links.find(L => L.kind === 'mouth');
+    seg.parent = (seg.rank === 4 || !ml) ? null : { river: ml.river, seg: ml.seg, idx: ml.idx };
+  }
+}
+
+// ---------- 编辑 ----------
+let seq = 0, rseq = 0, lastClick = null;
+function newId(){ seq++; return 'r' + String(seq).padStart(3,'0'); }
+function newRiverId(){ rseq++; return 'R' + String(rseq).padStart(3,'0'); }
+
+function pushHistory(){
+  hist.push(JSON.stringify(S.segs));
+  if (hist.length > 60) hist.shift();
+  fut.length = 0;
+  persist();
+}
+function undo(){
+  if (!hist.length) return toast('没有可撤销的');
+  fut.push(JSON.stringify(S.segs));
+  S.segs = JSON.parse(hist.pop());
+  S.sel = null; S.draft = null;
+  syncEditor(); renderList(); requestDraw(); persist();
+}
+function redo(){
+  if (!fut.length) return toast('没有可重做的');
+  hist.push(JSON.stringify(S.segs));
+  S.segs = JSON.parse(fut.pop());
+  syncEditor(); renderList(); requestDraw(); persist();
+}
+
+function startDraft(wx, wy, noSnap, type){
+  const isCoast = type === 'coast' || S.mode === 'coast';
+  const isLake = type === 'lake' || S.mode === 'lake';
+  const tol = isLake ? 8 : 12;
+  let snap = null;
+  if (!noSnap && !isCoast){
+    const hl = isLake ? null : hitLake(wx, wy, 14);
+    if (hl) snap = { lake: hl.lake, idx: hl.idx, x: hl.x, y: hl.y };
+    else {
+      const hv = hitVertex(wx, wy, tol);
+      if (hv){
+        const sg = S.segs.find(x => x.id === hv.seg);
+        if (sg) snap = { seg: hv.seg, idx: hv.idx, x: sg.pts[hv.idx][0], y: sg.pts[hv.idx][1] };
+      }
+    }
+  }
+  const p = snap ? [snap.x, snap.y] : [wx, wy];
+  S.draft = { type: isCoast ? 'coast' : (isLake ? 'lake' : 'river'), rank:S.rank, water:3, pts:[p],
+              snapAtStart: snap ? (snap.lake ? { lake:snap.lake, idx:snap.idx, x:snap.x, y:snap.y }
+                                              : { seg:snap.seg, idx:snap.idx, x:snap.x, y:snap.y }) : null,
+              snapAtEnd:null };
+  if (snap) toast('起点吸附到 ' + snap.seg + ' 第 ' + (snap.idx+1) + ' 点');
+}
+function addPoint(wx, wy, noSnap){
+  const isCoast = S.draft.type === 'coast';
+  const isLake = S.draft.type === 'lake';
+  let snap = null;
+  if (!noSnap && !isCoast){
+    if (isLake){
+      // 起点已经在河上 → 落点若靠近**同一条河**（45px 内）就吸上去，
+      // 这样"终点"才点得出来，而且能看见它跳到河上
+      const st = S.draft.snapAtStart;
+      if (st){
+        const sg = S.segs.find(x => x.id === st.seg);
+        if (sg){
+          let best = null;
+          for (const s2 of S.segs){
+            if (s2.river !== sg.river) continue;
+            for (let i=0;i<s2.pts.length;i++){
+              const dd = Math.hypot(s2.pts[i][0]-wx, s2.pts[i][1]-wy);
+              if (!best || dd < best.d) best = { d:dd, seg:s2.id, idx:i, x:s2.pts[i][0], y:s2.pts[i][1] };
+            }
+          }
+          if (best && best.d <= 18 / V.s) snap = best;
+        }
+      }
+    } else {
+      // 先看湖岸（河流常常直接进出湖泽），再看河道顶点
+      const hl = hitLake(wx, wy, 14);
+      if (hl) snap = { lake: hl.lake, idx: hl.idx, x: hl.x, y: hl.y };
+      else {
+        const hv = hitVertex(wx, wy, 12);
+        if (hv){
+          const sg = S.segs.find(x => x.id === hv.seg);
+          if (sg) snap = { seg: hv.seg, idx: hv.idx, x: sg.pts[hv.idx][0], y: sg.pts[hv.idx][1] };
+        }
+      }
+    }
+  }
+  const p = snap ? [snap.x, snap.y] : [wx, wy];
+  S.draft.pts.push(p);
+  S.draft.snapAtEnd = snap ? (snap.lake ? { lake:snap.lake, idx:snap.idx, x:snap.x, y:snap.y }
+                                         : { seg:snap.seg, idx:snap.idx, x:snap.x, y:snap.y }) : null;
+  S.draft.lastNoSnap = !!noSnap;
+
+  // 湖泽：绕回到起点附近就自动收笔，不用再双击
+  if (S.draft.type === 'lake' && S.draft.pts.length >= 4){
+    const a0 = S.draft.pts[0], b0 = S.draft.pts[S.draft.pts.length - 1];
+    if (Math.hypot(a0[0]-b0[0], a0[1]-b0[1]) <= 10 / V.s){
+      S.draft.pts.pop();
+      finishDraft();
+    }
+  }
+}
+function finishDraft(){
+  const d = S.draft;
+  S.draft = null;
+  if (!d || d.pts.length < 2){ requestDraw(); return; }
+  pushHistory();
+  if (d.type === 'lake'){
+    const drawn = d.pts.map(p => [Math.round(p[0]*10)/10, Math.round(p[1]*10)/10]);
+    // 双击收笔那一下不会加点；它若离上一点较远，说明用户想在那里收口
+    if (S.finishPos && drawn.length >= 3){
+      const fp = S.finishPos, lp = drawn[drawn.length-1];
+      if (Math.hypot(fp[0]-lp[0], fp[1]-lp[1]) > 8 / V.s) drawn.push([fp[0], fp[1]]);
+    }
+    S.finishPos = null;
+    if (drawn.length < 3){ toast('湖泽至少 3 个点'); renderList(); requestDraw(); return; }
+
+    const startSnap = d.snapAtStart;
+    let endSnap = null;
+
+    // 起点已经在河上时，终点对"同一条河"放宽到 30px——沿河收口才自然
+    if (startSnap){
+      const startSeg = S.segs.find(x => x.id === startSnap.seg);
+      if (startSeg){
+        // 一条河可能被切成好几段（淮水就是 r003/r011），必须按 river id 全找，
+        // 只搜起点那一段会漏掉"另一端在下一段上"的情况
+        const lastP = drawn[drawn.length-1];
+        let best = null;
+        for (const sg of S.segs){
+          if (sg.river !== startSeg.river) continue;
+          for (let i=0;i<sg.pts.length;i++){
+            const dd = Math.hypot(sg.pts[i][0]-lastP[0], sg.pts[i][1]-lastP[1]);
+            if (!best || dd < best.d) best = { d:dd, seg: sg.id, idx: i, x: sg.pts[i][0], y: sg.pts[i][1] };
+          }
+        }
+        if (best && best.d <= 45 / V.s &&
+            !(best.seg === startSnap.seg && best.idx === startSnap.idx)){
+          drawn[drawn.length-1] = [best.x, best.y];
+          endSnap = { seg: best.seg, idx: best.idx };
+        }
+      }
+    }
+    if (!endSnap && !d.lastNoSnap){
+      const cand = hitVertex(drawn[drawn.length-1][0], drawn[drawn.length-1][1], 18);
+      if (cand){
+        const seg = S.segs.find(x => x.id === cand.seg);
+        if (seg){
+          const t = seg.pts[cand.idx];
+          // 注意：这里的容差必须换算成世界坐标（之前写成 40 世界像素，等于把稍远的都拒了）
+          if (Math.hypot(t[0]-drawn[drawn.length-1][0], t[1]-drawn[drawn.length-1][1]) <= 40 / V.s){
+            drawn[drawn.length-1] = [t[0], t[1]];
+            endSnap = cand;
+          }
+        }
+      }
+    }
+
+    const onRivers = [];
+    if (startSnap) onRivers.push({ at: 0, seg: startSnap.seg, idx: startSnap.idx });
+    if (endSnap) onRivers.push({ at: drawn.length-1, seg: endSnap.seg, idx: endSnap.idx });
+
+    // 首尾都挂在河上 → 在全河网里找一条通路当闭合边（A 河到 B 河也行）
+    let arc = null;
+    let arcNote = '';
+    if (startSnap && endSnap &&
+        !(startSnap.seg === endSnap.seg && startSnap.idx === endSnap.idx)){
+      const path = netPath(endSnap.seg, endSnap.idx, startSnap.seg, startSnap.idx);
+      if (path && path.length){
+        arc = { path, from: { seg: endSnap.seg, idx: endSnap.idx },
+                     to:   { seg: startSnap.seg, idx: startSnap.idx } };
+        const rivers = new Set();
+        for (const q of path){
+          for (const sg of S.segs) if (sg.pts.some(pp => pp[0] === q[0] && pp[1] === q[1])) rivers.add(sg.river);
+        }
+        arcNote = '（边界经过 ' + rivers.size + ' 条河）';
+      } else {
+        arcNote = '（两处之间没有连通水路，用直线闭合）';
+      }
+    }
+
+    const lk = {
+      id: 'l' + String(S.lakes.length + 1).padStart(3, '0'),
+      name: '', drawn, arc, pts: [], onRivers
+    };
+    rebuildLake(lk);
+    S.lakes.push(lk);
+    S.selLake = lk.id; S.sel = null; S.selCoast = null;
+    renderList(); requestDraw(); persist();
+    toast('湖泽 ' + lk.id + '：' + (drawn.length) + ' 点' + arcNote +
+          (onRivers.length ? '，' + onRivers.length + ' 处接河' : ''));
+    return;
+  }
+
+  if (d.type === 'coast'){
+    const pts = d.pts.map(p => [Math.round(p[0]*10)/10, Math.round(p[1]*10)/10]);
+    // 首尾几乎重合 → 闭合环（岛屿），末点精确对齐首点
+    let closed = false;
+    if (pts.length >= 3 && Math.hypot(pts[0][0]-pts[pts.length-1][0], pts[0][1]-pts[pts.length-1][1]) <= 40){
+      pts[pts.length-1] = [pts[0][0], pts[0][1]];
+      closed = true;
+    }
+    const c = {
+      id: 'c' + String(S.coasts.length + 1).padStart(3, '0'),
+      pts, closed
+    };
+    S.coasts.push(c);
+    S.selCoast = c.id; S.sel = null;
+    renderList(); requestDraw(); persist();
+    toast('海岸线 ' + c.id + '：' + c.pts.length + ' 点');
+    return;
+  }
+  const seg = {
+    id: newId(), river: newRiverId(), rank: d.rank, name: '', section: '', water: d.water || 3,
+    flow: 1,                 // 默认：沿落笔方向流（末点是河口）
+    links: [],
+    parent: null,
+    pts: d.pts.map(p => [Math.round(p[0]*10)/10, Math.round(p[1]*10)/10]),
+    joins: []
+  };
+  S.segs.push(seg);
+  S.sel = seg.id;
+
+  // 自动认父：**只有下游端（河口端）接上别的河才算汇入**。
+  // 上游端贴到邻河是"同源"，不是支流关系——沙水就是这么被错挂到颍水上的。
+  // 两端都贴河时不猜，交给「上级：指定…」。
+  const s1 = d.snapAtStart, s2 = d.snapAtEnd;
+  if (seg.rank === 4){
+    // 运河是连接件：两端各自可能接到一条河上
+    const mk = (snap, at) => {
+      const par = snap && S.segs.find(x => x.id === snap.seg);
+      if (!par || par.river === seg.river) return;
+      seg.pts[at] = [par.pts[snap.idx][0], par.pts[snap.idx][1]];
+      seg.links.push({ at, kind: at === seg.pts.length - 1 ? 'mouth' : 'branch', river: par.river, seg: par.id, idx: snap.idx });
+    };
+    if (s1) mk(s1, 0);
+    if (s2) mk(s2, seg.pts.length - 1);
+    seg.links.sort((x, y) => x.at - y.at);
+    toast(seg.links.length ? ('运河已连接 ' + seg.links.length + ' 端') : '运河两端都未接河');
+  } else if (s1 && s2 && s1.lake && s2.lake){
+    // 两端都是湖 → 河从湖里流出、又流进另一个湖
+    const mk = (snap, at) => {
+      seg.pts[at] = [snap.x, snap.y];
+      seg.links.push({ at, kind: at === seg.pts.length-1 ? 'mouth' : 'branch', lake: snap.lake, idx: snap.idx });
+    };
+    mk(s1, 0);
+    mk(s2, seg.pts.length - 1);
+    seg.links.sort((x, y) => x.at - y.at);
+    toast('两端分别接湖泽 ' + s1.lake + ' 与 ' + s2.lake);
+  } else if (s1 && s2 && (s1.seg !== s2.seg || s1.lake || s2.lake)){
+    toast('两端都贴着别的河/湖（可能是同源）：请用「汇入…」点确定的那一端，或用「流向」反向');
+  } else {
+    const snap = s2 || s1;
+    if (snap && snap.lake){
+      const at = s2 ? seg.pts.length - 1 : 0;
+      seg.pts[at] = [snap.x, snap.y];
+      seg.flow = at === 0 ? -1 : 1;
+      seg.links.push({ at, kind: 'mouth', lake: snap.lake, idx: snap.idx });
+      toast('已接到湖泽 ' + snap.lake + (at === 0 ? '（起点）' : '（终点）'));
+    } else if (snap){
+      const par = S.segs.find(s => s.id === snap.seg);
+      if (par && par.river !== seg.river){
+        // 落笔末点贴着别的河 → 末点是河口（flow=1）；起点贴着 → 首点是河口（flow=-1）
+        const at = s2 ? seg.pts.length-1 : 0;
+        seg.flow = at === 0 ? -1 : 1;
+        seg.parent = { river: par.river, seg: par.id, idx: snap.idx };
+        seg.links = [{ at, kind: 'mouth', river: par.river, seg: par.id, idx: snap.idx }];
+        seg.joins = [{ at, seg: par.id, idx: snap.idx }];
+        seg.rank = autoRank(seg);
+        toast('已自动认作「' + (riverName(par.river) || par.river) + '」的' + RANK_NAME[seg.rank] +
+              '（河口在' + (at === 0 ? '起点' : '终点') + '）');
+      }
+    }
+  }
+  syncEditor(); renderList(); requestDraw(); persist();
+}
+
+function splitAt(segId, idx){
+  const i = S.segs.findIndex(s => s.id === segId);
+  if (i < 0) return;
+  const seg = S.segs[i];
+  if (idx < 1 || idx > seg.pts.length - 2) return toast('请点中间的顶点来分段');
+  pushHistory();
+  // 先记下挂在本段上的子河：切点之后的一律改挂到后半段，并平移顶点序号
+  const kids = S.segs.filter(s => s.parent && s.parent.seg === seg.id);
+  const A = Object.assign({}, seg, { pts: seg.pts.slice(0, idx + 1) });
+  const B = Object.assign({}, seg, {
+    id: newId(), section: '',
+    pts: seg.pts.slice(idx),
+    joins: [{ at:0, seg: seg.id, idx }],
+    parent: seg.parent
+  });
+  // 连接信息按切点分给前后两段
+  const allLinks = seg.links || [];
+  A.links = allLinks.filter(L => L.at <= idx).map(L => ({ ...L }));
+  B.links = allLinks.filter(L => L.at > idx).map(L => ({ ...L, at: L.at - idx }));
+  A.parent = (A.rank === 4) ? null : ((A.links[0] && { river:A.links[0].river, seg:A.links[0].seg, idx:A.links[0].idx }) || null);
+  B.parent = (B.rank === 4) ? null : ((B.links[0] && { river:B.links[0].river, seg:B.links[0].seg, idx:B.links[0].idx }) || null);
+  S.segs.splice(i, 1, A, B);
+  for (const k of kids){
+    if (k.parent.idx <= idx) continue;              // 还在前半段
+    k.parent.seg = B.id;
+    k.parent.idx = k.parent.idx - idx;
+    if (k.joins && k.joins.length) k.joins[0] = { at: k.joins[0].at, seg: B.id, idx: k.parent.idx };
+  }
+  S.sel = B.id;
+  S.splitMode = false;
+  syncChildren();
+  syncEditor(); renderList(); requestDraw(); persist();
+  toast('已切成两段：可分别设段名与水量');
+}
+
+function setSegField(field, val){
+  const seg = S.segs.find(s => s.id === S.sel);
+  if (!seg) return;
+  pushHistory();
+  if (field === 'name'){
+    for (const s of S.segs) if (s.river === seg.river) s.name = val;
+  } else if (field === 'section'){
+    seg.section = val;
+  }
+  renderList(); requestDraw(); persist();
+}
+function setSegWater(w){
+  const seg = S.segs.find(s => s.id === S.sel);
+  if (!seg) return;
+  pushHistory();
+  seg.water = w;
+  syncEditor(); renderList(); requestDraw(); persist();
+}
+function setSegRank(r){
+  const seg = S.segs.find(s => s.id === S.sel);
+  if (!seg) return;
+  pushHistory();
+  seg.rank = r;
+  syncEditor(); renderList(); requestDraw(); persist();
+}
+
+function setMode(m){
+  S.mode = m;
+  if (m !== 'select'){ S.sel = null; S.selCoast = null; S.selLake = null; }
+  if (m === 'select') S.draft = null;
+  S.splitMode = false; S.linkMode = false;
+  syncMode(); requestDraw();
+}
+function syncMode(){
+  $('bDraw').classList.toggle('on', S.mode === 'draw');
+  $('bLake').classList.toggle('on', S.mode === 'lake');
+  $('bCoast').classList.toggle('on', S.mode === 'coast');
+  $('bSelect').classList.toggle('on', S.mode === 'select');
+  $('rankGrp').style.opacity = (S.mode === 'draw') ? '1' : '.45';
+  $('rankGrp').style.pointerEvents = (S.mode === 'draw') ? 'auto' : 'none';
+  cv.className = S.mode === 'select' ? 'pan' : '';
+}
+function setRank(r){
+  S.rank = r;
+  document.querySelectorAll('button.rank').forEach(b => b.classList.toggle('on', +b.dataset.r === r));
+}
+function delSel(){
+  if (!S.sel){
+    if (S.selLake) return delLake(S.selLake);
+    if (S.selCoast) return delCoast(S.selCoast);
+    return;
+  }
+  pushHistory();
+  const gone = S.sel;
+  S.segs = S.segs.filter(s => s.id !== gone);
+  for (const s of S.segs) if (s.parent && s.parent.seg === gone) s.parent = null;
+  S.sel = null;
+  syncChildren();
+  syncEditor(); renderList(); requestDraw(); persist();
+}
+function smoothSel(){
+  const seg = S.segs.find(s => s.id === S.sel);
+  if (!seg || seg.pts.length < 3) return toast('先选中一条河段');
+  pushHistory();
+  // 简化会改变顶点序号：先记下每个子河的接点坐标，简化后重新找最近顶点
+  const kids = S.segs.filter(s => s.parent && s.parent.seg === seg.id)
+    .map(k => ({ k, p: seg.pts[Math.min(k.parent.idx, seg.pts.length - 1)].slice() }));
+  seg.pts = rdp(seg.pts, 1.5);
+  for (const { k, p } of kids){
+    let bi = 0, bd = Infinity;
+    for (let i=0;i<seg.pts.length;i++){
+      const d = Math.hypot(seg.pts[i][0]-p[0], seg.pts[i][1]-p[1]);
+      if (d < bd){ bd = d; bi = i; }
+    }
+    k.parent.idx = bi;
+    if (k.joins && k.joins.length) k.joins[0] = { at: k.joins[0].at, seg: seg.id, idx: bi };
+  }
+  syncChildren();
+  syncEditor(); renderList(); requestDraw(); persist();
+  toast('已简化到 ' + seg.pts.length + ' 点');
+}
+function rdp(points, eps){
+  if (points.length < 3) return points.slice();
+  const keep = new Array(points.length).fill(false);
+  keep[0] = keep[points.length-1] = true;
+  const st = [[0, points.length-1]];
+  while (st.length){
+    const [a,b] = st.pop();
+    if (b <= a+1) continue;
+    const A = points[a], B = points[b];
+    const dx = B[0]-A[0], dy = B[1]-A[1];
+    const L = Math.hypot(dx,dy) || 1e-9;
+    let md = -1, mi = -1;
+    for (let i=a+1;i<b;i++){
+      const d = Math.abs(dx*(points[i][1]-A[1]) - dy*(points[i][0]-A[0]))/L;
+      if (d > md){ md = d; mi = i; }
+    }
+    if (md > eps){ keep[mi] = true; st.push([a,mi],[mi,b]); }
+  }
+  return points.filter((_,i) => keep[i]);
+}
+
+// ---------- 选中编辑器 ----------
+function syncEditor(){
+  const seg = S.segs.find(s => s.id === S.sel);
+  const box = $('editor');
+  syncLakeEditor();
+  if (!seg){ box.classList.add('off'); const lb0 = $('linksBox'); if (lb0) lb0.innerHTML = ''; return; }
+  box.classList.remove('off');
+  const nInput = $('fName'), sInput = $('fSec');
+  if (document.activeElement !== nInput) nInput.value = seg.name || '';
+  if (document.activeElement !== sInput) sInput.value = seg.section || '';
+
+  const wbox = $('fWater'); wbox.innerHTML = '';
+  for (let w=1; w<=5; w++){
+    const b = document.createElement('button');
+    b.className = 'wbtn' + (seg.water === w ? ' on' : '');
+    b.textContent = w; b.title = '水量 ' + w + '（' + WATER_LABEL[w] + '）· 线宽 ' + WATER_WIDTH[w] + 'px';
+    b.onclick = () => setSegWater(w);
+    wbox.appendChild(b);
+  }
+  const rbox = $('fRank'); rbox.innerHTML = '';
+  for (let r=1; r<=4; r++){
+    const b = document.createElement('button');
+    b.textContent = RANK_NAME[r];
+    if (seg.rank === r) b.classList.add('on');
+    b.onclick = () => setSegRank(r);
+    rbox.appendChild(b);
+  }
+  const ff = $('fFlow');
+  if (ff) ff.textContent = seg.flow === -1 ? '起点 → 终点（河口在起点）' : '起点 → 终点（河口在终点）';
+  renderLinks(seg);
+}
+
+// 运河两端都能挂；普通河流只有河口一端
+function syncLakeEditor(){
+  const box = $('lakeEditor');
+  const l = S.lakes.find(x => x.id === S.selLake);
+  if (!l){ box.classList.add('off'); return; }
+  box.classList.remove('off');
+  const inp = $('fLakeName');
+  if (document.activeElement !== inp) inp.value = l.name || '';
+  // 面积（用鞋带公式，单位是画布像素²）
+  let area = 0;
+  for (let i=0;i<l.pts.length-1;i++){
+    area += l.pts[i][0]*l.pts[i+1][1] - l.pts[i+1][0]*l.pts[i][1];
+  }
+  area = Math.abs(area)/2;
+  $('lakeInfo').textContent = l.pts.length + ' 点 · 约 ' + Math.round(area).toLocaleString() + ' px²';
+}
+
+function setLakeName(v){
+  const l = S.lakes.find(x => x.id === S.selLake);
+  if (!l) return;
+  pushHistory();
+  l.name = v;
+  renderList(); requestDraw(); persist();
+}
+
+// 全河网最短路：起点在 A 河、终点在 B 河也能找到一条通路当边界
+// 图的边：①同一段内相邻点 ②同一条河的各分段端点接续（<=400） ③不同河的端点吸到最近的异段顶点（<=14，即河口/运河口）
+function buildNetGraph(){
+  const key = (sid, i) => sid + ':' + i;
+  const coord = new Map(), adj = new Map(), segOf = new Map(), idxOf = new Map();
+  for (const sg of S.segs){
+    for (let i = 0; i < sg.pts.length; i++){
+      const k = key(sg.id, i);
+      coord.set(k, sg.pts[i]); segOf.set(k, sg.id); idxOf.set(k, i);
+      adj.set(k, []);
+    }
+    for (let i = 1; i < sg.pts.length; i++){
+      const a = key(sg.id, i-1), b = key(sg.id, i);
+      adj.get(a).push(b); adj.get(b).push(a);
+    }
+  }
+  const link = (a, b) => { adj.get(a).push(b); adj.get(b).push(a); };
+
+  // ② 同一条河的段与段接续
+  const ends = [];
+  for (const sg of S.segs){
+    if (!sg.pts.length) continue;
+    ends.push({ k: key(sg.id, 0), seg: sg.id, idx: 0, river: sg.river });
+    if (sg.pts.length > 1) ends.push({ k: key(sg.id, sg.pts.length-1), seg: sg.id, idx: sg.pts.length-1, river: sg.river });
+  }
+  for (let a = 0; a < ends.length; a++){
+    for (let b = a + 1; b < ends.length; b++){
+      if (ends[a].river !== ends[b].river || ends[a].seg === ends[b].seg) continue;
+      const pa = coord.get(ends[a].k), pb = coord.get(ends[b].k);
+      if (Math.hypot(pa[0]-pb[0], pa[1]-pb[1]) <= 400) link(ends[a].k, ends[b].k);
+    }
+  }
+
+  // ③ 河口/运河口：每个分段端点吸到"别的段"上最近的顶点
+  const allKeys = [...coord.keys()];
+  for (const e of ends){
+    const pa = coord.get(e.k);
+    let best = null;
+    for (const k2 of allKeys){
+      if (segOf.get(k2) === e.seg) continue;
+      const pb = coord.get(k2);
+      const d = Math.hypot(pa[0]-pb[0], pa[1]-pb[1]);
+      if (!best || d < best.d) best = { d, k: k2 };
+    }
+    if (best && best.d <= 14) link(e.k, best.k);
+  }
+  return { coord, adj, key };
+}
+
+// 返回从 (fromSeg,fromIdx) 走到 (toSeg,toIdx) 的中间点（不含两端）；无路返回 null
+function netPath(fromSeg, fromIdx, toSeg, toIdx){
+  const G = buildNetGraph();
+  const src = G.key(fromSeg, fromIdx), dst = G.key(toSeg, toIdx);
+  if (!G.coord.has(src) || !G.coord.has(dst)) return null;
+  if (src === dst) return [];
+  const dist = new Map([[src, 0]]), prev = new Map(), done = new Set();
+  const open = [src];
+  while (open.length){
+    open.sort((x, y) => (dist.get(x) ?? 1e18) - (dist.get(y) ?? 1e18));
+    const cur = open.shift();
+    if (done.has(cur)) continue;
+    done.add(cur);
+    if (cur === dst) break;
+    for (const nb of (G.adj.get(cur) || [])){
+      const a0 = G.coord.get(cur), b0 = G.coord.get(nb);
+      const nd = (dist.get(cur) || 0) + Math.hypot(a0[0]-b0[0], a0[1]-b0[1]);
+      if (nd < (dist.has(nb) ? dist.get(nb) : 1e18)){
+        dist.set(nb, nd); prev.set(nb, cur); open.push(nb);
+      }
+    }
+  }
+  if (!dist.has(dst)) return null;
+  const out = [];
+  let cur = dst;
+  while (cur !== src && prev.has(cur)){ out.push(G.coord.get(cur)); cur = prev.get(cur); }
+  out.reverse();
+  return out;
+}
+
+// 由 drawn（手绘点）+ arc（沿河的闭合边）重建 pts// 由 drawn（手绘点）+ arc（沿河的闭合边）重建 pts
+function rebuildLake(lk){
+  const pts = lk.drawn.map(p => [p[0], p[1]]);
+  // arc.path 是按"末点 → 起点"排列的河道点，直接接在后面即可闭合
+  if (lk.arc && lk.arc.path) for (const q of lk.arc.path) pts.push([q[0], q[1]]);
+  if (pts[0][0] !== pts[pts.length-1][0] || pts[0][1] !== pts[pts.length-1][1]){
+    pts.push([pts[0][0], pts[0][1]]);
+  }
+  lk.pts = pts;
+}
+
+function renderLinks(seg){
+  const box = $('linksBox');
+  if (!box) return;
+  box.innerHTML = '';
+  const mi = mouthIndex(seg);
+  const si = mi === 0 ? seg.pts.length - 1 : 0;
+
+  const ends = (seg.rank === 4)
+    ? [{ at: 0, label: '端口A', role: 'port' }, { at: seg.pts.length - 1, label: '端口B', role: 'port' }]
+    : [{ at: mi, label: '河口', role: 'mouth' }, { at: si, label: '源头', role: 'source' }];
+
+  for (const e of ends){
+    const link = (seg.links || []).find(L => L.at === e.at);
+    const row = document.createElement('div');
+    row.className = 'fld';
+    const lab = document.createElement('span');
+    lab.textContent = e.label;
+    row.appendChild(lab);
+
+    if (link && link.lake){
+      const lk = S.lakes.find(x => x.id === link.lake);
+      const info = document.createElement('span');
+      info.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#2f6f8f;font-size:11.5px';
+      info.textContent = (link.kind === 'mouth' ? '入湖 ' : '出湖 ') + (lk && lk.name ? lk.name : link.lake) + ' @' + (link.idx + 1);
+      row.appendChild(info);
+      const off = document.createElement('button');
+      off.textContent = '断开';
+      off.onclick = () => unlinkEnd(seg.id, e.at);
+      row.appendChild(off);
+    } else if (link && link.kind === 'sea'){
+      const info = document.createElement('span');
+      info.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#4a7f96;font-size:11.5px';
+      info.textContent = '入海 ' + link.coast + ' @' + (link.idx + 1);
+      row.appendChild(info);
+      const off = document.createElement('button');
+      off.textContent = '断开';
+      off.onclick = () => unlinkEnd(seg.id, e.at);
+      row.appendChild(off);
+    } else if (link && riverOf(link.river).length){
+      const kindTxt = link.kind === 'mouth' ? '汇入' : '岔出';
+      const info = document.createElement('span');
+      info.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#5b7f99;font-size:11.5px';
+      info.textContent = kindTxt + ' ' + (riverName(link.river) || link.river) + ' @' + (link.idx + 1);
+      row.appendChild(info);
+      const off = document.createElement('button');
+      off.textContent = '断开';
+      off.onclick = () => unlinkEnd(seg.id, e.at);
+      row.appendChild(off);
+    } else if (e.role === 'source'){
+      const native = document.createElement('span');
+      native.style.cssText = 'flex:1;color:#8a7a63;font-size:11.5px';
+      native.textContent = '天然源头';
+      row.appendChild(native);
+      const on = document.createElement('button');
+      on.textContent = '岔出…';
+      on.title = '这一端是从另一条河分出来的（分水/同源），不构成父子关系';
+      on.onclick = () => {
+        S.linkMode = true; S.linkAt = e.at;
+        toast('点一下它岔出的那条河');
+      };
+      row.appendChild(on);
+    } else {
+      const on = document.createElement('button');
+      on.textContent = e.role === 'mouth' ? '汇入…' : '连接…';
+      on.onclick = () => {
+        S.linkMode = true; S.linkSea = false; S.linkAt = e.at;
+        toast('点一下要连接的河道线，或湖岸');
+      };
+      row.appendChild(on);
+      if (e.role === 'mouth'){
+        const sea = document.createElement('button');
+        sea.textContent = '入海…';
+        sea.title = '把河口接到海岸线上的某一点';
+        sea.onclick = () => {
+          S.linkMode = true; S.linkSea = true; S.linkAt = e.at;
+          toast(S.coasts.length ? '点一下海岸线' : '还没有海岸线：先用工具栏「海岸线」画一条');
+        };
+        row.appendChild(sea);
+      }
+      const hint = document.createElement('span');
+      hint.style.cssText = 'color:#8a7a63;font-size:11px';
+      hint.textContent = e.role === 'mouth' ? '不接（独立入海/消失）' : '未连接';
+      row.appendChild(hint);
+    }
+    box.appendChild(row);
+  }
+}
+
+// ---------- 交互 ----------
+cv.addEventListener('contextmenu', e => e.preventDefault());
+
+cv.addEventListener('pointerdown', e => {
+  cv.setPointerCapture(e.pointerId);
+  const r = cv.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const [wx, wy] = s2w(mx, my);
+  S.cursor = [wx, wy];
+
+  if (e.button === 2 || e.button === 1){
+    S.panning = { x:mx, y:my, tx:V.tx, ty:V.ty };
+    cv.classList.add('panning');
+    return;
+  }
+
+  if (S.mode === 'coast' || S.mode === 'draw' || S.mode === 'lake'){
+    const now = performance.now();
+    const dbl = lastClick && (now - lastClick.t < 340) &&
+      Math.hypot(mx-lastClick.x, my-lastClick.y) < 8;
+    lastClick = dbl ? null : { t:now, x:mx, y:my };
+    if (dbl){ S.finishPos = [wx, wy]; finishDraft(); return; }
+    if (!S.draft) startDraft(wx, wy, e.altKey); else addPoint(wx, wy, e.altKey);
+    requestDraw();
+    return;
+  }
+
+  if (S.splitMode && S.sel){
+    const v = hitVertex(wx, wy, 12, S.sel);
+    if (v) splitAt(S.sel, v.idx);
+    else toast('请在选中河段的顶点上点一下');
+    return;
+  }
+  if (S.linkMode && S.sel && S.linkSea){
+    const c = hitCoast(wx, wy, 16);
+    if (c) attachSea(S.sel, S.linkAt, c.id, wx, wy);
+    else toast('点到海岸线上');
+    S.linkMode = false; S.linkSea = false; S.linkAt = null;
+    return;
+  }
+  if (S.linkMode && S.sel){
+    const seg = S.segs.find(s => s.id === S.sel);
+    const at = (seg && (S.linkAt === 0 || S.linkAt === seg.pts.length - 1)) ? S.linkAt : mouthIndex(seg);
+    const hl = hitLake(wx, wy, 16);
+    if (hl && seg){
+      attachLake(S.sel, at, hl.lake, wx, wy);
+    } else {
+      const h = hitSeg(wx, wy, 16, S.sel);
+      if (h && seg) attachEnd(S.sel, at, h.id, wx, wy);
+      else toast('点到要连接的河道线或湖岸上');
+    }
+    S.linkMode = false; S.linkAt = null;
+    return;
+  }
+  // 湖泽顶点可拖
+  if (S.selLake){
+    const l = S.lakes.find(x => x.id === S.selLake);
+    if (l){
+      const tol = 10 / V.s;
+      for (let i=0;i<l.drawn.length;i++){
+        if (Math.hypot(l.drawn[i][0]-wx, l.drawn[i][1]-wy) <= tol){
+          pushHistory();
+          S.dragLake = { id: l.id, idx: i };
+          return;
+        }
+      }
+    }
+  }
+  const v = hitVertex(wx, wy, 10);
+  if (v){
+    S.drag = { seg:v.seg, idx:v.idx };
+    S.sel = v.seg;
+    pushHistory(); syncEditor(); renderList(); requestDraw(); return;
+  }
+  const h = hitSeg(wx, wy, 9);
+  S.sel = h ? h.id : null;
+  syncEditor(); renderList(); requestDraw();
+});
+
+cv.addEventListener('pointermove', e => {
+  const r = cv.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const [wx, wy] = s2w(mx, my);
+
+  if (S.panning){
+    V.tx = S.panning.tx + (mx - S.panning.x);
+    V.ty = S.panning.ty + (my - S.panning.y);
+    requestDraw(); return;
+  }
+  if (S.dragLake){
+    const l = S.lakes.find(x => x.id === S.dragLake.id);
+    if (l){
+      const i = S.dragLake.idx;
+      l.drawn[i] = [wx, wy];
+      // 端点若原本贴河，拖完就近重新吸回那条河（25px 内）
+      if (l.arc && (i === 0 || i === l.drawn.length - 1)){
+        // 就近吸回这条河（任意分段）
+        let best = null;
+        for (const sg of S.segs){
+          if (sg.river !== l.arc.river && !(l.onRivers || []).some(r => r.seg === sg.id)) continue;
+          for (let k=0;k<sg.pts.length;k++){
+            const dd = Math.hypot(sg.pts[k][0]-wx, sg.pts[k][1]-wy);
+            if (!best || dd < best.d) best = { d:dd, seg: sg.id, idx: k, x: sg.pts[k][0], y: sg.pts[k][1] };
+          }
+        }
+        if (best && best.d <= 25 / V.s){
+          l.drawn[i] = [best.x, best.y];
+          const iEnd = l.drawn.length - 1;
+          // 重建 arc：从"末点"走到"起点"
+          const ends = l.onRivers || [];
+          const fromSnap = i === iEnd ? { seg: best.seg, idx: best.idx } : ends.find(r => r.at === iEnd);
+          const toSnap   = i === 0    ? { seg: best.seg, idx: best.idx } : ends.find(r => r.at === 0);
+          if (fromSnap && toSnap){
+            const path = netPath(fromSnap.seg, fromSnap.idx, toSnap.seg, toSnap.idx);
+            if (path) l.arc.path = path;
+          }
+          l.onRivers = ends.map(r => (r.at === i) ? { at:i, seg:best.seg, idx:best.idx } : r);
+        }
+      }
+      rebuildLake(l);
+      requestDraw();
+    }
+    return;
+  }
+  if (S.drag){
+    const seg = S.segs.find(s => s.id === S.drag.seg);
+    if (seg){
+      // 只有**这一端确实挂着**时才沿父河滑动；天然源头端必须能自由拖动
+      const link = (seg.links || []).find(L => L.at === S.drag.idx);
+      if (link){
+        const par = S.segs.find(s => s.id === link.seg);
+        if (par){
+          let bi = 0, bd = Infinity;
+          for (let i=0;i<par.pts.length;i++){
+            const d = Math.hypot(par.pts[i][0]-wx, par.pts[i][1]-wy);
+            if (d < bd){ bd = d; bi = i; }
+          }
+          link.idx = bi;
+          seg.pts[S.drag.idx] = [par.pts[bi][0], par.pts[bi][1]];
+        }
+      } else {
+        seg.pts[S.drag.idx] = [wx, wy];
+      }
+      syncChildren();
+      requestDraw();
+    }
+    return;
+  }
+  S.hover = S.draft ? [wx, wy] : null;
+  if (S.draft) requestDraw();
+});
+
+cv.addEventListener('pointerup', () => {
+  const draggedLake = !!S.dragLake;
+  S.dragLake = null;
+  const dragged = !!S.drag;
+  S.panning = null; S.drag = null;
+  cv.classList.remove('panning');
+  if (draggedLake) { syncChildren(); syncEditor(); renderList(); requestDraw(); persist(); }
+  else if (dragged) { syncChildren(); syncEditor(); requestDraw(); persist(); }
+  else if (S.draft) persist();
+});
+
+cv.addEventListener('dblclick', () => { if (S.draft) finishDraft(); });
+
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = cv.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const k = Math.exp(-e.deltaY * 0.0016);
+  const [wx, wy] = s2w(mx, my);
+  V.s = Math.max(0.03, Math.min(8, V.s * k));
+  V.tx = mx - wx*V.s; V.ty = my - wy*V.s;
+  requestDraw();
+}, { passive:false });
+
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const k = e.key;
+  if (k === 'Enter'){ if (S.draft) finishDraft(); }
+  else if (k === 'Escape'){ S.draft = null; S.splitMode = false; S.linkMode = false; S.sel = null; syncEditor(); renderList(); requestDraw(); }
+  else if (k === 'Backspace'){
+    if (S.draft && S.draft.pts.length > 1){ S.draft.pts.pop(); requestDraw(); }
+    else if (S.draft){ S.draft = null; requestDraw(); }
+    else if (S.sel){ delSel(); }
+  }
+  else if (k === 'Delete'){ if (S.sel) delSel(); }
+  else if (k >= '1' && k <= '4'){
+    const seg = S.sel ? S.segs.find(x => x.id === S.sel) : null;
+    if (S.mode === 'select' && seg){ setSegRank(+k); toast('改为 ' + RANK_NAME[+k]); }
+    else setRank(+k);
+  }
+  else if (k === '0') fit();
+  else if (k === 'r' || k === 'R'){ if (S.sel) reverseFlow(); }
+  else if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === 'z'){ e.preventDefault(); e.shiftKey ? redo() : undo(); }
+});
+
+window.addEventListener('resize', resize);
+
+function resize(){
+  vw = cv.clientWidth; vh = cv.clientHeight;
+  cv.width = Math.round(vw*dpr); cv.height = Math.round(vh*dpr);
+  requestDraw();
+}
+
+// ---------- 列表（河网树） ----------
+function segLength(seg){
+  let L = 0;
+  for (let i=1;i<seg.pts.length;i++)
+    L += Math.hypot(seg.pts[i][0]-seg.pts[i-1][0], seg.pts[i][1]-seg.pts[i-1][1]);
+  return L;
+}
+function waterPips(w){
+  let s = '';
+  for (let i=1;i<=5;i++) s += i <= w ? '●' : '○';
+  return s;
+}
+
+const UI_KEY = 'zgy_river_editor_ui';
+function saveUI(){
+  try {
+    localStorage.setItem(UI_KEY, JSON.stringify({
+      rivers: S.showRivers, art: S.showArt, nodes: S.showNodes,
+      vis: S.vis, mode: S.mode, rank: S.rank
+    }));
+  } catch (_) {}
+}
+function loadUI(){
+  try {
+    const u = JSON.parse(localStorage.getItem(UI_KEY) || 'null');
+    if (!u) return;
+    if (u.rivers !== undefined) S.showRivers = !!u.rivers;
+    if (u.art !== undefined) S.showArt = !!u.art;
+    if (u.nodes !== undefined) S.showNodes = !!u.nodes;
+    if (u.vis) Object.assign(S.vis, u.vis);
+  } catch (_) {}
+}
+function syncUIBoxes(){
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
+  set('cRivers', S.showRivers); set('cArt', S.showArt); set('cNodes', S.showNodes);
+  set('cRank1', S.vis[1]); set('cRank2', S.vis[2]); set('cRank3', S.vis[3]); set('cRank4', S.vis[4]);
+  set('cLakes', S.vis.lakes); set('cCoasts', S.vis.coast);
+}
+
+const FOLD_KEY = 'zgy_river_editor_collapsed';
+function saveCollapsed(){
+  try { localStorage.setItem(FOLD_KEY, JSON.stringify([...S.collapsed])); } catch (_) {}
+}
+function loadCollapsed(){
+  try {
+    const raw = localStorage.getItem(FOLD_KEY);
+    if (raw) S.collapsed = new Set(JSON.parse(raw));
+  } catch (_) {}
+}
+
+function renderList(){
+  const list = $('list');
+  list.innerHTML = '';
+
+  const rivers = new Map();
+  for (const seg of S.segs){
+    if (!rivers.has(seg.river)) rivers.set(seg.river, []);
+    rivers.get(seg.river).push(seg);
+  }
+  const kids = new Map();
+  for (const [rid, g] of rivers){
+    const p = g[0].parent;
+    const pr = (p && rivers.has(p.river) && p.river !== rid) ? p.river : null;
+    if (!kids.has(pr)) kids.set(pr, []);
+    kids.get(pr).push(rid);
+  }
+  const subtreeCount = (rid) => {
+    let n = (rivers.get(rid) || []).length;
+    for (const c of (kids.get(rid) || [])) n += subtreeCount(c);
+    return n;
+  };
+
+  const drawRiver = (rid, level) => {
+    const g = rivers.get(rid);
+    if (!g) return;
+    const col = S.collapsed.has(rid);
+    const h = document.createElement('div');
+    h.className = 'grp-h';
+    h.style.paddingLeft = (4 + level * 14) + 'px';
+    const nm = g[0].name ? g[0].name : ('（未命名 ' + rid + '）');
+    h.innerHTML = '<span class="caret">' + (col ? '▸' : '▾') + '</span>' +
+      '<span class="dot" style="background:' + RANK_COLOR[g[0].rank] + '"></span>' +
+      nm + ' <span class="cnt">' + RANK_NAME[g[0].rank] + ' · ' + g.length + ' 段</span>';
+    h.onclick = () => {
+      if (S.collapsed.has(rid)) S.collapsed.delete(rid); else S.collapsed.add(rid);
+      saveCollapsed(); renderList();
+    };
+    list.appendChild(h);
+
+    if (col){
+      // 折叠时仍显示一行汇总，避免"这条河消失了"的错觉
+      const row = document.createElement('div');
+      row.className = 'row foldnote';
+      row.style.paddingLeft = (18 + level * 14) + 'px';
+      row.textContent = '已折叠 ' + subtreeCount(rid) + ' 段';
+      list.appendChild(row);
+      return;
+    }
+
+    g.forEach((seg, i) => {
+      const row = document.createElement('div');
+      row.className = 'row' + (seg.id === S.sel ? ' sel' : '');
+      row.style.paddingLeft = (18 + level * 14) + 'px';
+      const label = seg.section ? seg.section : ('第' + (i+1) + '段');
+      row.innerHTML =
+        '<span class="nm">' + label + '</span>' +
+        '<span class="w" title="水量 ' + seg.water + '（' + WATER_LABEL[seg.water] + '）">' + waterPips(seg.water) + '</span>' +
+        '<span class="len">' + Math.round(segLength(seg)) + '</span>' +
+        '<span class="x" title="删除">✕</span>';
+      row.onclick = ev => {
+        if (ev.target.classList.contains('x')){ S.sel = seg.id; delSel(); return; }
+        S.sel = seg.id; S.mode = 'select'; syncMode(); syncEditor();
+        zoomTo(seg); renderList(); requestDraw();
+      };
+      list.appendChild(row);
+    });
+
+    for (const c of (kids.get(rid) || [])) drawRiver(c, level + 1);
+  };
+
+  for (const rid of (kids.get(null) || [])) drawRiver(rid, 0);
+
+  // 海岸线
+  if (S.coasts.length){
+    const h = document.createElement('div');
+    h.className = 'grp-h';
+    h.innerHTML = '<span class="dot" style="background:#5d7280"></span>海岸线 <span class="cnt">' + S.coasts.length + ' 条</span>';
+    list.appendChild(h);
+    for (const c of S.coasts){
+      const row = document.createElement('div');
+      row.className = 'row' + (c.id === S.selCoast ? ' sel' : '');
+      row.style.paddingLeft = '18px';
+      row.innerHTML = '<span class="nm">' + c.id + '</span><span class="len">' +
+        c.pts.length + ' 点</span><span class="x" title="删除">✕</span>';
+      row.onclick = ev => {
+        if (ev.target.classList.contains('x')){ delCoast(c.id); return; }
+        S.selCoast = c.id; S.sel = null; S.mode = 'select'; syncMode(); syncEditor(); requestDraw();
+      };
+      list.appendChild(row);
+    }
+  }
+  // 湖泽
+  if (S.lakes.length){
+    const h = document.createElement('div');
+    h.className = 'grp-h';
+    h.innerHTML = '<span class="dot" style="background:#7fb0c9"></span>湖泽 <span class="cnt">' + S.lakes.length + ' 处</span>';
+    list.appendChild(h);
+    for (const l of S.lakes){
+      const row = document.createElement('div');
+      row.className = 'row' + (l.id === S.selLake ? ' sel' : '');
+      row.style.paddingLeft = '18px';
+      row.innerHTML = '<span class="nm">' + (l.name || l.id) + '</span><span class="len">' +
+        (l.pts.length - 1) + ' 点</span><span class="x" title="删除">✕</span>';
+      row.onclick = ev => {
+        if (ev.target.classList.contains('x')){ delLake(l.id); return; }
+        S.selLake = l.id; S.sel = null; S.selCoast = null; S.mode = 'select'; syncMode(); syncEditor(); renderList(); requestDraw();
+      };
+      list.appendChild(row);
+    }
+  }
+
+  $('cnt').textContent = S.segs.length;
+}
+
+function delLake(id){
+  pushHistory();
+  S.lakes = S.lakes.filter(l => l.id !== id);
+  for (const sg of S.segs){
+    if (!sg.links) continue;
+    sg.links = sg.links.filter(L => L.lake !== id);
+  }
+  if (S.selLake === id) S.selLake = null;
+  renderList(); requestDraw(); persist();
+}
+
+function delCoast(id){
+  pushHistory();
+  S.coasts = S.coasts.filter(c => c.id !== id);
+  // 指向它的入海链接一起清掉
+  for (const s of S.segs){
+    if (!s.links) continue;
+    s.links = s.links.filter(L => !(L.kind === 'sea' && L.coast === id));
+  }
+  if (S.selCoast === id) S.selCoast = null;
+  syncEditor(); renderList(); requestDraw(); persist();
+}
+
+function zoomTo(seg){
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for (const p of seg.pts){ x0=Math.min(x0,p[0]); y0=Math.min(y0,p[1]); x1=Math.max(x1,p[0]); y1=Math.max(y1,p[1]); }
+  const w = Math.max(60, x1-x0), h = Math.max(60, y1-y0);
+  V.s = Math.min(vw/(w*1.6), vh/(h*1.6), 3);
+  V.tx = vw/2 - (x0+x1)/2*V.s;
+  V.ty = vh/2 - (y0+y1)/2*V.s;
+  requestDraw();
+}
+
+function updateStat(){
+  const by = {1:0,2:0,3:0,4:0};
+  for (const s of S.segs) by[s.rank]++;
+  const rivers = new Set(S.segs.map(s => s.river)).size;
+  $('stat').innerHTML =
+    '河流 ' + rivers + ' 条 / 河段 ' + S.segs.length + '<br>' +
+    [1,2,3,4].map(r => RANK_NAME[r] + ' ' + by[r]).join(' · ');
+}
+
+function toast(msg){
+  const t = $('toast');
+  t.textContent = msg; t.style.opacity = 1;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.style.opacity = 0, 2000);
+}
+
+// ---------- 存盘 ----------
+let fileHandle = null, saveTimer = null;
+
+function payload(){
+  return {
+    version: 3,
+    canvas: [CW, CH],
+    exportedAt: new Date().toISOString(),
+    coasts: S.coasts.map(c => {
+      const q = c.pts;
+      const gap = q.length > 1 ? Math.hypot(q[0][0]-q[q.length-1][0], q[0][1]-q[q.length-1][1]) : 999;
+      return { id: c.id, pts: q, closed: q.length >= 3 && (gap <= 40 || !!c.closed) };
+    }),
+    lakes: S.lakes.map(l => ({ id: l.id, name: l.name || '', drawn: l.drawn,
+                               arc: l.arc || null, pts: l.pts, onRivers: l.onRivers || [] })),
+    segments: S.segs.map(s => ({
+      id: s.id, river: s.river, rank: s.rank, name: s.name || '',
+      section: s.section || '', water: s.water || 3,
+      flow: s.flow === -1 ? -1 : 1,
+      links: s.links || [],
+      parent: s.parent || null,
+      pts: s.pts.map(p => [Math.round(p[0]*10)/10, Math.round(p[1]*10)/10]),
+      joins: s.joins || []
+    }))
+  };
+}
+
+// ---------- 本地服务模式（推荐） ----------
+// 用 启动描迹器.cmd 打开时，页面跑在 http://127.0.0.1:8765，
+// 读写由 Python 服务进程完成，数据直接落到 data/map/rivers/river_segments.json，
+// 不存在「每次重启浏览器都要重新指定文件」的问题。
+let serverMode = false;
+
+async function probeServer(){
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 1500);
+    const r = await fetch('/api/ping', { cache:'no-store', signal: ctl.signal });
+    clearTimeout(timer);
+    if (!r.ok) return false;
+    const j = await r.json();
+    serverMode = !!j.ok;
+    return serverMode;
+  } catch (_) { return false; }
+}
+
+async function saveToServer(){
+  if (!serverMode) return;
+  const st = $('fstate');
+  try {
+    const r = await fetch('/api/save', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify(payload())
+    });
+    const j = await r.json();
+    if (j.ok){
+      st.textContent = '已保存 ' + j.at + ' · ' + j.segments + ' 段 / ' + j.rivers + ' 条河';
+      st.classList.remove('warn');
+    } else {
+      st.textContent = '保存失败：' + (j.error || '未知错误');
+      st.classList.add('warn');
+    }
+  } catch (e){
+    st.textContent = '保存失败：' + e.message;
+    st.classList.add('warn');
+  }
+}
+
+function setServerUI(){
+  const st = $('fstate');
+  st.textContent = '本地服务 · 改动自动写盘';
+  st.classList.remove('warn');
+  const bind = $('bBind');
+  if (bind){ bind.style.display = 'none'; }
+  const open = $('bOpen');
+  if (open) open.textContent = '导入…';
+}
+
+function persist(){
+  try { localStorage.setItem(LS_KEY, JSON.stringify(payload())); } catch (_) {}
+  if (serverMode){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveToServer, 700);
+    return;
+  }
+  if (!fileHandle){
+    const st = $('fstate');
+    st.textContent = '未绑定文件（只在浏览器缓存）';
+    st.classList.add('warn');
+    return;
+  }
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(writeFile, 800);
+}
+
+async function writeFile(){
+  if (!fileHandle) return;
+  try {
+    const w = await fileHandle.createWritable();
+    await w.write(JSON.stringify(payload(), null, 1));
+    await w.close();
+    const st = $('fstate');
+    st.textContent = '已保存 ' + new Date().toLocaleTimeString();
+    st.classList.remove('warn');
+  } catch (e) {
+    $('fstate').textContent = '保存失败：' + e.message;
+  }
+}
+
+$('bBind').onclick = async () => {
+  if (!window.showSaveFilePicker) return toast('浏览器不支持绑定，请用"导出"');
+  try {
+    fileHandle = await window.showSaveFilePicker({
+      suggestedName: 'river_segments.json',
+      types: [{ description:'河流描迹数据', accept:{ 'application/json':['.json'] } }]
+    });
+    await writeFile();
+    toast('已绑定，之后每次修改 0.8 秒自动写盘');
+  } catch (_) {}
+};
+$('bExport').onclick = () => {
+  const blob = new Blob([JSON.stringify(payload(), null, 1)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'river_segments.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+$('bOpen').onclick = () => $('fOpen').click();
+$('fOpen').onchange = ev => {
+  const f = ev.target.files[0];
+  if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try { loadData(JSON.parse(rd.result)); toast('已载入 ' + S.segs.length + ' 段'); }
+    catch (e) { toast('解析失败：' + e.message); }
+  };
+  rd.readAsText(f);
+  ev.target.value = '';
+};
+
+function migrate(s){
+  const pts = (s.pts || []).map(p => [ +p[0], +p[1] ]);
+  const joins = s.joins || [];
+  // 流向：1 = 沿 pts 顺序流（末点为河口），-1 = 反向（首点为河口）
+  let flow = s.flow === -1 ? -1 : 1;
+  if (s.flow === undefined || s.flow === null){
+    // 老数据没有 flow：若挂着上级，汇入口那端就是河口
+    if (s.parent && joins.length) flow = joins[0].at === 0 ? -1 : 1;
+  }
+  // links：每条河可挂 0–2 个端（运河两端都能挂）
+  const mouthAt = flow === -1 ? 0 : Math.max(0, pts.length - 1);
+  let links = Array.isArray(s.links) ? s.links.map(L => {
+    const at = (L.at === 0) ? 0 : Math.max(0, pts.length - 1);
+    const kind = (L.kind === 'mouth' || L.kind === 'branch') ? L.kind
+               : (at === mouthAt ? 'mouth' : 'branch');
+    return { at, kind, river: L.river, seg: L.seg, idx: L.idx | 0 };
+  }) : [];
+  if (!links.length && s.parent && pts.length >= 2){
+    const at = (joins.length && joins[0].at === 0) ? 0 : pts.length - 1;
+    links = [{ at, kind: 'mouth', river: s.parent.river, seg: s.parent.seg, idx: s.parent.idx | 0 }];
+  }
+  return {
+    id: s.id || newId(),
+    river: s.river || ('R_' + (s.id || 'x')),
+    rank: [1,2,3,4].includes(+s.rank) ? +s.rank : 1,
+    name: s.name || '',
+    section: s.section || '',
+    water: Math.min(5, Math.max(1, +s.water || 3)),
+    flow,
+    links,
+    parent: (s.rank == 4) ? null : (links.length ? { river: links[0].river, seg: links[0].seg, idx: links[0].idx } : null),
+    pts,
+    joins
+  };
+}
+
+function loadData(d){
+  const segs = (d.segments || []).map(migrate).filter(s => s.pts.length >= 2);
+  S.segs = segs;
+  S.lakes = (d.lakes || []).map(l => {
+    const pts = (l.pts || []).map(p => [ +p[0], +p[1] ]);
+    const lk = {
+      id: l.id || ('l' + Math.random().toString(36).slice(2, 6)),
+      name: l.name || '',
+      drawn: (l.drawn || []).map(p => [ +p[0], +p[1] ]),
+      arc: l.arc || null,
+      pts,
+      onRivers: l.onRivers || []
+    };
+    if (!lk.drawn.length){
+      // 老数据没有 drawn：把 pts 去掉闭合点当作 drawn，弧线信息丢失
+      lk.drawn = pts.slice(0, Math.max(3, pts.length - 1)).map(q => [q[0], q[1]]);
+      lk.arc = null;
+    }
+    rebuildLake(lk);
+    return lk;
+  }).filter(l => l.pts.length >= 3);
+  S.coasts = (d.coasts || []).map(c => ({
+    id: c.id || ('c' + Math.random().toString(36).slice(2, 6)),
+    pts: (c.pts || []).map(p => [ +p[0], +p[1] ])
+  })).filter(c => c.pts.length >= 2);
+  seq = segs.reduce((m,s) => Math.max(m, parseInt(String(s.id).replace(/\D/g,'')) || 0), 0);
+  rseq = segs.reduce((m,s) => Math.max(m, parseInt(String(s.river).replace(/\D/g,'')) || 0), 0);
+  S.sel = null; S.draft = null; S.splitMode = false; S.linkMode = false;
+  syncChildren();
+  syncEditor(); renderList(); requestDraw(); persist();
+}
+
+// ---------- 事件绑定 ----------
+$('bDraw').onclick = () => setMode('draw');
+$('bCoast').onclick = () => setMode('coast');
+$('bLake').onclick = () => setMode('lake');
+$('bLayers').onclick = () => $('layers').classList.toggle('on');
+$('fLakeName').oninput = e => setLakeName(e.target.value.trim());
+$('bLakeDel').onclick = () => { if (S.selLake) delLake(S.selLake); };
+$('cLakes').onchange = e => { S.vis.lakes = e.target.checked; saveUI(); requestDraw(); };
+$('cCoasts').onchange = e => { S.vis.coast = e.target.checked; saveUI(); requestDraw(); };
+$('bFoldAll').onclick = () => {
+  S.collapsed = new Set([...new Set(S.segs.map(s => s.river))]);
+  saveCollapsed(); renderList();
+};
+$('bUnfoldAll').onclick = () => { S.collapsed = new Set(); saveCollapsed(); renderList(); };
+$('bSelect').onclick = () => setMode('select');
+document.querySelectorAll('button.rank').forEach(b => b.onclick = () => setRank(+b.dataset.r));
+$('bUndo').onclick = undo;
+$('bRedo').onclick = redo;
+$('bDel').onclick = delSel;
+$('bDel2').onclick = delSel;
+$('bSmooth').onclick = smoothSel;
+$('bSplit').onclick = () => {
+  if (!S.sel) return toast('先选中一条河段');
+  const seg = S.segs.find(s => s.id === S.sel);
+  if (!seg || seg.pts.length < 4) return toast('这条段太短，至少 4 个点才能切');
+  S.splitMode = !S.splitMode;
+  toast(S.splitMode ? '点一个中间顶点把这段切开' : '已取消分段');
+};
+// 「指定…」按钮已改为按端动态生成（见 renderLinks）
+$('bReverse').onclick = reverseFlow;
+$('fName').oninput = e => setSegField('name', e.target.value.trim());
+$('fSec').oninput = e => setSegField('section', e.target.value.trim());
+$('bFit').onclick = fit;
+$('cRivers').onchange = e => { S.showRivers = e.target.checked; saveUI(); requestDraw(); };
+$('cArt').onchange = e => { S.showArt = e.target.checked; if (S.showArt) ensureArt(); saveUI(); requestDraw(); };
+$('cNodes').onchange = e => { S.showNodes = e.target.checked; saveUI(); requestDraw(); };
+for (const r of [1,2,3,4]){
+  const el = $('cRank' + r);
+  if (el) el.onchange = e => { S.vis[r] = e.target.checked; saveUI(); requestDraw(); };
+}
+
+window.__RIVER_EDITOR__ = {
+  S, V, payload, loadData, splitAt,
+  setSegWater, setSegRank, setSegField, syncEditor, renderList, depthOf, autoRank, syncChildren, reverseFlow, mouthIndex,
+  linksOf, attachEnd, unlinkEnd, attachSea, hitCoast, hitLake, attachLake, delCoast, delLake, setLakeName
+};
+
+// ---------- 启动 ----------
+resize(); fit(); loadCollapsed(); loadUI(); syncUIBoxes();
+if (S.showArt) ensureArt();
+renderList(); syncEditor(); syncMode();
+
+(async function boot(){
+  // ① 有本地服务：直接用服务端数据，改动自动写盘，不问任何问题
+  if (await probeServer()){
+    try {
+      const r = await fetch('/api/load', { cache:'no-store' });
+      const d = await r.json();
+      if (d && Array.isArray(d.segments)){ loadData(d); }
+      setServerUI();
+      return;
+    } catch (_) { /* 服务在但读失败，退回下面的路径 */ }
+  }
+
+  // ② 没有服务（双击 HTML 打开）：缓存 → 随包数据
+  let restored = false;
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw){
+      const d = JSON.parse(raw);
+      if (d.segments && d.segments.length){
+        if (confirm('浏览器缓存里有 ' + d.segments.length + ' 段河段，恢复吗？（取消则载入随包数据）')){
+          loadData(d); restored = true;
+        }
+      }
+    }
+  } catch (_) {}
+  if (!restored && window.RIVER_SEED && window.RIVER_SEED.segments){
+    loadData(window.RIVER_SEED);
+  }
+  const st = $('fstate');
+  st.textContent = '未连本地服务（双击"启动描迹器.cmd"可自动写盘）';
+})();
+</script>
+</body>
+</html>

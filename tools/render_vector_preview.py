@@ -37,6 +37,10 @@ def sc(pts):
     return [(p[0] * SCALE, p[1] * SCALE) for p in pts]
 
 
+VECD = VEC
+cd_path = VECD / "coast_drawn.json"
+drawn = json.loads(cd_path.read_text(encoding="utf-8")) if cd_path.exists() else []
+
 img = Image.new("RGB", (CW, CH), PAPER)
 d = ImageDraw.Draw(img)
 
@@ -44,7 +48,22 @@ coast = L("coast.json")
 for poly in coast["sea"]:
     d.polygon(sc(poly), fill=SEA)
 for line in coast["lines"]:
-    d.line(sc(line), fill=COAST, width=1)
+    d.line(sc(line), fill=(200, 205, 205), width=1)
+
+# 描迹海岸线 / 岛
+lk_path = VECD / "lakes_drawn.json"
+lakes_d = json.loads(lk_path.read_text(encoding="utf-8")) if lk_path.exists() else []
+for l in lakes_d:
+    pts = [(l["pts"][i], l["pts"][i+1]) for i in range(0, len(l["pts"]), 2)]
+    if len(pts) >= 3:
+        d.polygon(sc(pts), fill=(150, 190, 210), outline=(62, 124, 166))
+
+for c in drawn:
+    pts = [(c["pts"][i], c["pts"][i+1]) for i in range(0, len(c["pts"]), 2)]
+    if c.get("closed"):
+        d.polygon(sc(pts), fill=PAPER, outline=(77, 102, 117))
+    else:
+        d.line(sc(pts), fill=(77, 102, 117), width=2)
 
 for poly in L("lakes.json"):
     d.polygon(sc(poly), fill=LAKE)

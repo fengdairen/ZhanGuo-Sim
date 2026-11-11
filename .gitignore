@@ -29,3 +29,6 @@ obj/
 # ===== 运行时数据 =====
 data/events.jsonl
 data/map/_backup_*.csv
+
+# ===== 描迹器 =====
+data/map/rivers/_backup/

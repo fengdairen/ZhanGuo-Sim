@@ -4,7 +4,7 @@
 
 ## 第一件事
 
-**按顺序读 `docs/00-总览与新会话须知.md`。**
+**按顺序读 `docs/00-项目总览.md`，再看 `docs/README.md` 索引。**
 那一份包含：用户画像、项目目标、五层架构摘要、崇祯的结构与教训、现有资产、已拍板/未定事项、工程铁律、协作偏好。
 
 不要跳过它直接动手。
@@ -16,31 +16,34 @@
 ## 当前阶段
 
 **M0 已完成**：`ZhanGuo.Core` 已能脱离 Excel 计算全部公式，校验器 284 项全通过、偏差 0。
-**地图层数据已完成**：1040 城邑（30 都 / 61 城 / 949 邑）+ 54 部族，全部命名、已填人口初值（见 `docs/15`）。
+**地图层数据已完成**：1040 城邑（30 都 / 61 城 / 949 邑）+ 54 部族，全部命名、已填人口与归属（见 `docs/2-数据/21-地图-城邑与部族.md`）。
 下一步 M1：回合推进 + 事件日志 + 回放（仍不接 LLM）。
 
 ## 已知风险（动手前先看）
 
-见 `docs/16-工程风险与外部评审.md`：
+见 `docs/3-工程/32-风险与评审.md`：
 
-1. **不是 git 仓库**——曾因写文件崩溃丢失用户 28 条勘误，现在只靠 `_backup_*.csv` 兜底
-2. **`data/events.jsonl` 从未生成**——变更单写入链路"测过但没用过"，M1 前必须真跑一次
-3. **文档的状态段最容易腐坏**——推进里程碑时务必回头改 §0/§5 这类"当前状态"
+1. **`data/events.jsonl` 从未生成**——变更单写入链路"测过但没用过"，M1 前必须真跑一次
+2. **文档的状态段最容易腐坏**——推进里程碑时务必回头改「当前状态」这类段落
+3. **推送需要 `danger-full-access`**——沙箱禁止创建管道，`git push` 会报 `couldn't create signal pipe`
 
 ## 工作区结构
 
 ```
 /
 ├── 备份.xlsm      数据模板（只读参考，别改）
-├── data/          state.json（权威状态）+ excel_reference.json（校验基准）
-├── dist/          ZhanGuo.Workbench.exe（可直接双击）
+├── data/
+│   ├── state.json         权威状态（九国经济/军事/制度）
+│   └── map/               地图层：nodes/regions/populations/ownership/economy
+├── dist/           ZhanGuo.Workbench.exe + map-review/ 与 map-vector/ 两个 HTML 工具
 ├── src/
 │   ├── ZhanGuo.Core/      纯数据 + 公式，无 UI 依赖，可被任何引擎引用
-│   ├── ZhanGuo.Workbench/ WPF 工作台
+│   ├── ZhanGuo.Workbench/ WPF 数据控制台
 │   └── ZhanGuo.Verify/    命令行校验器
-├── docs/          文档（00 是入口）
-├── tools/         导出与校验脚本
-└── tools/_*.txt   脚本生成的报告（可删）
+├── docs/          00 入口 + 1-设计 / 2-数据 / 3-工程 / 4-决策 / 5-调研 / 6-推演记录
+├── tools/         提取、生成、校验脚本（`tools/_*.txt` 是可删的报告）
+├── 推演风格/       用户提供的原始推演日志（xlsx）
+└── 军事设计/       用户提供的军事系统设计（md）
 ```
 
 ## 构建与运行
@@ -105,4 +108,5 @@ python tools\export_state.py                          # xlsm → JSON
 - Excel 作为运行期状态
 - 先做游戏再考虑工具化
 
-理由见 `docs/11-决策日志.md`。
+理由见 `docs/4-决策/40-决策日志.md`。
+

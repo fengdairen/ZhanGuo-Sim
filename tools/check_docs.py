@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """校验：文档内所有相对链接是否可达；汇总每份文档的首行标题与体量。"""
 import re
 from pathlib import Path
@@ -7,7 +7,7 @@ ROOT = Path(r"D:\Files\HUST_OFFLINE\ds工作站\战国演义数据台")
 L = []
 def p(*a): L.append(" ".join(str(x) for x in a))
 
-md_files = sorted(ROOT.glob("*.md")) + sorted((ROOT / "docs").glob("*.md"))
+md_files = sorted(ROOT.glob("*.md")) + sorted((ROOT / "docs").rglob("*.md"))
 p("=== 文件清单 ===")
 for f in md_files:
     rel = f.relative_to(ROOT)
@@ -44,3 +44,4 @@ p("  完成")
 
 (ROOT / "tools" / "_doc_check.txt").write_text("\n".join(L), encoding="utf-8")
 print("ok")
+

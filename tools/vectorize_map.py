@@ -200,16 +200,25 @@ def trace_skeleton(sk):
         covered += len(path)
         # 相邻像素必然是 8 邻接。一旦出现跨越，说明这条折线在拼接时接错了地方
         # （会把两段相距很远的河连成一条直线），在这里断开。
+        pieces = []
         seg = [xy[0]] if xy else []
         for k in range(1, len(xy)):
             if max(abs(xy[k][0] - xy[k - 1][0]), abs(xy[k][1] - xy[k - 1][1])) > 1:
                 if len(seg) >= 2:
-                    out.append((seg, False))
+                    pieces.append(seg)
                 seg = [xy[k]]
             else:
                 seg.append(xy[k])
         if len(seg) >= 2:
-            out.append((seg, closed))
+            pieces.append(seg)
+        for pi, pc in enumerate(pieces):
+            # 只有「整条没被切断」的段才可能是闭环；断开过的绝不能标 closed，
+            # 否则 simplify 会把首点补到末尾，凭空连出一条直线。
+            is_closed = closed and len(pieces) == 1
+            if is_closed and len(pc) > 3:
+                if max(abs(pc[0][0] - pc[-1][0]), abs(pc[0][1] - pc[-1][1])) > 2:
+                    is_closed = False
+            out.append((pc, is_closed))
     log(f"  走线 {len(out)} 段，覆盖 {covered}/{len(idx)} 像素（{covered / max(1, len(idx)) * 100:.0f}%）")
     return out
 

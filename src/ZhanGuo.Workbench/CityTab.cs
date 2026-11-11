@@ -7,7 +7,7 @@ using ZhanGuo.Core.Model;
 
 namespace ZhanGuo.Workbench;
 
-/// <summary>城池行（地图层）。归属存国别 id，显示用中文名。</summary>
+/// <summary>城池行（地图层）。归属存国别 id，显示用中文名。经济三件套在此。</summary>
 public sealed class CityRow
 {
     public string Id { get; init; } = "";
@@ -20,6 +20,16 @@ public sealed class CityRow
     public string OwnerName { get; set; } = "";
     public string Owner => string.IsNullOrEmpty(OwnerId) ? "（未归属）" : OwnerName;
     public string Pos => $"{(int)X},{(int)Y}";
+
+    /// <summary>产业开发 0–1</summary>
+    public double Development { get; set; } = 1.0;
+    /// <summary>产业基数</summary>
+    public double Base { get; set; } = 1.0;
+    /// <summary>户口（开方项）</summary>
+    public double Household { get; set; } = 1.0;
+    /// <summary>产值 = 人口(千人) × 开发 × 基数 × √户口，与经济表同一公式。
+    /// nodes.csv 的人口单位是「万」，经济表用「千人」，故 ×10。</summary>
+    public double Output => Pop * 10.0 * Development * Base * Math.Sqrt(Math.Max(Household, 0));
 }
 
 /// <summary>城池页：读 nodes.csv + ownership.csv，支持筛选与批量分配归属。</summary>
@@ -31,6 +41,7 @@ public partial class MainWindow
     private readonly ObservableCollection<string> _ownerChoices = new();
     private readonly ObservableCollection<Nation> _assignNations = new();
     private string _ownershipPath = "";
+    private string _economyPath = "";
     private bool _cityReady;
     private readonly List<string> _allIds = new();
     private readonly Dictionary<string, string> _ownerRaw = new();
@@ -58,6 +69,7 @@ public partial class MainWindow
 
         var mapDir = Path.Combine(Path.GetDirectoryName(statePath)!, "map");
         _ownershipPath = Path.Combine(mapDir, "ownership.csv");
+        _economyPath = Path.Combine(mapDir, "economy.csv");
         LoadCities(mapDir);
     }
 
@@ -75,6 +87,14 @@ public partial class MainWindow
                 if (cells.Count >= 2 && cells[0].Length > 0) _ownerRaw[cells[0]] = cells[1];
         }
 
+        var econ = new Dictionary<string, (double dev, double bse, double hh)>();
+        if (File.Exists(_economyPath))
+        {
+            foreach (var cells in ReadCsv(_economyPath).Skip(1))
+                if (cells.Count >= 4 && cells[0].Length > 0)
+                    econ[cells[0]] = (ParseD(cells[1]), ParseD(cells[2]), ParseD(cells[3]));
+        }
+
         var byId = _state.Nations.ToDictionary(n => n.Id, n => n.Name);
         foreach (var cells in ReadCsv(nodes).Skip(1))
         {
@@ -84,6 +104,7 @@ public partial class MainWindow
             var kind = cells[2];
             if (kind == "部族") continue;          // 城池页只管城邑
             _ownerRaw.TryGetValue(id, out var oid);
+            econ.TryGetValue(id, out var ec);
             _cityAll.Add(new CityRow
             {
                 Id = id,
@@ -93,7 +114,10 @@ public partial class MainWindow
                 Y = ParseD(cells[4]),
                 Pop = cells.Count > 5 ? ParseD(cells[5]) : 0,
                 OwnerId = oid ?? "",
-                OwnerName = oid is not null && byId.TryGetValue(oid, out var nm) ? nm : ""
+                OwnerName = oid is not null && byId.TryGetValue(oid, out var nm) ? nm : "",
+                Development = ec.dev == 0 ? 1.0 : ec.dev,
+                Base = ec.bse == 0 ? 1.0 : ec.bse,
+                Household = ec.hh == 0 ? 1.0 : ec.hh
             });
         }
         ApplyCityFilter();
@@ -155,6 +179,37 @@ public partial class MainWindow
     {
         SaveOwnership();
         StatusText.Text = "归属已写入 " + _ownershipPath;
+    }
+
+    private void SaveEconomy_Click(object sender, RoutedEventArgs e)
+    {
+        SaveEconomy();
+        StatusText.Text = "经济已写入 " + _economyPath;
+    }
+
+    private void SaveEconomy()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append('\uFEFF').AppendLine("city_id,development,base,household,note");
+        foreach (var c in _cityAll)
+            sb.AppendLine($"{c.Id},{c.Development:0.####},{c.Base:0.####},{c.Household:0.####},");
+        File.WriteAllText(_economyPath, sb.ToString(), new System.Text.UTF8Encoding(false));
+    }
+
+    private void CityGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+    {
+        // 编辑结束后刷新，让"产值"重算显示
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            CityGrid.Items.Refresh();
+            var owned = _cityAll.Where(c => c.OwnerId.Length > 0).ToList();
+            var total = _cityAll.Sum(c => c.Output);
+            var byNation = owned.GroupBy(c => c.OwnerName)
+                                .Select(g => $"{g.Key} {g.Sum(x => x.Output):N0}")
+                                .ToList();
+            CityStat.Text = $"共 {_cityAll.Count} 座，产值合计 {total:N0}；"
+                          + (byNation.Count > 0 ? string.Join("，", byNation.Take(6)) : "（尚未分配归属）");
+        }), System.Windows.Threading.DispatcherPriority.Background);
     }
 
     private void SaveOwnership()

@@ -198,7 +198,18 @@ def trace_skeleton(sk):
     for path, closed in paths:
         xy = [(int(p % Ww), int(p // Ww)) for p in path]
         covered += len(path)
-        out.append((xy, closed))
+        # 相邻像素必然是 8 邻接。一旦出现跨越，说明这条折线在拼接时接错了地方
+        # （会把两段相距很远的河连成一条直线），在这里断开。
+        seg = [xy[0]] if xy else []
+        for k in range(1, len(xy)):
+            if max(abs(xy[k][0] - xy[k - 1][0]), abs(xy[k][1] - xy[k - 1][1])) > 1:
+                if len(seg) >= 2:
+                    out.append((seg, False))
+                seg = [xy[k]]
+            else:
+                seg.append(xy[k])
+        if len(seg) >= 2:
+            out.append((seg, closed))
     log(f"  走线 {len(out)} 段，覆盖 {covered}/{len(idx)} 像素（{covered / max(1, len(idx)) * 100:.0f}%）")
     return out
 
@@ -249,15 +260,18 @@ def collapse_hairpins(paths, max_width=26.0, min_pts=24):
     这种环有个好性质：第 i 个点和第 n-1-i 个点正是两岸的对应点，
     取中点就还原出河心线。
 
-    判定：闭合 + 点数够 + 全部对折距离 <= max_width。
+    判定：**按几何闭合**（首尾点相距很近）而不是看走线器的 closed 标记——
+    走线器从节点出发时会把这个环切成一条首尾几乎重合的"开口"折线。
+    再加两条：点数够、对折距离 <= max_width。
     """
     out = []
     folded = 0
     for xy, closed, L in paths:
-        if not closed or len(xy) < min_pts:
+        n = len(xy)
+        geo_closed = n > 3 and math.hypot(xy[0][0] - xy[-1][0], xy[0][1] - xy[-1][1]) <= max_width
+        if not (closed or geo_closed) or n < min_pts:
             out.append((xy, closed, L))
             continue
-        n = len(xy)
         ds = []
         for i in range(1, n // 2):
             j = n - 1 - i
@@ -267,11 +281,19 @@ def collapse_hairpins(paths, max_width=26.0, min_pts=24):
             continue
         ds_sorted = sorted(ds)
         med = ds_sorted[len(ds_sorted) // 2]
-        if med <= max_width and ds_sorted[int(len(ds_sorted) * 0.9)] <= max_width * 1.4:
+        ok = med <= 16.0 and ds_sorted[int(len(ds_sorted) * 0.9)] <= 28.0
+        mid = None
+        if ok:
             mid = [xy[0]]
             for i in range(1, n // 2):
                 j = n - 1 - i
                 mid.append(((xy[i][0] + xy[j][0]) / 2.0, (xy[i][1] + xy[j][1]) / 2.0))
+            # 对折后必须仍是平滑曲线：出现大跳变说明这两半不是同一条河的两岸
+            for i in range(len(mid) - 1):
+                if math.hypot(mid[i + 1][0] - mid[i][0], mid[i + 1][1] - mid[i][1]) > 30.0:
+                    ok = False
+                    break
+        if ok and mid:
             L2 = sum(math.hypot(mid[i + 1][0] - mid[i][0], mid[i + 1][1] - mid[i][1])
                      for i in range(len(mid) - 1))
             out.append((mid, False, L2))
@@ -372,7 +394,7 @@ del coa_sk
 
 log(f"折线数 河 {len(riv_paths)}  边界 {len(bor_paths)}  海岸 {len(coa_paths)}")
 
-riv_paths = collapse_hairpins(riv_paths)
+# riv_paths = collapse_hairpins(riv_paths)
 rivers = simplify(riv_paths, 1.8)
 borders = simplify(bor_paths, 2.2)
 coast_lines = simplify(coa_paths, 1.5)

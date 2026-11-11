@@ -87,14 +87,17 @@ print(f"端点 {len(keys)} -> 聚类 {len({find(k) for k in keys})}")
 
 # 2. 建图
 edges = []
+loops = []          # 起终点重合的环：不进图，但也不能丢
 vpos = {}
 deg = defaultdict(int)
 for a, b, pts in raw:
     a, b = find(a), find(b)
-    if a == b:
-        continue
     L = sum(math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1])
             for i in range(len(pts) - 1))
+    if a == b:
+        if L >= 20:            # 太短的多是端点吸附进来的碎屑
+            loops.append((L, pts))
+        continue
     vpos.setdefault(a, (*pts[0],))
     vpos.setdefault(b, (*pts[-1],))
     edges.append((a, b, L, pts))
@@ -154,6 +157,11 @@ for a, b, L, pts in edges:
     width = max(1.3, min(12.0, width))
     out.append([round(width, 2)] + [round(c, 1) for xy in pts for c in xy])
 
+# 环：不进图算汇流，按自身长度给个中等线宽，绝不能丢（丢了就是河道缺一段）
+for L, pts in loops:
+    width = max(1.3, min(9.0, 1.3 + 2.2 * math.log10(1 + L / 160.0)))
+    out.append([round(width, 2)] + [round(c, 1) for xy in pts for c in xy])
+
 (VEC / "rivers_w.json").write_text(json.dumps(out, separators=(",", ":")), encoding="utf-8")
 ws = [e[0] for e in out]
-print(f"线宽 {min(ws):.1f}–{max(ws):.1f}，段 {len(out)}，{(VEC / 'rivers_w.json').stat().st_size / 1024:.0f} KB")
+print(f"线宽 {min(ws):.1f}–{max(ws):.1f}，段 {len(out)}（其中环 {len(loops)}），{(VEC / 'rivers_w.json').stat().st_size / 1024:.0f} KB")

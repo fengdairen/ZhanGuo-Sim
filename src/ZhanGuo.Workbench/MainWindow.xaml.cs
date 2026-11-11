@@ -63,7 +63,6 @@ public partial class MainWindow : Window
 
         TaxGrid.ItemsSource = _taxes;
         ExpenseGrid.ItemsSource = _expenses;
-        GroupGrid.ItemsSource = _groups;
         ArmyGrid.ItemsSource = _armies;
         InstGrid.ItemsSource = _institutions;
         SituationGrid.ItemsSource = _situations;

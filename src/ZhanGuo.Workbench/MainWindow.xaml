@@ -219,27 +219,6 @@
                 </TabItem>
 
                 <!-- ============ 人口 ============ -->
-                <TabItem Header="人口与产业">
-                    <DataGrid x:Name="GroupGrid" Margin="6">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="人群" Binding="{Binding Name}" Width="120"/>
-                            <DataGridTextColumn Header="都" Binding="{Binding Du, StringFormat={}{0:N0}}" Width="50"/>
-                            <DataGridTextColumn Header="城" Binding="{Binding Cheng, StringFormat={}{0:N0}}" Width="50"/>
-                            <DataGridTextColumn Header="邑" Binding="{Binding Yi, StringFormat={}{0:N0}}" Width="50"/>
-                            <DataGridTextColumn Header="野地" Binding="{Binding Wild, StringFormat={}{0:N0}}" Width="60"/>
-                            <DataGridTextColumn Header="找补" Binding="{Binding Adjustment, StringFormat={}{0:N0}}" Width="60"/>
-                            <DataGridTextColumn Header="开发" Binding="{Binding Development, StringFormat={}{0:N2}}" Width="60"/>
-                            <DataGridTextColumn Header="户口" Binding="{Binding Household, StringFormat={}{0:N2}}" Width="60"/>
-                            <DataGridTextColumn Header="基数" Binding="{Binding Base, StringFormat={}{0:N0}}" Width="60"/>
-                            <DataGridTextColumn Header="邑权重" Binding="{Binding WeightYi, StringFormat={}{0:N0}}" Width="70"/>
-                            <DataGridTextColumn Header="人口" Binding="{Binding Population, StringFormat={}{0:N0}}" Width="80"/>
-                            <DataGridTextColumn Header="产值" Binding="{Binding Output, StringFormat={}{0:N0}}" Width="100"/>
-                            <DataGridTextColumn Header="核心城" Binding="{Binding CoreCity}" Width="90"/>
-                            <DataGridTextColumn Header="类型" Binding="{Binding PopType}" Width="*"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </TabItem>
-
                 <!-- ============ 军事 ============ -->
                 <TabItem Header="军事">
                     <DataGrid x:Name="ArmyGrid" Margin="6">
@@ -291,20 +270,28 @@
                                 <Button Content="分配归属" Click="AssignOwner_Click" Padding="10,3" Margin="0,0,6,0"/>
                                 <Button Content="清除归属" Click="ClearOwner_Click" Padding="10,3" Margin="0,0,6,0"/>
                                 <Button Content="保存归属" Click="SaveOwner_Click" Padding="10,3" Margin="0,0,6,0"/>
+                                <Button Content="保存经济" Click="SaveEconomy_Click" Padding="10,3" Margin="0,0,6,0"/>
                                 <Button Content="在地图中打开" Click="OpenInMap_Click" Padding="10,3"/>
                                 <TextBlock x:Name="CityStat" VerticalAlignment="Center" Margin="14,0,0,0"
                                            Foreground="#8A8D91"/>
                             </StackPanel>
                         </Border>
                         <DataGrid x:Name="CityGrid" SelectionMode="Extended"
-                                  AutoGenerateColumns="False" IsReadOnly="True">
+                                  AutoGenerateColumns="False"
+                                  CellEditEnding="CityGrid_CellEditEnding" FontFamily="Microsoft YaHei UI">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="70"/>
-                                <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="120"/>
-                                <DataGridTextColumn Header="类型" Binding="{Binding Kind}" Width="60"/>
-                                <DataGridTextColumn Header="人口(万)" Binding="{Binding Pop, StringFormat={}{0:N1}}" Width="90"/>
-                                <DataGridTextColumn Header="归属" Binding="{Binding Owner}" Width="100"/>
-                                <DataGridTextColumn Header="坐标" Binding="{Binding Pos}" Width="130"/>
+                                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="70" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="110" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="类型" Binding="{Binding Kind}" Width="50" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="人口(万)" Binding="{Binding Pop, StringFormat={}{0:N1}}"
+                                                    Width="80" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="开发" Binding="{Binding Development, StringFormat={}{0:N2}}" Width="66"/>
+                                <DataGridTextColumn Header="基数" Binding="{Binding Base, StringFormat={}{0:N2}}" Width="66"/>
+                                <DataGridTextColumn Header="户口" Binding="{Binding Household, StringFormat={}{0:N2}}" Width="66"/>
+                                <DataGridTextColumn Header="产值" Binding="{Binding Output, StringFormat={}{0:N0}}"
+                                                    Width="84" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="归属" Binding="{Binding Owner}" Width="92" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="坐标" Binding="{Binding Pos}" Width="*" IsReadOnly="True"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </DockPanel>

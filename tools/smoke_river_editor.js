@@ -635,6 +635,16 @@ try {
   const path = require('path');
   const real = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data/map/rivers/river_segments.json'), 'utf8'));
   api.loadData(real);
+  // 多段边界的湖泽（大云梦泽）必须能正确重建
+  const ym = api.S.lakes.find(l => l.name === '大云梦泽');
+  if (ym){
+    check(Array.isArray(ym.pieces) && ym.pieces.length >= 4, '大云梦泽应有多段边界，实际 ' + (ym.pieces || []).length);
+    check(ym.pts.length > 40, '大云梦泽环点太少：' + ym.pts.length);
+    const rb = ym.pieces.filter(p => p.kind === 'river');
+    check(rb.length >= 2, '大云梦泽应有至少两段沿河边界，实际 ' + rb.length);
+    check(rb.every(p => p.path && p.path.length >= 1), '沿河段没有算出路径');
+  }
+
   const huai = api.S.segs.filter(s => s.name === '淮水');
   check(huai.length === 2, '真实数据里淮水应有 2 段，实际 ' + huai.length);
   const [h1, h2] = huai;

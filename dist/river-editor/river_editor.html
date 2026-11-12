@@ -361,7 +361,7 @@ function draw(){
   // 选中湖泽时显示可拖的顶点
   if (S.selLake){
     const l = S.lakes.find(x => x.id === S.selLake);
-    if (l) for (const q of l.drawn) vdot(q, true);
+    if (l) forEachFreePoint(l, q => vdot(q, true));
   }
   // 湖名（画在世界坐标里，跟着缩放）
   if (S.vis.lakes){
@@ -947,9 +947,11 @@ function finishDraft(){
       }
     }
 
+    const pieces = [{ kind: 'free', pts: drawn.map(q => [q[0], q[1]]) }];
+    if (arc && arc.from && arc.to) pieces.push({ kind: 'river', from: arc.from, to: arc.to });
     const lk = {
       id: 'l' + String(S.lakes.length + 1).padStart(3, '0'),
-      name: '', drawn, arc, pts: [], onRivers
+      name: '', pieces, drawn, arc, pts: [], onRivers
     };
     rebuildLake(lk);
     S.lakes.push(lk);
@@ -1350,24 +1352,99 @@ function netPathIn(G, fromSeg, fromIdx, toSeg, toIdx){
   return out;
 }
 
-// 由 drawn（手绘点）+ arc（沿河的闭合边）重建 pts// 由 drawn（手绘点）+ arc（沿河的闭合边）重建 pts
-// 沿河的闭合边必须"现算"：河流端点一动，快照就过期了
-function recomputeArc(lk, G){
-  if (!lk.arc || !lk.arc.from || !lk.arc.to) return;
-  const f = lk.arc.from, t = lk.arc.to;
-  const path = G ? netPathIn(G, f.seg, f.idx, t.seg, t.idx)
-                 : netPath(f.seg, f.idx, t.seg, t.idx);
-  if (path) lk.arc.path = path;
+// ---------- 湖泽边界：多段拼接 ----------
+// pieces 是一个环：每段要么是手绘（free），要么沿某条河道（river）。
+// 段与段首尾相接；最后一段的终点回到第一段的起点。
+function lakePieces(lk){
+  if (Array.isArray(lk.pieces) && lk.pieces.length) return lk.pieces;
+  // 老数据兼容：drawn + 单条 arc
+  const pieces = [];
+  const drawn = (lk.drawn || []).map(q => [q[0], q[1]]);
+  if (drawn.length) pieces.push({ kind: 'free', pts: drawn });
+  if (lk.arc && lk.arc.from && lk.arc.to) pieces.push({ kind: 'river', from: lk.arc.from, to: lk.arc.to });
+  return pieces;
 }
 
-function rebuildLake(lk, G){
-  recomputeArc(lk, G);
-  const pts = lk.drawn.map(p => [p[0], p[1]]);
-  if (lk.arc && lk.arc.path) for (const q of lk.arc.path) pts.push([q[0], q[1]]);
-  if (pts[0][0] !== pts[pts.length-1][0] || pts[0][1] !== pts[pts.length-1][1]){
-    pts.push([pts[0][0], pts[0][1]]);
+function riverPiecePts(pc, G){
+  const f = pc.from, t = pc.to;
+  if (!f || !t) return [];
+  const path = G ? netPathIn(G, f.seg, f.idx, t.seg, t.idx)
+                 : netPath(f.seg, f.idx, t.seg, t.idx);
+  pc.path = path || [];
+  const sgF = S.segs.find(x => x.id === f.seg);
+  const sgT = S.segs.find(x => x.id === t.seg);
+  const a = sgF && sgF.pts[f.idx] ? [sgF.pts[f.idx][0], sgF.pts[f.idx][1]] : null;
+  const b = sgT && sgT.pts[t.idx] ? [sgT.pts[t.idx][0], sgT.pts[t.idx][1]] : null;
+  const out = [];
+  if (a) out.push(a);
+  for (const q of pc.path) out.push([q[0], q[1]]);
+  if (b) out.push(b);
+  return out;
+}
+
+function forEachFreePoint(lk, fn){
+  lakePieces(lk).forEach((pc, pi) => {
+    if (pc.kind !== 'free') return;
+    (pc.pts || []).forEach((q, qi) => fn(q, pi, qi));
+  });
+}
+
+// 手绘段与河段的接缝：把接缝点吸到河道顶点上，并更新河段的 from/to
+function normalizeLakeJunctions(lk){
+  const pieces = lakePieces(lk);
+  const n = pieces.length;
+  if (n < 2) return;
+  const nearest = (segId, p, tolPx) => {
+    const sg = S.segs.find(x => x.id === segId);
+    if (!sg) return null;
+    let bi = -1, bd = Infinity;
+    for (let i = 0; i < sg.pts.length; i++){
+      const d = Math.hypot(sg.pts[i][0]-p[0], sg.pts[i][1]-p[1]);
+      if (d < bd){ bd = d; bi = i; }
+    }
+    return (bi >= 0 && bd <= tolPx / V.s) ? { seg: sg.id, idx: bi, x: sg.pts[bi][0], y: sg.pts[bi][1] } : null;
+  };
+  for (let i = 0; i < n; i++){
+    const pc = pieces[i];
+    if (pc.kind !== 'river' || !pc.from || !pc.to) continue;
+    const prev = pieces[(i - 1 + n) % n];
+    const next = pieces[(i + 1) % n];
+    if (prev && prev.kind === 'free' && prev.pts.length){
+      const tail = prev.pts[prev.pts.length - 1];
+      const hit = nearest(pc.from.seg, tail, 30);
+      if (hit){ prev.pts[prev.pts.length - 1] = [hit.x, hit.y]; pc.from = { seg: hit.seg, idx: hit.idx }; }
+    }
+    if (next && next.kind === 'free' && next.pts.length){
+      const head = next.pts[0];
+      const hit = nearest(pc.to.seg, head, 30);
+      if (hit){ next.pts[0] = [hit.x, hit.y]; pc.to = { seg: hit.seg, idx: hit.idx }; }
+    }
   }
-  lk.pts = pts;
+}
+
+// 把各段拼成闭合多边形（相邻重复点只留一个）
+function rebuildLake(lk, G){
+  const pieces = lakePieces(lk);
+  const ring = [];
+  for (const pc of pieces){
+    const seg = pc.kind === 'free' ? (pc.pts || []) : riverPiecePts(pc, G);
+    for (const q of seg){
+      const last = ring[ring.length - 1];
+      if (last && last[0] === q[0] && last[1] === q[1]) continue;
+      ring.push([q[0], q[1]]);
+    }
+  }
+  if (ring.length > 1){
+    const a = ring[0], b = ring[ring.length - 1];
+    if (a[0] !== b[0] || a[1] !== b[1]) ring.push([a[0], a[1]]);
+  }
+  lk.pts = ring;
+  lk.pieces = pieces;
+  // 兼容旧字段：单段湖岸 / 单条河段时同步一份，便于老代码与测试读取
+  const freePieces = pieces.filter(pc => pc.kind === 'free');
+  const riverPieces = pieces.filter(pc => pc.kind === 'river');
+  if (freePieces.length === 1) lk.drawn = freePieces[0].pts.map(q => [q[0], q[1]]);
+  lk.arc = riverPieces.length === 1 ? riverPieces[0] : null;
 }
 
 function renderLinks(seg){
@@ -1494,13 +1571,12 @@ cv.addEventListener('pointerdown', e => {
     const l = S.lakes.find(x => x.id === S.selLake);
     if (l){
       const tol = 10 / V.s;
-      for (let i=0;i<l.drawn.length;i++){
-        if (Math.hypot(l.drawn[i][0]-wx, l.drawn[i][1]-wy) <= tol){
-          pushHistory();
-          S.dragLake = { id: l.id, idx: i };
-          return;
-        }
-      }
+      let hit = null;
+      forEachFreePoint(l, (q, pi, qi) => {
+        const d = Math.hypot(q[0]-wx, q[1]-wy);
+        if (d <= tol && (!hit || d < hit.d)) hit = { pi, qi, d };
+      });
+      if (hit){ pushHistory(); S.dragLake = { id: l.id, pi: hit.pi, qi: hit.qi }; return; }
     }
   }
   const v = hitVertex(wx, wy, 10);
@@ -1549,35 +1625,14 @@ cv.addEventListener('pointermove', e => {
   if (S.dragLake){
     const l = S.lakes.find(x => x.id === S.dragLake.id);
     if (l){
-      const i = S.dragLake.idx;
-      l.drawn[i] = [wx, wy];
-      // 端点若原本贴河，拖完就近重新吸回那条河（25px 内）
-      if (l.arc && (i === 0 || i === l.drawn.length - 1)){
-        // 就近吸回这条河（任意分段）
-        let best = null;
-        for (const sg of S.segs){
-          if (sg.river !== l.arc.river && !(l.onRivers || []).some(r => r.seg === sg.id)) continue;
-          for (let k=0;k<sg.pts.length;k++){
-            const dd = Math.hypot(sg.pts[k][0]-wx, sg.pts[k][1]-wy);
-            if (!best || dd < best.d) best = { d:dd, seg: sg.id, idx: k, x: sg.pts[k][0], y: sg.pts[k][1] };
-          }
-        }
-        if (best && best.d <= 25 / V.s){
-          l.drawn[i] = [best.x, best.y];
-          const iEnd = l.drawn.length - 1;
-          // 重建 arc：从"末点"走到"起点"
-          const ends = l.onRivers || [];
-          const fromSnap = i === iEnd ? { seg: best.seg, idx: best.idx } : ends.find(r => r.at === iEnd);
-          const toSnap   = i === 0    ? { seg: best.seg, idx: best.idx } : ends.find(r => r.at === 0);
-          if (fromSnap && toSnap){
-            const path = netPath(fromSnap.seg, fromSnap.idx, toSnap.seg, toSnap.idx);
-            if (path) l.arc.path = path;
-          }
-          l.onRivers = ends.map(r => (r.at === i) ? { at:i, seg:best.seg, idx:best.idx } : r);
-        }
+      const pieces = lakePieces(l);
+      const pc = pieces[S.dragLake.pi];
+      if (pc && pc.kind === 'free' && pc.pts[S.dragLake.qi]){
+        pc.pts[S.dragLake.qi] = [wx, wy];
+        normalizeLakeJunctions(l);      // 让相邻的河段端点重新贴回河道
+        rebuildLake(l);
+        requestDraw();
       }
-      rebuildLake(l);
-      requestDraw();
     }
     return;
   }
@@ -1897,8 +1952,9 @@ function payload(){
       const gap = q.length > 1 ? Math.hypot(q[0][0]-q[q.length-1][0], q[0][1]-q[q.length-1][1]) : 999;
       return { id: c.id, pts: q, closed: q.length >= 3 && (gap <= 40 || !!c.closed) };
     }),
-    lakes: S.lakes.map(l => ({ id: l.id, name: l.name || '', drawn: l.drawn,
-                               arc: l.arc || null, pts: l.pts, onRivers: l.onRivers || [] })),
+    lakes: S.lakes.map(l => ({ id: l.id, name: l.name || '',
+                               pieces: l.pieces || null, arc: l.arc || null,
+                               pts: l.pts, onRivers: l.onRivers || [] })),
     segments: S.segs.map(s => ({
       id: s.id, river: s.river, rank: s.rank, name: s.name || '',
       section: s.section || '', water: s.water || 3,
@@ -2078,15 +2134,20 @@ function loadData(d){
     const lk = {
       id: l.id || ('l' + Math.random().toString(36).slice(2, 6)),
       name: l.name || '',
-      drawn: (l.drawn || []).map(p => [ +p[0], +p[1] ]),
+      pieces: Array.isArray(l.pieces) ? l.pieces.map(pc => pc.kind === 'free'
+        ? { kind: 'free', pts: (pc.pts || []).map(q => [ +q[0], +q[1] ]) }
+        : { kind: 'river', from: pc.from || null, to: pc.to || null, path: null }) : null,
+      drawn: (l.drawn || []).map(q => [ +q[0], +q[1] ]),
       arc: l.arc || null,
       pts,
       onRivers: l.onRivers || []
     };
-    if (!lk.drawn.length){
-      // 老数据没有 drawn：把 pts 去掉闭合点当作 drawn，弧线信息丢失
-      lk.drawn = pts.slice(0, Math.max(3, pts.length - 1)).map(q => [q[0], q[1]]);
-      lk.arc = null;
+    if (!lk.pieces){
+      // 老数据：drawn + 单条 arc
+      if (!lk.drawn.length){
+        lk.drawn = pts.slice(0, Math.max(3, pts.length - 1)).map(q => [q[0], q[1]]);
+        lk.arc = null;
+      }
     }
     rebuildLake(lk);
     return lk;

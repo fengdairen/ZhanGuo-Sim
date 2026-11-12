@@ -73,9 +73,103 @@ def main():
                 return L
         return None
 
-    first_of_river = {}
+    by_river = {}
     for sg in data.get("segments") or []:
-        first_of_river.setdefault(sg.get("river"), sg)
+        by_river.setdefault(sg.get("river"), []).append(sg)
+
+    def mi(seg):
+        return 0 if seg.get("flow") == -1 else len(seg["pts"]) - 1
+    def si(seg):
+        return len(seg["pts"]) - 1 if seg.get("flow") == -1 else 0
+    def link_at(seg, at):
+        for L in (seg.get("links") or []):
+            if L.get("at") == at:
+                return L
+        return None
+
+    def chain(rid):
+        secs = by_river.get(rid) or []
+        if not secs:
+            return None
+        if len(secs) == 1:
+            return (secs[0], si(secs[0]), secs[0], mi(secs[0]))
+        ends = []
+        for sg in secs:
+            pts = sg["pts"]
+            ends.append((sg, 0, (round(pts[0][0], 1), round(pts[0][1], 1))))
+            if len(pts) > 1:
+                ends.append((sg, len(pts) - 1,
+                             (round(pts[-1][0], 1), round(pts[-1][1], 1))))
+        cnt = {}
+        for _, _, k in ends:
+            cnt[k] = cnt.get(k, 0) + 1
+        free = [e for e in ends if cnt[e[2]] == 1]
+        if len(free) < 2:
+            return None
+        mouth = src = None
+        for e in free:
+            L = link_at(e[0], e[1])
+            if not L:
+                continue
+            if L.get("kind") in ("mouth", "sea"):
+                mouth = mouth or e
+            else:
+                src = src or e
+        if not mouth and not src:
+            mouth = next((e for e in free if e[1] == mi(e[0])), free[0])
+        if mouth:
+            src = src or next((e for e in free if e is not mouth), None)
+        if not mouth or not src:
+            return None
+        return (src[0], src[1], mouth[0], mouth[1])
+
+    def lv_name(lv):
+        return (CN[lv] if lv <= 10 else str(lv)) + "级支流"
+
+    def classify_river(rid, seen=None):
+        secs = by_river.get(rid) or []
+        if not secs:
+            return ("main", 0, "干流")
+        if any(sg.get("nature") == "artificial" for sg in secs):
+            return ("canal", None, "运河")
+        ch = chain(rid)
+        if not ch:
+            return classify_seg(secs[0], seen)
+        sseg, sat, mseg, mat = ch
+        srcL = link_at(sseg, sat)
+        mouthL = link_at(mseg, mat)
+        if srcL and srcL.get("lake"):
+            lv = (river_level(mouthL.get("river"), seen) + 1) if (mouthL and mouthL.get("river")) else None
+            return ("channel", lv, "天然水道" + ("·" + lv_name(lv) if lv else ""))
+        if srcL and srcL.get("river"):
+            base = (river_level(mouthL.get("river"), seen) if (mouthL and mouthL.get("river"))
+                    else river_level(srcL.get("river"), seen))
+            lv = base + 1
+            return ("dist", lv, "岔流·" + lv_name(lv))
+        if mouthL and mouthL.get("river"):
+            lv = river_level(mouthL.get("river"), seen) + 1
+            return ("trib", lv, lv_name(lv))
+        return ("main", 0, "干流")
+
+    def classify_seg(seg, seen=None):
+        if seg.get("nature") == "artificial":
+            return ("canal", None, "运河")
+        L = src_link(seg)
+        m = mouth_river_link(seg)
+        if L and L.get("lake"):
+            lv = (river_level(m.get("river"), seen) + 1) if m else None
+            return ("channel", lv, "天然水道" + ("·" + lv_name(lv) if lv else ""))
+        if L and L.get("river"):
+            base = (river_level(m.get("river"), seen) if m else river_level(L.get("river"), seen))
+            lv = base + 1
+            return ("dist", lv, "岔流·" + lv_name(lv))
+        if m:
+            lv = river_level(m.get("river"), seen) + 1
+            return ("trib", lv, lv_name(lv))
+        return ("main", 0, "干流")
+
+    def classify(seg):
+        return classify_river(seg.get("river"))
 
     def river_level(rid, seen=None):
         if not rid:
@@ -84,32 +178,7 @@ def main():
         if rid in seen:
             return 0
         seen.add(rid)
-        sg = first_of_river.get(rid)
-        if not sg:
-            return 0
-        return classify(sg, seen)[1] or 0
-
-    def lv_name(lv):
-        return (CN[lv] if lv <= 10 else str(lv)) + "级支流"
-
-    def classify(seg, seen=None):
-        """→ (kind, level, label)；label 已含"·次级"后缀"""
-        if seg.get("nature") == "artificial":
-            return ("canal", None, "运河")
-        L = src_link(seg)
-        m = mouth_river_link(seg)
-        if L and L.get("lake"):
-            lv = (river_level(m.get("river"), seen) + 1) if m else None
-            return ("channel", lv, "天然水道" + ("·" + lv_name(lv) if m else ""))
-        if L and L.get("river"):
-            base = (river_level(m.get("river"), seen) if m
-                    else river_level(L.get("river"), seen))
-            lv = base + 1
-            return ("dist", lv, "岔流·" + lv_name(lv))
-        if m:
-            lv = river_level(m.get("river"), seen) + 1
-            return ("trib", lv, lv_name(lv))
-        return ("main", 0, "干流")
+        return classify_river(rid, seen)[1] or 0
 
     stat = {r: [0, 0.0] for r in (1, 2, 3, 4)}
     rivers = {}

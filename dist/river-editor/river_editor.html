@@ -625,31 +625,92 @@ function sourceKind(seg){
   if (L.river) return 'branch';
   return 'natural';
 }
+function linkAtEnd(seg, at){
+  return (seg.links || []).find(L => L.at === at) || null;
+}
+
+// 一条河可能被切成多段：源头端与河口端要看"整条河的链"
+function riverChain(riverId){
+  const secs = riverOf(riverId);
+  if (!secs.length) return null;
+  if (secs.length === 1){
+    return { src: { seg: secs[0], at: sourceIndex(secs[0]) },
+             mouth: { seg: secs[0], at: mouthIndex(secs[0]) } };
+  }
+  const key = p => p[0].toFixed(1) + ',' + p[1].toFixed(1);
+  const ends = [];
+  for (const sg of secs){
+    if (!sg.pts.length) continue;
+    ends.push({ seg: sg, at: 0, k: key(sg.pts[0]) });
+    if (sg.pts.length > 1) ends.push({ seg: sg, at: sg.pts.length - 1, k: key(sg.pts[sg.pts.length - 1]) });
+  }
+  const cnt = new Map();
+  for (const e of ends) cnt.set(e.k, (cnt.get(e.k) || 0) + 1);
+  const free = ends.filter(e => cnt.get(e.k) === 1);
+  if (free.length < 2) return null;              // 成环或数据异常，退回按段判
+
+  let mouth = null, src = null;
+  for (const e of free){
+    const L = linkAtEnd(e.seg, e.at);
+    if (!L) continue;
+    if (L.kind === 'mouth' || L.kind === 'sea') mouth = mouth || e;
+    else src = src || e;
+  }
+  if (!mouth && !src) mouth = free.find(e => e.at === mouthIndex(e.seg)) || free[0];
+  if (mouth) src = src || free.find(e => e !== mouth);
+  else { mouth = free[0]; src = free[1]; }
+  return { src, mouth };
+}
+
 function riverLevel(riverId, seen){
   if (!riverId) return 0;
   seen = seen || new Set();
   if (seen.has(riverId)) return 0;
   seen.add(riverId);
-  const g = riverOf(riverId);
-  if (!g.length) return 0;
-  return classify(g[0], seen).level || 0;
+  return classifyRiver(riverId, seen).level || 0;
 }
-function classify(seg, seen){
+
+// 整条河一个类型（分段不改变性质）
+function classifyRiver(riverId, seen){
+  const secs = riverOf(riverId);
+  if (!secs.length) return { kind:'main', level:0, label:'干流' };
+  if (secs.some(x => x.nature === 'artificial')) return { kind:'canal', level:null, label:'运河' };
+
+  const ch = riverChain(riverId);
+  if (!ch) return classifySeg(secs[0], seen);
+  const srcL = linkAtEnd(ch.src.seg, ch.src.at);
+  const mouthL = linkAtEnd(ch.mouth.seg, ch.mouth.at);
+
+  if (srcL && srcL.lake){
+    const lv = (mouthL && mouthL.river) ? riverLevel(mouthL.river, seen) + 1 : null;
+    return { kind:'channel', level:lv, label:'天然水道', tag: lv === null ? null : lvLabel(lv) };
+  }
+  if (srcL && srcL.river){
+    const base = (mouthL && mouthL.river) ? riverLevel(mouthL.river, seen)
+                                          : riverLevel(srcL.river, seen);
+    const lv = base + 1;
+    return { kind:'dist', level:lv, label:'岔流', tag: lvLabel(lv) };
+  }
+  if (mouthL && mouthL.river){
+    const lv = riverLevel(mouthL.river, seen) + 1;
+    return { kind:'trib', level:lv, label: lvLabel(lv) };
+  }
+  return { kind:'main', level:0, label:'干流' };
+}
+
+// 单段兜底（链断了或独立成段时）
+function classifySeg(seg, seen){
   if (!seg) return { kind:'main', level:0, label:'干流' };
   if (seg.nature === 'artificial') return { kind:'canal', level:null, label:'运河' };
   const sk = sourceKind(seg);
   const m = mouthRiverLink(seg);
-
   if (sk === 'lake'){
-    // 天然水道：注入别的河时，追加"那条河的次级"标签
     const lv = m ? riverLevel(m.river, seen) + 1 : null;
     return { kind:'channel', level:lv, label:'天然水道', tag: m ? lvLabel(lv) : null };
   }
   if (sk === 'branch'){
-    // 岔流：注入别的河 → 按注入的河算次级；没注入河 → 按源头那条河算
     const L = srcLink(seg);
-    const base = m ? riverLevel(m.river, seen)
-                   : (L && L.river ? riverLevel(L.river, seen) : 0);
+    const base = m ? riverLevel(m.river, seen) : (L && L.river ? riverLevel(L.river, seen) : 0);
     const lv = base + 1;
     return { kind:'dist', level:lv, label:'岔流', tag: lvLabel(lv) };
   }
@@ -659,6 +720,12 @@ function classify(seg, seen){
   }
   return { kind:'main', level:0, label:'干流' };
 }
+
+function classify(seg, seen){
+  if (!seg) return { kind:'main', level:0, label:'干流' };
+  return classifyRiver(seg.river, seen);
+}
+
 function kindColor(seg){
   const c = classify(seg);
   if (c.kind === 'main') return KIND_COLOR.main;
@@ -1153,7 +1220,8 @@ function setNature(v){
   const seg = S.segs.find(s => s.id === S.sel);
   if (!seg) return;
   pushHistory();
-  seg.nature = v;
+  // 性质是"整条河"的属性，分段共用
+  for (const s of S.segs) if (s.river === seg.river) s.nature = v;
   syncEditor(); renderList(); requestDraw(); persist();
   toast('性质：' + (v === 'artificial' ? '人工（运河）' : '天然') + ' → ' + kindLabel(seg));
 }
@@ -1181,7 +1249,8 @@ function setSegRank(r){
   const seg = S.segs.find(s => s.id === S.sel);
   if (!seg) return;
   pushHistory();
-  seg.nature = (+r === 4) ? 'artificial' : 'natural';
+  const v = (+r === 4) ? 'artificial' : 'natural';
+  for (const s of S.segs) if (s.river === seg.river) s.nature = v;
   syncEditor(); renderList(); requestDraw(); persist();
 }
 

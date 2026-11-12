@@ -186,7 +186,8 @@ api.setSegWater(1);
 api.setSegRank(4);
 check(segs[1].water === 1, '水量设置失败');
 check(api.classify(segs[1]).kind === 'canal', '运河判定失败');
-check(segs[0].water === 3 && api.classify(segs[0]).kind !== 'canal', '前半段不应被连带修改');
+check(segs[0].water === 3, '前半段水量不应被连带修改');
+check(api.classify(segs[0]).kind === 'canal', '性质是整条河的属性，前半段也应变成运河');
 
 // 画一条支流并挂到长江上 → 自动成为一级支流
 const pd = listeners['cv'].pointerdown;
@@ -634,7 +635,7 @@ check(api.S.selCoast === cstB.id, '点海岸线没选中海岸，实际 ' + api.
 {
   const drawRiver = (x, y) => {
     els['bDraw'].onclick();
-    at(x, y); at(x + 40, y + 15); at(x + 80, y + 20);
+    at(x, y); at(x + 40, y + 15); at(x + 80, y + 20); at(x + 120, y + 18); at(x + 160, y + 30);
     listeners.__win.keydown({ key: 'Enter', target: { tagName: 'CANVAS' } });
     return api.S.segs[api.S.segs.length - 1];
   };
@@ -651,6 +652,14 @@ check(api.S.selCoast === cstB.id, '点海岸线没选中海岸，实际 ' + api.
   check(d.kind === 'dist', '应为岔流，实际 ' + api.kindLabel(D));
   check(d.level === 1, '岔流注入干流应为一级，实际 ' + d.level);
   check(api.kindLabel(D) === '岔流·一级支流', '标签不对：' + api.kindLabel(D));
+
+  // 分段不改变性质：切开后各段类型必须一致
+  api.splitAt(D.id, 2);
+  const dParts = api.S.segs.filter(s => s.river === D.river);
+  check(dParts.length === 2, '切段后应有 2 段，实际 ' + dParts.length);
+  const dLabels = new Set(dParts.map(p => api.kindLabel(p)));
+  check(dLabels.size === 1, '分段后类型不一致：' + [...dLabels].join(' / '));
+  check([...dLabels][0] === '岔流·一级支流', '切开后类型变了：' + [...dLabels][0]);
 
   // 天然水道：源头接湖，河口接 A
   const lk0 = api.S.lakes[0];

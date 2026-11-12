@@ -249,7 +249,7 @@ api.syncChildren();
 check(Math.abs(trib.pts[srcAt][0] - (freeBefore[0] + 50)) < 0.5, '天然源头端被强行吸附了');
 
 const pl = api.payload();
-check(pl.version === 3, 'payload 版本应为 3');
+check(pl.version === 5, 'payload 版本应为 5，实际 ' + pl.version);
 check(pl.segments.every(s => s.flow === 1 || s.flow === -1), 'payload 缺 flow');
 check(pl.segments.length === 3, 'payload 段数不对');
 check(pl.segments[1].water === 1 && pl.segments[1].rank === 4, 'payload 字段丢失');
@@ -489,7 +489,8 @@ check(Math.hypot(segX.pts[llink.at][0]-(lv[0]+35), segX.pts[llink.at][1]-(lv[1]+
 els['bDraw'].onclick();
 const lp = toScreen(lkX.pts[2][0], lkX.pts[2][1]);
 at(lp[0] + 4, lp[1] + 3);
-check(api.S.draft.snapAtStart && api.S.draft.snapAtStart.lake === lkX.id,
+check(api.S.draft.snapAtStart && api.S.draft.snapAtStart.type === 'lake' &&
+      api.S.draft.snapAtStart.id === lkX.id,
       '起笔没有吸附到湖岸：' + JSON.stringify(api.S.draft.snapAtStart));
 at(lp[0] + 80, lp[1] + 80);
 listeners.__win.keydown({ key: 'Enter', target: { tagName: 'CANVAS' } });
@@ -501,6 +502,92 @@ check(Array.isArray(pl4.lakes) && pl4.lakes.length === 7, 'payload 缺 lakes');
 check(pl4.lakes[1].name === '大野泽', 'payload 湖名丢了');
 
 
+
+// ---- 流畅度：收笔后自动进入选择模式 / 切模式取消草稿 ----
+els['bLake'].onclick();
+const m0 = toScreen(1200, 1600);
+at(m0[0], m0[1]);
+at(m0[0] + 40, m0[1] + 10);
+at(m0[0] + 45, m0[1] + 50);
+at(m0[0] + 5, m0[1] + 55);
+at(m0[0] + 6, m0[1] + 56);
+check(api.S.mode === 'select', '湖泽收笔后没切到选择模式：' + api.S.mode);
+
+els['bDraw'].onclick();
+at(200, 900); at(240, 930);
+check(!!api.S.draft, '草稿没建立');
+els['bSelect'].onclick();
+check(api.S.draft === null, '切换模式没取消草稿');
+
+// ---- 海岸线顶点可拖；挂在上面的河口跟随；运河端口也能接海岸 ----
+const cst = api.S.coasts[0];
+els['bSelect'].onclick();
+api.S.selCoast = cst.id;
+const cpx = toScreen(cst.pts[1][0], cst.pts[1][1]);
+const cBefore = cst.pts[1].slice();
+listeners['cv'].pointerdown({ button:0, clientX:cpx[0], clientY:cpx[1], shiftKey:false, pointerId:1, preventDefault(){} });
+listeners['cv'].pointermove({ button:0, clientX:cpx[0]+25, clientY:cpx[1]+25, shiftKey:false, pointerId:1, preventDefault(){} });
+listeners['cv'].pointerup({});
+check(cst.pts[1][0] !== cBefore[0] || cst.pts[1][1] !== cBefore[1], '海岸顶点拖不动');
+
+// 河口接在这条海岸上，拖动海岸点后河口要跟随
+const segC = api.S.segs[0];
+api.attachSea(segC.id, api.mouthIndex(segC), cst.id, cst.pts[1][0], cst.pts[1][1]);
+const seaL = (segC.links || []).find(L => L.kind === 'sea');
+check(!!seaL, '河口没接到海岸');
+cst.pts[seaL.idx] = [cst.pts[seaL.idx][0] + 40, cst.pts[seaL.idx][1] + 30];
+api.syncChildren();
+check(Math.hypot(segC.pts[seaL.at][0]-cst.pts[seaL.idx][0],
+                 segC.pts[seaL.at][1]-cst.pts[seaL.idx][1]) < 0.01, '海岸移动后河口没跟随');
+
+// 运河端口接海岸
+const canalSeg = api.S.segs.find(s => s.rank === 4);
+check(!!canalSeg, '测试前提：需要一条运河');
+api.attachSea(canalSeg.id, 0, cst.id, cst.pts[2][0], cst.pts[2][1]);
+check((canalSeg.links || []).some(L => L.kind === 'sea'), '运河端口接不了海岸');
+
+// ---- 往返：接海岸 / 接湖的链接必须原样存回来 ----
+{
+  const segRT = api.S.segs[0];
+  const cstRT = api.S.coasts[0];
+  api.attachSea(segRT.id, api.mouthIndex(segRT), cstRT.id, cstRT.pts[0][0], cstRT.pts[0][1]);
+  const lkRT = api.S.lakes[0];
+  api.attachLake(api.S.segs[1].id, api.mouthIndex(api.S.segs[1]), lkRT.id, lkRT.pts[0][0], lkRT.pts[0][1]);
+  const plRT = api.payload();
+  api.loadData(plRT);
+  const s0 = api.S.segs.find(s => s.id === segRT.id);
+  const seaAfter = (s0.links || []).find(L => L.kind === 'sea');
+  check(!!seaAfter, '往返后入海链接丢了');
+  check(seaAfter.coast === cstRT.id, '往返后海岸 id 丢了：' + JSON.stringify(seaAfter));
+  const s1 = api.S.segs[1];
+  const lakeAfter = (s1.links || []).find(L => L.lake);
+  check(!!lakeAfter, '往返后入湖链接丢了');
+  check(lakeAfter.lake === lkRT.id, '往返后湖 id 丢了');
+}
+
+// ---- 选择模式：点湖体 / 海岸线就能选中（不必去列表里找） ----
+els['bSelect'].onclick();
+api.S.sel = null; api.S.selLake = null; api.S.selCoast = null;
+const lkB = api.S.lakes[0];
+let sx = 0, sy = 0;
+for (const q2 of lkB.pts.slice(0, -1)){ sx += q2[0]; sy += q2[1]; }
+const cnt = lkB.pts.length - 1;
+const cb = toScreen(sx / cnt, sy / cnt);
+at(cb[0], cb[1]);
+check(api.S.selLake === lkB.id, '点湖体没选中湖泽，实际 ' + api.S.selLake);
+
+api.S.sel = null; api.S.selLake = null; api.S.selCoast = null;
+// 单独画一条远离河湖的海岸线，专门测"点选"
+els['bCoast'].onclick();
+at(60, 1200); at(140, 1250); at(90, 1290);
+listeners.__win.keydown({ key: 'Enter', target: { tagName: 'CANVAS' } });
+const cstB = api.S.coasts[api.S.coasts.length - 1];
+check(!!cstB, '测试用海岸线没生成');
+els['bSelect'].onclick();
+api.S.sel = null; api.S.selLake = null; api.S.selCoast = null;
+const cq = toScreen(cstB.pts[1][0], cstB.pts[1][1]);
+at(cq[0] + 2, cq[1] + 2);
+check(api.S.selCoast === cstB.id, '点海岸线没选中海岸，实际 ' + api.S.selCoast);
 
 // ---- 真实数据回归：淮水被切成 r003/r011 两段，跨段湖泊必须能沿河闭合 ----
 try {
@@ -543,7 +630,7 @@ try {
   const i0real = api.S.draft.snapAtStart.idx;
   check(!!es, '落点没吸到河道顶点');
   const ld = api.S.draft.pts[api.S.draft.pts.length - 1];
-  const vs = api.S.segs.find(x => x.id === es.seg).pts[es.idx];
+  const vs = api.S.segs.find(x => x.id === es.id).pts[es.idx];
   check(Math.hypot(ld[0]-vs[0], ld[1]-vs[1]) < 0.01, '落点坐标与吸附顶点不一致');
   listeners.__win.keydown({ key: 'Enter', target: { tagName: 'CANVAS' } });
   const lkS = api.S.lakes[api.S.lakes.length - 1];

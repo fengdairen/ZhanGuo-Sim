@@ -648,21 +648,40 @@ function linkOf(seg, at, t){
 }
 
 // 在所有可用点里找最近的一个：海岸线顶点 / 湖岸顶点 / 河道顶点
-function pickTarget(wx, wy, tolPx){
+// prefer：优先选这个类型（距离相同或相近时）。画湖泽时用 'river'——
+// 因为已有的湖，其沿河边界本身就压在同一批河道顶点上，不指定就会抢走吸附。
+const TYPE_PRIO = { river: 3, lake: 2, coast: 1 };
+
+function pickTarget(wx, wy, tolPx, prefer){
   const tol = tolPx / V.s;
-  let best = null;
+  const cands = [];
   const take = (type, id, idx, x, y) => {
     const d = Math.hypot(x - wx, y - wy);
-    if (d <= tol && (!best || d < best.d)) best = { type, id, idx, x, y, d };
+    if (d <= tol) cands.push({ type, id, idx, x, y, d });
   };
   for (const c of S.coasts) for (let i = 0; i < c.pts.length; i++) take('coast', c.id, i, c.pts[i][0], c.pts[i][1]);
   for (const l of S.lakes) for (let i = 0; i < l.pts.length - 1; i++) take('lake', l.id, i, l.pts[i][0], l.pts[i][1]);
   for (const sg of S.segs) for (let i = 0; i < sg.pts.length; i++) take('river', sg.id, i, sg.pts[i][0], sg.pts[i][1]);
-  if (best && best.type === 'river'){
-    const sg = S.segs.find(x => x.id === best.id);
-    if (sg) best.river = sg.river;
+  if (!cands.length) return null;
+
+  if (prefer){
+    const p = cands.filter(c => c.type === prefer).sort((a, b) => a.d - b.d)[0];
+    if (p){ finish(p); return p; }
   }
+  cands.sort((a, b) => {
+    if (Math.abs(a.d - b.d) > 2) return a.d - b.d;      // 明显更近的赢
+    return (TYPE_PRIO[b.type] || 0) - (TYPE_PRIO[a.type] || 0);  // 相差 2px 内按类型
+  });
+  const best = cands[0];
+  finish(best);
   return best;
+
+  function finish(t){
+    if (t.type === 'river'){
+      const sg = S.segs.find(x => x.id === t.id);
+      if (sg) t.river = sg.river;
+    }
+  }
 }
 
 // 在同一个目标（同一条河 / 同一个湖 / 同一条海岸线）里找最近的顶点
@@ -853,7 +872,7 @@ function startDraft(wx, wy, noSnap, type){
   const isCoast = type === 'coast' || S.mode === 'coast';
   const isLake = type === 'lake' || S.mode === 'lake';
   let snap = null;
-  if (!noSnap && !isCoast) snap = pickTarget(wx, wy, isLake ? 8 : 14);
+  if (!noSnap && !isCoast) snap = pickTarget(wx, wy, isLake ? 14 : 14, isLake ? 'river' : null);
   const p = snap ? [snap.x, snap.y] : [wx, wy];
   S.draft = { type: isCoast ? 'coast' : (isLake ? 'lake' : 'river'), rank:S.rank, water:3, pts:[p],
               snapAtStart: snap, snapAtEnd:null, lastNoSnap:false };

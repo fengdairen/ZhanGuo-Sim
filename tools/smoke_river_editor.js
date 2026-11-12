@@ -546,6 +546,29 @@ check(!!canalSeg, '测试前提：需要一条运河');
 api.attachSea(canalSeg.id, 0, cst.id, cst.pts[2][0], cst.pts[2][1]);
 check((canalSeg.links || []).some(L => L.kind === 'sea'), '运河端口接不了海岸');
 
+// ---- 同一条河两岸两个湖：第二个湖起笔不能被第一个湖的岸抢走 ----
+{
+  const lkP = api.S.lakes.find(l => l.arc && l.arc.from);
+  check(!!lkP, '测试前提：需要一个带沿河边界的湖');
+  const segP2 = api.S.segs.find(s => s.id === lkP.arc.from.seg);
+  check(!!segP2, '找不到湖岸对应的河段');
+  const iA = lkP.arc.from.idx;
+  const pA = segP2.pts[iA];
+  const pB = segP2.pts[Math.min(segP2.pts.length - 1, iA + 6)];
+  els['bLake'].onclick();
+  const sA = toScreen(pA[0], pA[1]);
+  at(sA[0] + 1, sA[1] + 1);
+  check(api.S.draft.snapAtStart && api.S.draft.snapAtStart.type === 'river',
+        '起笔被湖岸抢走了：' + JSON.stringify(api.S.draft.snapAtStart));
+  at(sA[0] + 60, sA[1] + 60);
+  const sB = toScreen(pB[0], pB[1]);
+  at(sB[0] + 2, sB[1] + 2);
+  listeners.__win.keydown({ key: 'Enter', target: { tagName: 'CANVAS' } });
+  const lkQ = api.S.lakes[api.S.lakes.length - 1];
+  check(!!lkQ.arc, '第二个湖没有形成沿河边界');
+  check(lkQ.arc.from.seg === lkP.arc.from.seg, '第二个湖的边界挂错了河');
+}
+
 // ---- 以河为边界的湖泽：河岸顶点移动后边界必须重算 ----
 {
   const lkA = api.S.lakes.find(l => l.arc && l.arc.path && l.arc.path.length >= 2);

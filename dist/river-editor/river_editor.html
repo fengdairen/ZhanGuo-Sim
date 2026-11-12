@@ -638,13 +638,21 @@ function classify(seg, seen){
   if (!seg) return { kind:'main', level:0, label:'干流' };
   if (seg.nature === 'artificial') return { kind:'canal', level:null, label:'运河' };
   const sk = sourceKind(seg);
-  if (sk === 'lake') return { kind:'channel', level:null, label:'天然水道' };
-  if (sk === 'branch'){
-    const L = srcLink(seg);
-    const lv = (L && L.river ? riverLevel(L.river, seen) : 0) + 1;
-    return { kind:'dist', level:lv, label: lvLabel(lv), tag:'岔流' };
-  }
   const m = mouthRiverLink(seg);
+
+  if (sk === 'lake'){
+    // 天然水道：注入别的河时，追加"那条河的次级"标签
+    const lv = m ? riverLevel(m.river, seen) + 1 : null;
+    return { kind:'channel', level:lv, label:'天然水道', tag: m ? lvLabel(lv) : null };
+  }
+  if (sk === 'branch'){
+    // 岔流：注入别的河 → 按注入的河算次级；没注入河 → 按源头那条河算
+    const L = srcLink(seg);
+    const base = m ? riverLevel(m.river, seen)
+                   : (L && L.river ? riverLevel(L.river, seen) : 0);
+    const lv = base + 1;
+    return { kind:'dist', level:lv, label:'岔流', tag: lvLabel(lv) };
+  }
   if (m){
     const lv = riverLevel(m.river, seen) + 1;
     return { kind:'trib', level:lv, label: lvLabel(lv) };
@@ -659,7 +667,7 @@ function kindColor(seg){
 }
 function kindLabel(seg){
   const c = classify(seg);
-  return c.tag ? (c.tag + '·' + c.label) : c.label;
+  return c.tag ? (c.label + '·' + c.tag) : c.label;
 }
 
 function linksOf(seg){ return (seg.links || []).slice(); }

@@ -89,19 +89,26 @@ def main():
             return 0
         return classify(sg, seen)[1] or 0
 
+    def lv_name(lv):
+        return (CN[lv] if lv <= 10 else str(lv)) + "级支流"
+
     def classify(seg, seen=None):
+        """→ (kind, level, label)；label 已含"·次级"后缀"""
         if seg.get("nature") == "artificial":
             return ("canal", None, "运河")
         L = src_link(seg)
-        if L and L.get("lake"):
-            return ("channel", None, "天然水道")
-        if L and L.get("river"):
-            lv = river_level(L.get("river"), seen) + 1
-            return ("dist", lv, (CN[lv] if lv <= 10 else str(lv)) + "级支流")
         m = mouth_river_link(seg)
+        if L and L.get("lake"):
+            lv = (river_level(m.get("river"), seen) + 1) if m else None
+            return ("channel", lv, "天然水道" + ("·" + lv_name(lv) if m else ""))
+        if L and L.get("river"):
+            base = (river_level(m.get("river"), seen) if m
+                    else river_level(L.get("river"), seen))
+            lv = base + 1
+            return ("dist", lv, "岔流·" + lv_name(lv))
         if m:
             lv = river_level(m.get("river"), seen) + 1
-            return ("trib", lv, (CN[lv] if lv <= 10 else str(lv)) + "级支流")
+            return ("trib", lv, lv_name(lv))
         return ("main", 0, "干流")
 
     stat = {r: [0, 0.0] for r in (1, 2, 3, 4)}

@@ -630,6 +630,40 @@ const cq = toScreen(cstB.pts[1][0], cstB.pts[1][1]);
 at(cq[0] + 2, cq[1] + 2);
 check(api.S.selCoast === cstB.id, '点海岸线没选中海岸，实际 ' + api.S.selCoast);
 
+// ---- 类型判定：岔流按注入的河算次级；天然水道注入河时追加标签 ----
+{
+  const drawRiver = (x, y) => {
+    els['bDraw'].onclick();
+    at(x, y); at(x + 40, y + 15); at(x + 80, y + 20);
+    listeners.__win.keydown({ key: 'Enter', target: { tagName: 'CANVAS' } });
+    return api.S.segs[api.S.segs.length - 1];
+  };
+  const A = api.S.segs[0];                       // 干流
+  const C = drawRiver(100, 300);                 // 独立一条河 → 干流
+  check(api.classify(C).kind === 'main', '独立河应为干流，实际 ' + api.kindLabel(C));
+
+  const D = drawRiver(100, 380);                 // 源头接 A（岔出），河口接 C
+  api.attachTo(D.id, 0, { type:'river', id: A.id, river: A.river, idx: 0,
+                          x: A.pts[0][0], y: A.pts[0][1] });
+  api.attachTo(D.id, D.pts.length - 1, { type:'river', id: C.id, river: C.river, idx: 0,
+                                         x: C.pts[0][0], y: C.pts[0][1] });
+  let d = api.classify(D);
+  check(d.kind === 'dist', '应为岔流，实际 ' + api.kindLabel(D));
+  check(d.level === 1, '岔流注入干流应为一级，实际 ' + d.level);
+  check(api.kindLabel(D) === '岔流·一级支流', '标签不对：' + api.kindLabel(D));
+
+  // 天然水道：源头接湖，河口接 A
+  const lk0 = api.S.lakes[0];
+  const E = drawRiver(100, 460);
+  api.attachTo(E.id, 0, { type:'lake', id: lk0.id, idx: 0,
+                          x: lk0.pts[0][0], y: lk0.pts[0][1] });
+  api.attachTo(E.id, E.pts.length - 1, { type:'river', id: A.id, river: A.river, idx: 0,
+                                         x: A.pts[0][0], y: A.pts[0][1] });
+  d = api.classify(E);
+  check(d.kind === 'channel', '应为天然水道，实际 ' + api.kindLabel(E));
+  check(api.kindLabel(E) === '天然水道·一级支流', '水道标签不对：' + api.kindLabel(E));
+}
+
 // ---- 真实数据回归：淮水被切成 r003/r011 两段，跨段湖泊必须能沿河闭合 ----
 try {
   const fs = require('fs');

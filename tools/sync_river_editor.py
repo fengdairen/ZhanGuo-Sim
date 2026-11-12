@@ -76,6 +76,7 @@ def migrate(segs):
             "name": s.get("name") or "",
             "section": s.get("section") or "",
             "water": water,
+            "nature": (s.get("nature") or ("artificial" if rank == 4 else "natural")),
             "flow": flow,
             "links": links,
             "parent": parent,

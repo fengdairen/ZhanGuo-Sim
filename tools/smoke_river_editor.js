@@ -185,8 +185,8 @@ check(api.S.sel === segs[1].id, '切分后应选中后半段');
 api.setSegWater(1);
 api.setSegRank(4);
 check(segs[1].water === 1, '水量设置失败');
-check(segs[1].rank === 4, '等级设置失败');
-check(segs[0].water === 3 && segs[0].rank === 1, '前半段不应被连带修改');
+check(api.classify(segs[1]).kind === 'canal', '运河判定失败');
+check(segs[0].water === 3 && api.classify(segs[0]).kind !== 'canal', '前半段不应被连带修改');
 
 // 画一条支流并挂到长江上 → 自动成为一级支流
 const pd = listeners['cv'].pointerdown;
@@ -201,7 +201,8 @@ api.attachEnd(trib.id, api.mouthIndex(trib), mainSeg.id, target[0], target[1]);
 check(trib.parent && trib.parent.river === riverA, '父子关系未建立');
 check(Array.isArray(trib.links) && trib.links.length === 1, 'links 未建立');
 check(trib.links[0].kind === 'mouth', '汇入端 kind 应为 mouth');
-check(trib.rank === 2, '支流等级应为 2（一级），实际 ' + trib.rank);
+check(api.classify(trib).kind === 'trib' && api.classify(trib).level === 1,
+      '支流类型应为一级，实际 ' + api.kindLabel(trib));
 const linkAt = trib.links[0].at === 0 ? 0 : trib.pts.length - 1;
 check(Math.hypot(trib.pts[linkAt][0]-target[0], trib.pts[linkAt][1]-target[1]) < 1,
   '连接端未吸附到上级接点');
@@ -224,8 +225,8 @@ api.S.sel = trib.id;
 api.reverseFlow();
 check(api.mouthIndex(trib) !== miBefore, '反向没有改变河口端');
 check(JSON.stringify(trib.pts) === ptsBefore, '反向不应改动坐标（会把折线拽成闭环）');
-check(trib.parent === null, '反向后应断开上级');
-check(trib.rank === 1, '断开后等级应回到干流');
+check(trib.parent === null, '反向后河口端不再挂在河上，parent 应为空');
+check(api.classify(trib).kind === 'dist', '反向后应成为岔流，实际 ' + api.kindLabel(trib));
 
 // 反向后再接一次，验证接回流程仍然可用
 api.attachEnd(trib.id, api.mouthIndex(trib), mainSeg.id, target[0], target[1]);
@@ -252,7 +253,7 @@ const pl = api.payload();
 check(pl.version === 5, 'payload 版本应为 5，实际 ' + pl.version);
 check(pl.segments.every(s => s.flow === 1 || s.flow === -1), 'payload 缺 flow');
 check(pl.segments.length === 3, 'payload 段数不对');
-check(pl.segments[1].water === 1 && pl.segments[1].rank === 4, 'payload 字段丢失');
+check(pl.segments[1].water === 1 && pl.segments[1].nature === 'artificial', 'payload 字段丢失');
 check(pl.segments[0].name === '长江' && pl.segments[0].section === '金沙江段', 'payload 名字不对');
 check(pl.segments[2].parent && pl.segments[2].parent.river === riverA, 'payload parent 不对');
 
@@ -261,7 +262,7 @@ const other = segs[1];                       // 长江的后半段，当作另�
 api.S.sel = trib.id;
 api.setSegRank(4);
 api.syncChildren();
-check(trib.rank === 4, '未改成运河');
+check(api.classify(trib).kind === 'canal', '未改成运河');
 check(trib.parent === null, '运河不应有单一上级');
 
 api.attachEnd(trib.id, 0, mainSeg.id, mainSeg.pts[0][0], mainSeg.pts[0][1]);
@@ -279,7 +280,7 @@ check(cs.parent === null, 'payload 里运河不该有 parent');
 api.loadData(pl2);
 const c2 = api.S.segs.find(s => s.id === trib.id);
 check(c2 && (c2.links || []).length === 2, 'links 往返丢失');
-check(c2.rank === 4 && c2.parent === null, '往返后运河属性丢失');
+check(api.classify(c2).kind === 'canal' && c2.parent === null, '往返后运河属性丢失');
 
 // ---- 海岸线 + 入海 ----
 els['bCoast'].onclick();
@@ -541,7 +542,7 @@ check(Math.hypot(segC.pts[seaL.at][0]-cst.pts[seaL.idx][0],
                  segC.pts[seaL.at][1]-cst.pts[seaL.idx][1]) < 0.01, '海岸移动后河口没跟随');
 
 // 运河端口接海岸
-const canalSeg = api.S.segs.find(s => s.rank === 4);
+const canalSeg = api.S.segs.find(s => api.classify(s).kind === 'canal');
 check(!!canalSeg, '测试前提：需要一条运河');
 api.attachSea(canalSeg.id, 0, cst.id, cst.pts[2][0], cst.pts[2][1]);
 check((canalSeg.links || []).some(L => L.kind === 'sea'), '运河端口接不了海岸');

@@ -49,6 +49,61 @@ def main():
     segs = data.get("segments", [])
     lines, pts_flat, meta, anchors = [], [], [], []
 
+    # ---- 类型判定（与编辑器同一套规则）----
+    CN = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"]
+
+    def src_link(seg):
+        pts = seg.get("pts") or []
+        if not pts:
+            return None
+        # flow=-1 时河口在首点，源头在末点；否则反过来
+        at = (len(pts) - 1) if seg.get("flow") == -1 else 0
+        for L in (seg.get("links") or []):
+            if L.get("at") == at:
+                return L
+        return None
+
+    def mouth_river_link(seg):
+        pts = seg.get("pts") or []
+        if not pts:
+            return None
+        at = len(pts) - 1 if seg.get("flow") != -1 else 0
+        for L in (seg.get("links") or []):
+            if L.get("at") == at and L.get("river"):
+                return L
+        return None
+
+    first_of_river = {}
+    for sg in data.get("segments") or []:
+        first_of_river.setdefault(sg.get("river"), sg)
+
+    def river_level(rid, seen=None):
+        if not rid:
+            return 0
+        seen = seen or set()
+        if rid in seen:
+            return 0
+        seen.add(rid)
+        sg = first_of_river.get(rid)
+        if not sg:
+            return 0
+        return classify(sg, seen)[1] or 0
+
+    def classify(seg, seen=None):
+        if seg.get("nature") == "artificial":
+            return ("canal", None, "运河")
+        L = src_link(seg)
+        if L and L.get("lake"):
+            return ("channel", None, "天然水道")
+        if L and L.get("river"):
+            lv = river_level(L.get("river"), seen) + 1
+            return ("dist", lv, (CN[lv] if lv <= 10 else str(lv)) + "级支流")
+        m = mouth_river_link(seg)
+        if m:
+            lv = river_level(m.get("river"), seen) + 1
+            return ("trib", lv, (CN[lv] if lv <= 10 else str(lv)) + "级支流")
+        return ("main", 0, "干流")
+
     stat = {r: [0, 0.0] for r in (1, 2, 3, 4)}
     rivers = {}
     bad = 0
@@ -71,6 +126,7 @@ def main():
             "id": s.get("id"), "river": s.get("river"),
             "name": s.get("name") or "", "section": s.get("section") or "",
             "rank": rank, "water": water, "width": w, "len": round(L),
+            "kind": classify(s)[0], "level": classify(s)[1], "label": classify(s)[2],
             "flow": int(s.get("flow", 1)),
             "parent": s.get("parent") or None,
         })

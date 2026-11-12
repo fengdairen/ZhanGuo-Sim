@@ -102,10 +102,7 @@
 
 <div id="bar" class="panel">
   <div class="grp" id="rankGrp">
-    <button class="rank on" data-r="1"><i></i>干流</button>
-    <button class="rank" data-r="2"><i></i>一级</button>
-    <button class="rank" data-r="3"><i></i>二级</button>
-    <button class="rank" data-r="4"><i></i>运河</button>
+    <span style="color:#8a7a63;font-size:11.5px">类型自动判定 · 画线时按 <b>4</b> 为运河、<b>1</b> 为天然</span>
   </div>
   <div class="grp">
     <button id="bUndo" title="Ctrl+Z">撤销</button>
@@ -124,10 +121,11 @@
   <label class="chk"><input type="checkbox" id="cArt">美术底图</label>
   <label class="chk"><input type="checkbox" id="cNodes" checked>城邑</label>
   <div class="sep"></div>
-  <label class="chk"><input type="checkbox" id="cRank1" checked><i style="background:#1b5e8c"></i>干流</label>
-  <label class="chk"><input type="checkbox" id="cRank2" checked><i style="background:#2e86b8"></i>一级支流</label>
-  <label class="chk"><input type="checkbox" id="cRank3" checked><i style="background:#5aa9cf"></i>二级支流</label>
-  <label class="chk"><input type="checkbox" id="cRank4" checked><i style="background:#8a5ea8"></i>运河</label>
+  <label class="chk"><input type="checkbox" id="cKMain" checked><i style="background:#1b5e8c"></i>干流</label>
+  <label class="chk"><input type="checkbox" id="cKTrib" checked><i style="background:#2e86b8"></i>支流</label>
+  <label class="chk"><input type="checkbox" id="cKDist" checked><i style="background:#2f8f6f"></i>岔流</label>
+  <label class="chk"><input type="checkbox" id="cKChannel" checked><i style="background:#3f8f8a"></i>天然水道</label>
+  <label class="chk"><input type="checkbox" id="cKCanl" checked><i style="background:#8a5ea8"></i>运河</label>
   <label class="chk"><input type="checkbox" id="cLakes" checked><i style="background:#7fb0c9"></i>湖泽</label>
   <label class="chk"><input type="checkbox" id="cCoasts" checked><i style="background:#40606f"></i>海岸线</label>
 </div>
@@ -139,7 +137,8 @@
     <div class="fld"><span>河名</span><input id="fName" type="text" placeholder="整条河的名字（各段共用）"></div>
     <div class="fld"><span>段名</span><input id="fSec" type="text" placeholder="这一段的名字（可空）"></div>
     <div class="fld"><span>水量</span><span class="mini" id="fWater"></span></div>
-    <div class="fld"><span>等级</span><span class="mini" id="fRank"></span></div>
+    <div class="fld"><span>类型</span><span class="mini" id="fKind"></span></div>
+    <div class="fld"><span>性质</span><span class="mini" id="fNature"></span></div>
     <div class="fld"><span>流向</span>
       <span id="fFlow" style="color:#4a3524">—</span>
       <button id="bReverse" title="反转水流方向（河口换到另一端）">反向</button>
@@ -168,7 +167,7 @@
 
 <div id="hint" class="panel">
   <b>单击</b>加点 · <b>双击/回车</b>收笔 · <b>Backspace</b> 退一点 · <b>Esc</b> 取消<br>
-  <b>空格/右键拖</b>平移 · <b>滚轮</b>缩放 · <b>1/2/3/4</b> 等级 · <b>R</b> 反向 · <b>N</b> 改名<br>
+  <b>空格/右键拖</b>平移 · <b>滚轮</b>缩放 · <b>4</b> 设为运河 / <b>1</b> 设回天然 · <b>R</b> 反向 · <b>N</b> 改名<br>
   湖泽/海岸收笔后自动切到选择模式并聚焦命名；河口接河才算支流，上游端贴邻河是"同源"
 </div>
 
@@ -212,6 +211,13 @@ let vw = 0, vh = 0;
 
 const RANK_NAME = {1:'干流', 2:'一级支流', 3:'二级支流', 4:'运河'};
 const RANK_COLOR = {1:'#1b5e8c', 2:'#2e86b8', 3:'#5aa9cf', 4:'#8a5ea8'};
+// 类型由"源头 + 汇入对象"自动判定，见 classify()
+const KIND_COLOR = {
+  main: '#1b5e8c', trib1: '#2e86b8', trib2: '#5aa9cf', trib3: '#8ecbe4',
+  dist: '#2f8f6f', channel: '#3f8f8a', canal: '#8a5ea8'
+};
+const KIND_NAME = { main:'干流', trib:'支流', dist:'岔流', channel:'天然水道', canal:'运河' };
+const CN_NUM = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
 // 线宽只由水量决定（画布 px）
 const WATER_WIDTH = {1:2.4, 2:3.6, 3:5.2, 4:7.4, 5:10.0};
 const WATER_LABEL = {1:'极少', 2:'少', 3:'中', 4:'多', 5:'丰'};
@@ -221,7 +227,7 @@ const S = {
   mode:'draw', rank:1, sel:null, selCoast:null, selLake:null, draft:null, drag:null, panning:null, hover:null,
   splitMode:false, linkMode:false, linkAt:null, linkSea:false, dragLake:null, dragCoast:null,
   showRivers:true, showArt:false, showNodes:true,
-  vis:{1:true, 2:true, 3:true, 4:true, lakes:true, coast:true}
+  vis:{main:true, trib:true, dist:true, channel:true, canal:true, lakes:true, coast:true}
 };
 const V = { s:0.14, tx:0, ty:0 };
 const hist = [], fut = [];
@@ -295,7 +301,7 @@ function draw(){
     if (!depthCache.has(seg.river)) depthCache.set(seg.river, depthOf(seg.river));
     return depthCache.get(seg.river);
   };
-  const ordered = S.segs.filter(s => S.vis[s.rank]).sort((a, b) => {
+  const ordered = S.segs.filter(s => S.vis[classify(s).kind]).sort((a, b) => {
     const da = dv(a), db = dv(b);
     if (da !== db) return db - da;            // 深的（支流）先画
     return (a.water - b.water) || (a.rank - b.rank);
@@ -306,7 +312,7 @@ function draw(){
   }
   if (S.sel){
     const selSeg = S.segs.find(s => s.id === S.sel);
-    if (selSeg && S.vis[selSeg.rank]) strokeSeg(selSeg, true);
+    if (selSeg && S.vis[classify(selSeg).kind]) strokeSeg(selSeg, true);
   }
 
   // 湖泽：填充水体，压在河流之上
@@ -388,7 +394,7 @@ function draw(){
 
   // 上级接点标记
   for (const seg of S.segs){
-    if (!seg.parent || !S.vis[seg.rank]) continue;
+    if (!seg.parent || !S.vis[classify(seg).kind]) continue;
     const p = S.segs.find(s => s.id === seg.parent.seg);
     if (!p || !p.pts[seg.parent.idx]) continue;
     const q = p.pts[seg.parent.idx];
@@ -399,7 +405,7 @@ function draw(){
 
   if (S.draft && S.draft.pts.length){
     const pts = S.draft.pts;
-    ctx.strokeStyle = RANK_COLOR[S.draft.rank];
+    ctx.strokeStyle = KIND_COLOR.trib1;
     ctx.lineWidth = WATER_WIDTH[3];
     ctx.globalAlpha = .75;
     ctx.beginPath();
@@ -449,13 +455,13 @@ function strokeSeg(seg, selected){
   ctx.beginPath();
   ctx.moveTo(pts[0][0], pts[0][1]);
   for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0], pts[i][1]);
-  if (seg.rank === 4) ctx.setLineDash([14,9]); else ctx.setLineDash([]);
+  if (classify(seg).kind === 'canal') ctx.setLineDash([14,9]); else ctx.setLineDash([]);
   if (selected){
     ctx.strokeStyle = 'rgba(255,214,102,.95)';
     ctx.lineWidth = w + 4;
     ctx.stroke();
   }
-  ctx.strokeStyle = RANK_COLOR[seg.rank];
+  ctx.strokeStyle = kindColor(seg);
   ctx.lineWidth = w;
   ctx.stroke();
   ctx.setLineDash([]);
@@ -491,7 +497,7 @@ function drawMouthArrow(seg, w){
   ctx.closePath();
   ctx.fillStyle = '#fffdf6';
   ctx.fill();
-  ctx.strokeStyle = RANK_COLOR[seg.rank];
+  ctx.strokeStyle = kindColor(seg);
   ctx.lineWidth = Math.max(1.2 / V.s, size * 0.18);
   ctx.stroke();
 }
@@ -510,7 +516,7 @@ function hitVertex(wx, wy, tolPx, onlySeg){
   const tol = tolPx / V.s;
   const cands = [];
   for (const seg of S.segs){
-    if (!S.vis[seg.rank]) continue;
+    if (!S.vis[classify(seg).kind]) continue;
     if (onlySeg && seg.id !== onlySeg) continue;
     for (let i=0;i<seg.pts.length;i++){
       const d = Math.hypot(seg.pts[i][0]-wx, seg.pts[i][1]-wy);
@@ -560,7 +566,7 @@ function hitSeg(wx, wy, tolPx, excludeId){
   const tol = tolPx / V.s;
   let best = null;
   for (const seg of S.segs){
-    if (!S.vis[seg.rank]) continue;
+    if (!S.vis[classify(seg).kind]) continue;
     if (excludeId && seg.id === excludeId) continue;
     for (let i=1;i<seg.pts.length;i++){
       const d = distToSeg(wx, wy, seg.pts[i-1], seg.pts[i]);
@@ -592,8 +598,68 @@ function depthOf(rid, guard){
   return 1 + depthOf(p.river, guard);
 }
 function autoRank(seg){
-  if (seg.rank === 4) return 4;               // 运河是类型，不参与层级推导
+  if (seg.rank === 4) return 4;               // 旧字段：保留给历史数据
   return Math.min(3, depthOf(seg.river) + 1);
+}
+
+// ---------- 类型自动判定 ----------
+// 天然源头：入湖/海 = 干流，入干流 = 一级支流，入一级 = 二级……（逐级 +1）
+// 源于湖：天然水道；标为人工则一律运河
+// 源于某河岔出：天然 = 岔流（上级是那条河，级别再 +1）；人工 = 运河
+function lvLabel(n){
+  const t = n <= 10 ? CN_NUM[n] : String(n);
+  return t + '级支流';
+}
+function srcLink(seg){
+  const at = sourceIndex(seg);
+  return (seg.links || []).find(L => L.at === at) || null;
+}
+function mouthRiverLink(seg){
+  const at = mouthIndex(seg);
+  return (seg.links || []).find(L => L.at === at && L.river) || null;
+}
+function sourceKind(seg){
+  const L = srcLink(seg);
+  if (!L) return 'natural';
+  if (L.lake) return 'lake';
+  if (L.river) return 'branch';
+  return 'natural';
+}
+function riverLevel(riverId, seen){
+  if (!riverId) return 0;
+  seen = seen || new Set();
+  if (seen.has(riverId)) return 0;
+  seen.add(riverId);
+  const g = riverOf(riverId);
+  if (!g.length) return 0;
+  return classify(g[0], seen).level || 0;
+}
+function classify(seg, seen){
+  if (!seg) return { kind:'main', level:0, label:'干流' };
+  if (seg.nature === 'artificial') return { kind:'canal', level:null, label:'运河' };
+  const sk = sourceKind(seg);
+  if (sk === 'lake') return { kind:'channel', level:null, label:'天然水道' };
+  if (sk === 'branch'){
+    const L = srcLink(seg);
+    const lv = (L && L.river ? riverLevel(L.river, seen) : 0) + 1;
+    return { kind:'dist', level:lv, label: lvLabel(lv), tag:'岔流' };
+  }
+  const m = mouthRiverLink(seg);
+  if (m){
+    const lv = riverLevel(m.river, seen) + 1;
+    return { kind:'trib', level:lv, label: lvLabel(lv) };
+  }
+  return { kind:'main', level:0, label:'干流' };
+}
+function kindColor(seg){
+  const c = classify(seg);
+  if (c.kind === 'main') return KIND_COLOR.main;
+  if (c.kind === 'trib') return c.level <= 3 ? KIND_COLOR['trib' + c.level] : KIND_COLOR.trib3;
+  return KIND_COLOR[c.kind];
+}
+function kindLabel(seg){
+  const c = classify(seg);
+  return c.tag ? (c.tag + '·' + c.label) : c.label;
 }
 
 function linksOf(seg){ return (seg.links || []).slice(); }
@@ -707,8 +773,8 @@ function pickSameTarget(st, wx, wy, tolPx){
 
 function recomputeParent(seg){
   const ml = (seg.links || []).find(L => L.kind === 'mouth' && L.river);
-  seg.parent = (seg.rank === 4 || !ml) ? null : { river: ml.river, seg: ml.seg, idx: ml.idx };
-  if (seg.rank !== 4 && seg.parent) seg.rank = autoRank(seg);
+  seg.parent = (seg.nature === 'artificial' || !ml) ? null : { river: ml.river, seg: ml.seg, idx: ml.idx };
+  
 }
 
 // 把某一端接到目标上（三种目标共用这一条路径）
@@ -775,7 +841,7 @@ function unlinkEnd(segId, at){
   pushHistory();
   seg.links = (seg.links || []).filter(L => L.at !== at);
   recomputeParent(seg);
-  if (seg.rank !== 4 && !seg.parent) seg.rank = 1;
+  
   syncEditor(); renderList(); requestDraw(); persist();
   toast('这一端已恢复为天然源头');
 }
@@ -789,17 +855,15 @@ function reverseFlow(){
   if (!seg) return toast('先选中一条河段');
   pushHistory();
   seg.flow = seg.flow === -1 ? 1 : -1;
-  const mi = mouthIndex(seg);
-  let detached = false;
-  if (seg.parent){
-    seg.parent = null;
-    seg.joins = [];
-    if (seg.rank !== 4) seg.rank = 1;
-    detached = true;
+  // 几何不动，只把"谁算河口"翻过来：链接的 kind 按新河口重算
+  const mAt = mouthIndex(seg);
+  for (const L of (seg.links || [])){
+    if (L.kind === 'sea') continue;
+    L.kind = (L.at === mAt) ? 'mouth' : 'branch';
   }
+  recomputeParent(seg);
   syncEditor(); renderList(); requestDraw(); persist();
-  toast('流向已反转：河口在' + (mi === 0 ? '起点' : '终点') +
-        (detached ? '；原上级已断开，需要的话重新「上级：指定…」' : ''));
+  toast('流向已反转：河口在' + (mAt === 0 ? '起点' : '终点') + ' · ' + kindLabel(seg));
 }
 
 // 让所有支流的交汇端点跟随上级的那个顶点。
@@ -833,7 +897,7 @@ function syncChildren(){
       return true;
     });
     const ml = seg.links.find(L => L.kind === 'mouth');
-    seg.parent = (seg.rank === 4 || !ml) ? null : { river: ml.river, seg: ml.seg, idx: ml.idx };
+    seg.parent = (seg.nature === 'artificial' || !ml) ? null : { river: ml.river, seg: ml.seg, idx: ml.idx };
   }
 
   // 几何一变，以河道为边界的湖泽要跟着重算（建一次图，所有湖共用）
@@ -1000,7 +1064,7 @@ function finishDraft(){
   const both = s1 && s2;
   const bothRivers = both && s1.type === 'river' && s2.type === 'river';
 
-  if (seg.rank === 4){
+  if (seg.nature === 'artificial'){
     // 运河：两端各自接，接什么算什么
     const put = (t, at) => { seg.pts[at] = [t.x, t.y]; seg.links.push(linkOf(seg, at, t)); };
     if (s1) put(s1, 0);
@@ -1053,8 +1117,8 @@ function splitAt(segId, idx){
   const allLinks = seg.links || [];
   A.links = allLinks.filter(L => L.at <= idx).map(L => ({ ...L }));
   B.links = allLinks.filter(L => L.at > idx).map(L => ({ ...L, at: L.at - idx }));
-  A.parent = (A.rank === 4) ? null : ((A.links[0] && { river:A.links[0].river, seg:A.links[0].seg, idx:A.links[0].idx }) || null);
-  B.parent = (B.rank === 4) ? null : ((B.links[0] && { river:B.links[0].river, seg:B.links[0].seg, idx:B.links[0].idx }) || null);
+  A.parent = (A.nature === 'artificial') ? null : ((A.links[0] && { river:A.links[0].river, seg:A.links[0].seg, idx:A.links[0].idx }) || null);
+  B.parent = (B.nature === 'artificial') ? null : ((B.links[0] && { river:B.links[0].river, seg:B.links[0].seg, idx:B.links[0].idx }) || null);
   S.segs.splice(i, 1, A, B);
   for (const k of kids){
     if (k.parent.idx <= idx) continue;              // 还在前半段
@@ -1077,6 +1141,15 @@ function splitAt(segId, idx){
   toast('已切成两段：可分别设段名与水量');
 }
 
+function setNature(v){
+  const seg = S.segs.find(s => s.id === S.sel);
+  if (!seg) return;
+  pushHistory();
+  seg.nature = v;
+  syncEditor(); renderList(); requestDraw(); persist();
+  toast('性质：' + (v === 'artificial' ? '人工（运河）' : '天然') + ' → ' + kindLabel(seg));
+}
+
 function setSegField(field, val){
   const seg = S.segs.find(s => s.id === S.sel);
   if (!seg) return;
@@ -1096,10 +1169,11 @@ function setSegWater(w){
   syncEditor(); renderList(); requestDraw(); persist();
 }
 function setSegRank(r){
+  // 旧接口：4 = 运河，其余 = 天然（保留给快捷键与测试）
   const seg = S.segs.find(s => s.id === S.sel);
   if (!seg) return;
   pushHistory();
-  seg.rank = r;
+  seg.nature = (+r === 4) ? 'artificial' : 'natural';
   syncEditor(); renderList(); requestDraw(); persist();
 }
 
@@ -1121,8 +1195,8 @@ function syncMode(){
   $('bLake').classList.toggle('on', S.mode === 'lake');
   $('bCoast').classList.toggle('on', S.mode === 'coast');
   $('bSelect').classList.toggle('on', S.mode === 'select');
-  $('rankGrp').style.opacity = (S.mode === 'draw') ? '1' : '.45';
-  $('rankGrp').style.pointerEvents = (S.mode === 'draw') ? 'auto' : 'none';
+  const rg = $('rankGrp');
+  if (rg){ rg.style.opacity = (S.mode === 'draw') ? '1' : '.55'; rg.style.pointerEvents = 'none'; }
   cv.className = S.mode === 'select' ? 'pan' : '';
 }
 function setRank(r){
@@ -1232,13 +1306,27 @@ function syncEditor(){
     b.onclick = () => setSegWater(w);
     wbox.appendChild(b);
   }
-  const rbox = $('fRank'); rbox.innerHTML = '';
-  for (let r=1; r<=4; r++){
-    const b = document.createElement('button');
-    b.textContent = RANK_NAME[r];
-    if (seg.rank === r) b.classList.add('on');
-    b.onclick = () => setSegRank(r);
-    rbox.appendChild(b);
+  const kEl = $('fKind');
+  if (kEl){
+    const sk = sourceKind(seg);
+    kEl.textContent = kindLabel(seg) +
+      (sk === 'lake' ? '（源自湖）' : sk === 'branch' ? '（岔自河）' : '');
+    kEl.style.color = kindColor(seg);
+  }
+  const nEl = $('fNature');
+  if (nEl){
+    nEl.innerHTML = '';
+    if (sourceKind(seg) === 'natural'){
+      nEl.textContent = '—';
+    } else {
+      for (const [v, lab] of [['natural', '天然'], ['artificial', '人工']]){
+        const b2 = document.createElement('button');
+        b2.textContent = lab;
+        if ((seg.nature || 'natural') === v) b2.classList.add('on');
+        b2.onclick = () => setNature(v);
+        nEl.appendChild(b2);
+      }
+    }
   }
   const ff = $('fFlow');
   if (ff) ff.textContent = seg.flow === -1 ? '起点 → 终点（河口在起点）' : '起点 → 终点（河口在终点）';
@@ -1455,7 +1543,7 @@ function renderLinks(seg){
   const si = mi === 0 ? seg.pts.length - 1 : 0;
 
   // 运河是连接件：两端都只是"端口"；普通河流分河口端与源头端
-  const ends = (seg.rank === 4)
+  const ends = (seg.nature === 'artificial')
     ? [{ at: 0, label: '端口A', role: 'port' }, { at: seg.pts.length - 1, label: '端口B', role: 'port' }]
     : [{ at: mi, label: '河口', role: 'mouth' }, { at: si, label: '源头', role: 'source' }];
 
@@ -1705,7 +1793,7 @@ window.addEventListener('keydown', e => {
   else if (k === 'Delete'){ if (S.sel) delSel(); }
   else if (k >= '1' && k <= '4'){
     const seg = S.sel ? S.segs.find(x => x.id === S.sel) : null;
-    if (S.mode === 'select' && seg){ setSegRank(+k); toast('改为 ' + RANK_NAME[+k]); }
+    if (S.mode === 'select' && seg){ setSegRank(+k); toast('性质 → ' + kindLabel(seg)); }
     else setRank(+k);
   }
   else if (k === '0') fit();
@@ -1761,7 +1849,8 @@ function loadUI(){
 function syncUIBoxes(){
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
   set('cRivers', S.showRivers); set('cArt', S.showArt); set('cNodes', S.showNodes);
-  set('cRank1', S.vis[1]); set('cRank2', S.vis[2]); set('cRank3', S.vis[3]); set('cRank4', S.vis[4]);
+  set('cKMain', S.vis.main); set('cKTrib', S.vis.trib); set('cKDist', S.vis.dist);
+  set('cKChannel', S.vis.channel); set('cKCanl', S.vis.canal);
   set('cLakes', S.vis.lakes); set('cCoasts', S.vis.coast);
 }
 
@@ -1807,8 +1896,8 @@ function renderList(){
     h.style.paddingLeft = (4 + level * 14) + 'px';
     const nm = g[0].name ? g[0].name : ('（未命名 ' + rid + '）');
     h.innerHTML = '<span class="caret">' + (col ? '▸' : '▾') + '</span>' +
-      '<span class="dot" style="background:' + RANK_COLOR[g[0].rank] + '"></span>' +
-      nm + ' <span class="cnt">' + RANK_NAME[g[0].rank] + ' · ' + g.length + ' 段</span>';
+      '<span class="dot" style="background:' + kindColor(g[0]) + '"></span>' +
+      nm + ' <span class="cnt">' + kindLabel(g[0]) + ' · ' + g.length + ' 段</span>';
     h.onclick = () => {
       if (S.collapsed.has(rid)) S.collapsed.delete(rid); else S.collapsed.add(rid);
       saveCollapsed(); renderList();
@@ -1929,7 +2018,7 @@ function updateStat(){
   const rivers = new Set(S.segs.map(s => s.river)).size;
   $('stat').innerHTML =
     '河流 ' + rivers + ' 条 / 河段 ' + S.segs.length + '<br>' +
-    [1,2,3,4].map(r => RANK_NAME[r] + ' ' + by[r]).join(' · ');
+Object.entries(KIND_NAME).map(([k, nm2]) => nm2 + ' ' + (by[k] || 0)).join(' · ');
 }
 
 function toast(msg){
@@ -1958,6 +2047,10 @@ function payload(){
     segments: S.segs.map(s => ({
       id: s.id, river: s.river, rank: s.rank, name: s.name || '',
       section: s.section || '', water: s.water || 3,
+      nature: s.nature || 'natural',
+      kind: classify(s).kind,
+      level: classify(s).level,
+      label: classify(s).label,
       flow: s.flow === -1 ? -1 : 1,
       links: s.links || [],
       parent: s.parent || null,
@@ -2114,10 +2207,12 @@ function migrate(s){
     name: s.name || '',
     section: s.section || '',
     water: Math.min(5, Math.max(1, +s.water || 3)),
+    nature: s.nature ? (s.nature === 'artificial' ? 'artificial' : 'natural')
+                     : (s.rank == 4 ? 'artificial' : 'natural'),
     flow,
     links,
     parent: (() => {
-      if (s.rank == 4) return null;
+      if (s.nature === 'artificial') return null;
       const ml = links.find(L => L.kind === 'mouth' && L.river);
       return ml ? { river: ml.river, seg: ml.seg, idx: ml.idx } : null;
     })(),
@@ -2205,14 +2300,14 @@ $('bFit').onclick = fit;
 $('cRivers').onchange = e => { S.showRivers = e.target.checked; saveUI(); requestDraw(); };
 $('cArt').onchange = e => { S.showArt = e.target.checked; if (S.showArt) ensureArt(); saveUI(); requestDraw(); };
 $('cNodes').onchange = e => { S.showNodes = e.target.checked; saveUI(); requestDraw(); };
-for (const r of [1,2,3,4]){
-  const el = $('cRank' + r);
-  if (el) el.onchange = e => { S.vis[r] = e.target.checked; saveUI(); requestDraw(); };
+for (const k of ['main','trib','dist','channel','canal']){
+  const el = $('cK' + (k === 'canal' ? 'Canl' : k[0].toUpperCase() + k.slice(1)));
+  if (el) el.onchange = e => { S.vis[k] = e.target.checked; saveUI(); requestDraw(); };
 }
 
 window.__RIVER_EDITOR__ = {
   S, V, payload, loadData, splitAt,
-  setSegWater, setSegRank, setSegField, syncEditor, renderList, depthOf, autoRank, syncChildren, reverseFlow, mouthIndex,
+  setSegWater, setSegRank, setNature, classify, sourceKind, kindLabel, kindColor, setSegField, syncEditor, renderList, depthOf, autoRank, syncChildren, reverseFlow, mouthIndex,
   linksOf, attachEnd, unlinkEnd, attachSea, attachLake, pickTarget, attachTo, delCoast, delLake, setLakeName
 };
 

@@ -546,6 +546,23 @@ check(!!canalSeg, '测试前提：需要一条运河');
 api.attachSea(canalSeg.id, 0, cst.id, cst.pts[2][0], cst.pts[2][1]);
 check((canalSeg.links || []).some(L => L.kind === 'sea'), '运河端口接不了海岸');
 
+// ---- 以河为边界的湖泽：河岸顶点移动后边界必须重算 ----
+{
+  const lkA = api.S.lakes.find(l => l.arc && l.arc.path && l.arc.path.length >= 2);
+  check(!!lkA, '测试前提：需要一个以河道为边界的湖泽');
+  const oldP = lkA.arc.path[0];
+  let hitSeg = null, hitIdx = -1;
+  for (const sg of api.S.segs){
+    const i = sg.pts.findIndex(p => p[0] === oldP[0] && p[1] === oldP[1]);
+    if (i >= 0){ hitSeg = sg; hitIdx = i; break; }
+  }
+  check(!!hitSeg, '找不到湖岸对应的河道顶点');
+  hitSeg.pts[hitIdx] = [oldP[0] + 77, oldP[1] + 33];
+  api.syncChildren();
+  const hasNew = lkA.pts.some(p => Math.abs(p[0]-(oldP[0]+77)) < 0.01 && Math.abs(p[1]-(oldP[1]+33)) < 0.01);
+  check(hasNew, '河岸顶点移动后，湖的沿河边界没有重算');
+}
+
 // ---- 往返：接海岸 / 接湖的链接必须原样存回来 ----
 {
   const segRT = api.S.segs[0];

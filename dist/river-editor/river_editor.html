@@ -816,6 +816,12 @@ function syncChildren(){
     const ml = seg.links.find(L => L.kind === 'mouth');
     seg.parent = (seg.rank === 4 || !ml) ? null : { river: ml.river, seg: ml.seg, idx: ml.idx };
   }
+
+  // 几何一变，以河道为边界的湖泽要跟着重算（建一次图，所有湖共用）
+  if (S.lakes.some(l => l.arc && l.arc.from && l.arc.to)){
+    const G = buildNetGraph();
+    for (const l of S.lakes) rebuildLake(l, G);
+  }
 }
 
 // ---------- 编辑 ----------
@@ -1035,6 +1041,14 @@ function splitAt(segId, idx){
     k.parent.idx = k.parent.idx - idx;
     if (k.joins && k.joins.length) k.joins[0] = { at: k.joins[0].at, seg: B.id, idx: k.parent.idx };
   }
+  // 湖泽的沿河岸线引用也要跟着切点搬家
+  for (const lk of S.lakes){
+    if (!lk.arc) continue;
+    for (const key of ['from', 'to']){
+      const r = lk.arc[key];
+      if (r && r.seg === seg.id && r.idx > idx){ r.seg = B.id; r.idx -= idx; }
+    }
+  }
   S.sel = B.id;
   S.splitMode = false;
   syncChildren();
@@ -1094,6 +1108,16 @@ function setRank(r){
   S.rank = r;
   document.querySelectorAll('button.rank').forEach(b => b.classList.toggle('on', +b.dataset.r === r));
 }
+function dropLakeArcsOf(segId){
+  for (const lk of S.lakes){
+    if (!lk.arc) continue;
+    if ((lk.arc.from && lk.arc.from.seg === segId) || (lk.arc.to && lk.arc.to.seg === segId)){
+      lk.arc = null;
+      rebuildLake(lk);
+    }
+  }
+}
+
 function delSel(){
   if (!S.sel){
     if (S.selLake) return delLake(S.selLake);
@@ -1104,6 +1128,7 @@ function delSel(){
   const gone = S.sel;
   S.segs = S.segs.filter(s => s.id !== gone);
   for (const s of S.segs) if (s.parent && s.parent.seg === gone) s.parent = null;
+  dropLakeArcsOf(gone);
   S.sel = null;
   syncChildren();
   syncEditor(); renderList(); requestDraw(); persist();
@@ -1115,7 +1140,24 @@ function smoothSel(){
   // 简化会改变顶点序号：先记下每个子河的接点坐标，简化后重新找最近顶点
   const kids = S.segs.filter(s => s.parent && s.parent.seg === seg.id)
     .map(k => ({ k, p: seg.pts[Math.min(k.parent.idx, seg.pts.length - 1)].slice() }));
+  // 湖泽的沿河岸线引用也按"简化前的坐标"重新定位
+  const arcRefs = [];
+  for (const lk of S.lakes){
+    if (!lk.arc) continue;
+    for (const key of ['from', 'to']){
+      const r = lk.arc[key];
+      if (r && r.seg === seg.id) arcRefs.push({ r, p: seg.pts[Math.min(r.idx, seg.pts.length-1)].slice() });
+    }
+  }
   seg.pts = rdp(seg.pts, 1.5);
+  for (const { r, p } of arcRefs){
+    let bi = 0, bd = Infinity;
+    for (let i = 0; i < seg.pts.length; i++){
+      const d = Math.hypot(seg.pts[i][0]-p[0], seg.pts[i][1]-p[1]);
+      if (d < bd){ bd = d; bi = i; }
+    }
+    r.idx = bi;
+  }
   for (const { k, p } of kids){
     let bi = 0, bd = Infinity;
     for (let i=0;i<seg.pts.length;i++){
@@ -1258,7 +1300,10 @@ function buildNetGraph(){
 
 // 返回从 (fromSeg,fromIdx) 走到 (toSeg,toIdx) 的中间点（不含两端）；无路返回 null
 function netPath(fromSeg, fromIdx, toSeg, toIdx){
-  const G = buildNetGraph();
+  return netPathIn(buildNetGraph(), fromSeg, fromIdx, toSeg, toIdx);
+}
+
+function netPathIn(G, fromSeg, fromIdx, toSeg, toIdx){
   const src = G.key(fromSeg, fromIdx), dst = G.key(toSeg, toIdx);
   if (!G.coord.has(src) || !G.coord.has(dst)) return null;
   if (src === dst) return [];
@@ -1287,9 +1332,18 @@ function netPath(fromSeg, fromIdx, toSeg, toIdx){
 }
 
 // 由 drawn（手绘点）+ arc（沿河的闭合边）重建 pts// 由 drawn（手绘点）+ arc（沿河的闭合边）重建 pts
-function rebuildLake(lk){
+// 沿河的闭合边必须"现算"：河流端点一动，快照就过期了
+function recomputeArc(lk, G){
+  if (!lk.arc || !lk.arc.from || !lk.arc.to) return;
+  const f = lk.arc.from, t = lk.arc.to;
+  const path = G ? netPathIn(G, f.seg, f.idx, t.seg, t.idx)
+                 : netPath(f.seg, f.idx, t.seg, t.idx);
+  if (path) lk.arc.path = path;
+}
+
+function rebuildLake(lk, G){
+  recomputeArc(lk, G);
   const pts = lk.drawn.map(p => [p[0], p[1]]);
-  // arc.path 是按"末点 → 起点"排列的河道点，直接接在后面即可闭合
   if (lk.arc && lk.arc.path) for (const q of lk.arc.path) pts.push([q[0], q[1]]);
   if (pts[0][0] !== pts[pts.length-1][0] || pts[0][1] !== pts[pts.length-1][1]){
     pts.push([pts[0][0], pts[0][1]]);

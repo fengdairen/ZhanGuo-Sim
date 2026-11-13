@@ -6,136 +6,173 @@
 <title>战国演义 · 数据台</title>
 <style>
   :root{
-    --paper:#f3e8cf; --ink:#33241a; --line:rgba(120,90,56,.28);
-    --desk:#54483a; --card:#faf3e2; --accent:#2d5d80; --warn:#8b2e1e;
+    --paper:#f3e8cf; --card:#faf3e2; --ink:#33241a; --line:rgba(120,90,56,.30);
+    --desk:#54483a; --accent:#2d5d80; --dim:#8a7350;
   }
   *{box-sizing:border-box}
-  html,body{margin:0;height:100%}
+  html,body{margin:0;min-height:100%}
   body{
     background:var(--desk);
-    font:15px/1.65 "Songti SC","SimSun",serif;color:var(--ink);
-    padding:28px 20px 40px;display:flex;justify-content:center;
+    font:15px/1.7 "Songti SC","SimSun",serif;color:var(--ink);
+    padding:34px 20px 46px;display:flex;justify-content:center;
   }
   .sheet{
-    width:min(1080px,100%);background:var(--paper);border-radius:3px;
+    width:min(1120px,100%);background:var(--paper);border-radius:3px;
     box-shadow:0 18px 60px rgba(0,0,0,.45), 0 0 0 1px rgba(0,0,0,.2);
-    padding:30px 34px 26px;
+    padding:34px 40px 30px;position:relative;
   }
-  header{display:flex;align-items:baseline;gap:12px;border-bottom:2px solid var(--line);padding-bottom:12px}
-  h1{font-size:24px;margin:0;letter-spacing:2px}
-  .sub{color:#7a6547;font-size:13px}
-  .status{margin-left:auto;font-size:12.5px;color:#7a6547}
-  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#b9a583;margin-right:5px;vertical-align:1px}
-  .dot.on{background:#3f8f6a}
-  .dot.off{background:#b0503c}
-  h2{font-size:13px;letter-spacing:3px;color:#8a7350;margin:26px 0 10px;font-weight:400}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
-  a.card{
-    display:block;text-decoration:none;color:inherit;background:var(--card);
-    border:1px solid var(--line);border-radius:4px;padding:14px 16px;
-    transition:.14s;position:relative;
+  .sheet::before{
+    content:"";position:absolute;inset:0;border-radius:3px;pointer-events:none;
+    background:
+      radial-gradient(circle at 18% 12%, rgba(255,250,235,.55), transparent 42%),
+      radial-gradient(circle at 84% 88%, rgba(190,165,120,.20), transparent 46%);
   }
-  a.card:hover{border-color:var(--accent);box-shadow:0 3px 14px rgba(60,40,20,.14);transform:translateY(-1px)}
-  a.card .t{font-size:16px;color:var(--accent);letter-spacing:1px}
-  a.card .d{font-size:12.5px;color:#6b5940;margin-top:5px}
-  a.card .f{font-size:11.5px;color:#9a8464;margin-top:7px;font-family:Consolas,monospace}
-  .tag{float:right;font-size:11px;padding:1px 7px;border-radius:9px;border:1px solid var(--line);color:#8a7350}
-  .tag.on{border-color:#3f8f6a;color:#3f8f6a}
-  .tag.off{border-color:#b0503c;color:#b0503c}
-  .note{
-    margin-top:22px;padding:12px 15px;border-left:3px solid var(--accent);
-    background:rgba(45,93,128,.06);font-size:12.5px;color:#5a4a34;line-height:1.8;
+  header{position:relative;display:flex;align-items:flex-end;gap:14px;
+    border-bottom:2px solid var(--line);padding-bottom:14px}
+  h1{font-size:27px;margin:0;letter-spacing:4px;font-weight:600}
+  .sub{color:var(--dim);font-size:13px;letter-spacing:1px}
+  .status{margin-left:auto;font-size:12.5px;color:var(--dim);text-align:right;line-height:1.5}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#b9a583;margin-right:6px;vertical-align:1px}
+  .dot.on{background:#3f8f6a} .dot.off{background:#b0503c}
+
+  .flow{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:34px 0 8px}
+  .step{position:relative;padding:0 18px;transition:transform .15s}
+  .step:hover{transform:translateY(-2px)}
+  .step + .step::before{
+    content:"";position:absolute;left:0;top:20px;width:12px;height:1px;
+    background:linear-gradient(90deg,rgba(120,90,56,0),rgba(120,90,56,.5));
   }
+  .step + .step::after{
+    content:"";position:absolute;left:8px;top:17px;width:6px;height:6px;
+    border-top:1px solid rgba(120,90,56,.55);border-right:1px solid rgba(120,90,56,.55);
+    transform:rotate(45deg);
+  }
+  .num{
+    width:40px;height:40px;border-radius:50%;border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:17px;color:var(--accent);background:rgba(250,243,226,.92);
+    margin-bottom:14px;
+  }
+  .step h2{font-size:17px;margin:0 0 4px;letter-spacing:2px;font-weight:600}
+  .step h2 a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent}
+  .step h2 a:hover{border-bottom-color:var(--accent)}
+  .stat{font-size:12.5px;color:var(--dim);margin:2px 0 8px;letter-spacing:.5px;min-height:20px}
+  .stat b{color:var(--ink);font-weight:600}
+  .desc{font-size:13px;color:#5d4c37;line-height:1.75;min-height:78px}
+  .file{font-family:Consolas,monospace;font-size:11px;color:#9a8464;margin-top:6px;word-break:break-all}
+
+  h3{font-size:12px;letter-spacing:4px;color:var(--dim);font-weight:400;
+    margin:30px 0 10px;border-top:1px solid var(--line);padding-top:16px}
+  .aux{display:flex;gap:26px;flex-wrap:wrap;font-size:13px}
+  .aux a{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(45,93,128,.3)}
+  .aux a:hover{border-bottom-color:var(--accent)}
+  .aux span{color:#9a8464;font-family:Consolas,monospace;font-size:11px;margin-left:6px}
+
+  .note{margin-top:26px;padding:12px 16px;border-left:3px solid var(--accent);
+    background:rgba(45,93,128,.06);font-size:12.5px;color:#5a4a34;line-height:1.9}
   code{background:rgba(120,90,56,.12);padding:1px 6px;border-radius:3px;font-size:12px}
-  footer{margin-top:20px;font-size:11.5px;color:#9a8464;border-top:1px solid var(--line);padding-top:12px}
+  footer{margin-top:18px;font-size:11.5px;color:#9a8464;border-top:1px solid var(--line);padding-top:12px}
+  @media (max-width:860px){
+    .flow{grid-template-columns:1fr;gap:18px}
+    .step{padding:0}
+    .step + .step::before,.step + .step::after{display:none}
+    .desc{min-height:0}
+  }
 </style>
 </head>
 <body>
 <div class="sheet">
   <header>
-    <h1>战国演义 · 数据台</h1>
-    <span class="sub">BC 390 · 单机战国文字国策</span>
-    <span class="status" id="svc"><span class="dot"></span>检测本地服务…</span>
+    <div>
+      <h1>战国演义 · 数据台</h1>
+      <div class="sub">BC 390 · 单机战国文字国策 · 地图数据流水线</div>
+    </div>
+    <div class="status" id="svc"><span class="dot"></span>检测本地服务…</div>
   </header>
 
-  <h2>一 · 描迹（水系的真相）</h2>
-  <div class="grid">
-    <a class="card" href="river-editor/river_editor.html">
-      <span class="tag" id="tagRiver">需要本地服务</span>
-      <div class="t">河湖海描迹器</div>
-      <div class="d">画河流（干流/支流/岔流/运河）、湖泽、海岸线。类型自动判定，改动自动写盘。</div>
-      <div class="f">data/map/rivers/river_segments.json</div>
-    </a>
+  <div class="flow">
+    <div class="step">
+      <div class="num">一</div>
+      <h2><a href="river-editor/river_editor.html">描迹水系</a></h2>
+      <div class="stat" id="s1">—</div>
+      <div class="desc">画河流、湖泽、海岸线。类型（干流 / n 级支流 / 岔流 / 运河）自动判定，线宽只看水量。</div>
+      <div class="file">data/map/rivers/river_segments.json</div>
+    </div>
+
+    <div class="step">
+      <div class="num">二</div>
+      <h2><a href="map-review/border_editor.html">划定疆域</a></h2>
+      <div class="stat" id="s2">—</div>
+      <div class="desc">边界线两端吸附到水系，缺口由海岸、河流、湖泊自动补全成封闭疆域；指定国家，圈内城邑自动归属。</div>
+      <div class="file">data/map/borders.json → ownership.csv</div>
+    </div>
+
+    <div class="step">
+      <div class="num">三</div>
+      <h2><a href="map-review/city_editor.html">校对城邑</a></h2>
+      <div class="stat" id="s3">—</div>
+      <div class="desc">在矢量底图上核对城池的位置、人口、等级。归属只读，来自上一步的疆域。</div>
+      <div class="file">nodes.csv / populations.csv</div>
+    </div>
+
+    <div class="step">
+      <div class="num">四</div>
+      <h2><a href="map-vector/map.html">生成舆图</a></h2>
+      <div class="stat" id="s4">—</div>
+      <div class="desc">海面、河网、湖泽、国界与国号、城邑、部族合成一张图。源数据一变，打开即是最新。</div>
+      <div class="file">dist/map-vector/map.html</div>
+    </div>
   </div>
 
-  <h2>二 · 查看（出图）</h2>
-  <div class="grid">
-    <a class="card" href="map-vector/map.html">
-      <div class="t">矢量舆图</div>
-      <div class="d">由描迹与疆域数据生成的舆图：海面、河网、湖泽、<b>国界与国号</b>、城邑、部族。滚轮缩放，<code>P</code> 看性能。<b>源数据一变，自动重建并刷新</b>。</div>
-      <div class="f">dist/map-vector/map.html · 打开时按需重建</div>
-    </a>
-  </div>
-
-  <h2>三 · 城池与人口（编辑与勘误）</h2>
-  <div class="grid">
-    <a class="card" href="map-review/border_editor.html">
-      <div class="t">国界绘制器</div>
-      <div class="d">画边界线（吸附到海岸/河流/湖泊/其他边界线），选中数条自动用水系补全成封闭疆域，指定国家后疆域内城邑自动改归属。</div>
-      <div class="f">data/map/borders.json → data/map/ownership.csv</div>
-    </a>
-    <a class="card" href="map-review/city_editor.html">
-      <div class="t">城池编辑器</div>
-      <div class="d">只改城池<b>位置 / 人口 / 等级</b>；归属由国界绘制器决定，这里只读显示。</div>
-      <div class="f">data/map/_editor/city_state.json · 导出 CSV 再合并进 data/map/</div>
-    </a>
-    <a class="card" href="map-review/names.html">
-      <div class="t">地名勘误</div>
-      <div class="d">逐条核对可疑地名，人工确认或改写。</div>
-      <div class="f">data/map/nodes.csv</div>
-    </a>
-    <a class="card" href="map-review/pop_table.html">
-      <div class="t">人群库</div>
-      <div class="d">查看与维护人群类型（无认同人口等口径）。</div>
-      <div class="f">data/map/populations.csv</div>
-    </a>
+  <h3>辅助工具</h3>
+  <div class="aux">
+    <a href="map-review/names.html">地名勘误<span>nodes.csv</span></a>
+    <a href="map-review/pop_table.html">人群库<span>populations.csv</span></a>
   </div>
 
   <div class="note">
-    <b>两个入口的区别</b>：<br>
-    · 经本地服务打开（<code>启动数据台.cmd</code>）→ 描迹器可读写 <code>river_segments.json</code>，改动自动存盘。<br>
-    · 直接双击 HTML 文件 → 只能看；描迹器会退回浏览器缓存模式，关掉就丢。<br>
-    <b>出图</b>：画完双击仓库根目录的 <code>重建地图.cmd</code>，四步跑完即更新上面那张舆图。
+    <b>只用这一个入口</b>：<code>启动数据台.cmd</code> 起本地服务并打开本页。
+    经服务打开时，描迹、疆域、城邑的改动都<b>自动存盘</b>；舆图在被访问时自动重建，
+    不需要手动同步。<br>
+    <b>离线出图</b>：<code>重建地图.cmd</code> 生成一份自带数据的静态 HTML。
   </div>
 
   <footer>
-    数据体检 <code>python tools/audit_map_data.py</code> ·
-    存档 <code>python tools/make_archive.py</code> ·
-    文档 <code>docs/2-数据/25-河流描迹.md</code>、<code>26-河网定稿.md</code>
+    数据体检 <code>python tools\pipeline\audit_map_data.py</code> ·
+    存档 <code>python tools\pipeline\make_archive.py</code> ·
+    文档 <code>docs/2-数据/25</code>、<code>27</code>、<code>23</code>
   </footer>
 </div>
 
 <script>
 (async function(){
   const el = document.getElementById('svc');
-  const tag = document.getElementById('tagRiver');
   const set = (ok, text) => {
     el.innerHTML = '<span class="dot ' + (ok ? 'on' : 'off') + '"></span>' + text;
-    if (tag){
-      tag.textContent = ok ? '本地服务 · 自动存盘' : '未连服务 · 只读';
-      tag.className = 'tag ' + (ok ? 'on' : 'off');
-    }
   };
-  if (location.protocol === 'file:'){
-    set(false, '直接打开的本地文件');
-    return;
+  if (location.protocol === 'file:'){ set(false, '直接打开的本地文件'); return; }
+  const j = async (u) => { try{ const r = await fetch(u, {cache:'no-store'}); return r.ok ? r.json() : null; }catch(e){ return null; } };
+
+  const [ping, vec, bor, own] = await Promise.all([
+    j('/api/ping'), j('/api/vector'), j('/api/borders/load'), j('/api/ownership/load')
+  ]);
+  set(!!ping, ping ? '本地服务在线 · 改动自动存盘' : '本地服务未响应');
+
+  if (vec){
+    document.getElementById('s1').innerHTML =
+      '河段 <b>' + (vec.rivers||[]).length + '</b> · 湖泽 <b>' + (vec.lakes||[]).length +
+      '</b> · 岸线 <b>' + (vec.coasts||[]).length + '</b>';
   }
-  try {
-    const r = await fetch('/api/ping', { cache:'no-store' });
-    set(r.ok, r.ok ? '本地服务在线 · 改动自动存盘' : '本地服务未响应');
-  } catch (e){
-    set(false, '本地服务未响应');
+  if (bor){
+    const e = (bor.edges||[]).length, r = (bor.realms||[]).length;
+    const named = (bor.realms||[]).filter(x => x.nation).length;
+    document.getElementById('s2').innerHTML =
+      '边界 <b>' + e + '</b> 段 · 疆域 <b>' + r + '</b> 块（已定国 <b>' + named + '</b>）';
   }
+  if (own && own.owner){
+    document.getElementById('s3').innerHTML = '已归属 <b>' + Object.keys(own.owner).length + '</b> / 1040 城';
+  }
+  document.getElementById('s4').innerHTML = '打开即最新 · 自动重建';
 })();
 </script>
 </body>

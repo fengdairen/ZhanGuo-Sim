@@ -377,42 +377,30 @@ function draw(){
   labelReset();
   const REALM_LABELS = [];
   if (G.realms.length && V.scale < 0.45){
+    // 越放大越收敛：全图时最大，接近 45% 时消失
+    const decay = Math.max(0, (0.45 - V.scale) / 0.36);
     for (const r of G.realms){
       if (!r.nationName || r.area < 50000) continue;
       const [sx, sy] = w2s(r.center[0], r.center[1]);
       if (sx < 60 || sy < 40 || sx > cw-60 || sy > ch-40) continue;
-      const maxScreen = Math.min(cw, ch) * 0.13;
-      const fs = Math.max(22, Math.min(Math.sqrt(r.area) * V.scale / 4.2, maxScreen));
+      const base = Math.min(Math.max(Math.sqrt(r.area) / 26, 22), Math.min(cw, ch) * 0.13);
+      const fs = Math.max(14, base * decay);
       ctx.font = '700 ' + fs + 'px "STZhongsong","SimHei","Microsoft YaHei",sans-serif';
       const tw = ctx.measureText(r.nationName).width;
-      const w = tw + fs*0.68, h = fs*1.4;
-      REALM_LABELS.push({ r, sx, sy, fs, w, h });
-      labelTry(sx - w/2, sy - h/2, w, h, 8);      // 占位：城名别压上来
+      REALM_LABELS.push({ r, sx, sy, fs, w: tw, h: fs });
+      labelTry(sx - tw/2, sy - fs/2, tw, fs, 4);   // 只占字本身，不占一大块
     }
   }
   if (L.label) drawLabels(L);
   if (L.rname && DATA.riverLabels) drawRiverNames();
 
-  // 国号：最后画，做成名牌，任何底色上都读得清
+  // 国号：纯文字压在图上，不画底衬（底衬会挡国界）
   for (const it of REALM_LABELS){
-    const { r, sx, sy, fs, w, h } = it;
-    const x = sx - w/2, y = sy - h/2;
+    const { r, sx, sy, fs } = it;
     ctx.save();
     ctx.font = '700 ' + fs + 'px "STZhongsong","SimHei","Microsoft YaHei",sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'rgba(246,238,216,.9)';
-    ctx.strokeStyle = rgba(shade(r.color, 0.35), 0.85);
-    ctx.lineWidth = Math.max(1, fs * 0.06);
-    const rad = Math.min(6, fs * 0.18);
-    ctx.beginPath();
-    ctx.moveTo(x+rad, y);
-    ctx.arcTo(x+w, y, x+w, y+h, rad);
-    ctx.arcTo(x+w, y+h, x, y+h, rad);
-    ctx.arcTo(x, y+h, x, y, rad);
-    ctx.arcTo(x, y, x+w, y, rad);
-    ctx.closePath();
-    ctx.fill(); ctx.stroke();
-    ctx.fillStyle = 'rgba(52,34,22,.92)';
+    ctx.fillStyle = 'rgba(46,30,18,.55)';
     ctx.fillText(r.nationName, sx, sy + fs * 0.04);
     ctx.restore();
   }

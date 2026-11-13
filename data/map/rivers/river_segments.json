@@ -4,7 +4,7 @@
   9101,
   8509
  ],
- "exportedAt": "2026-11-13T05:57:42.871Z",
+ "exportedAt": "2026-11-13T11:08:12.155Z",
  "coasts": [
   {
    "id": "c001",
@@ -27812,6 +27812,13 @@
    "nature": "natural",
    "flow": 1,
    "links": [
+    {
+     "at": 0,
+     "kind": "branch",
+     "river": "R030",
+     "seg": "r031",
+     "idx": 12
+    },
     {
      "at": 70,
      "kind": "mouth",

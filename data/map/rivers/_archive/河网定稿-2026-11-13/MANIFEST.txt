@@ -1,0 +1,36 @@
+河网存档 · 河网定稿 · 2026-11-13
+====================================================
+
+河段 181　河流 179　湖泽 31　海岸线 3
+河网总长 166,284 px
+
+类型分布
+  一级支流             67
+  二级支流             48
+  干流               28
+  三级支流             12
+  岔流·一级支流          7
+  运河               7
+  岔流·二级支流          6
+  天然水道             3
+  天然水道·一级支流        2
+  天然水道·二级支流        1
+
+命名
+  已命名河段 181 / 181
+  已命名湖泽 31 / 31
+
+文件（sha256 前 16 位）
+  coast_drawn.json            33,738 B  42fc94dd79d347fe
+  lakes_drawn.json            17,280 B  c62021f13e9f734c
+  river_segments.json        831,445 B  7d3f2428e504f473
+  rivers_meta.json            48,675 B  ff2231b9ac4bba3b
+  sea_from_coast.json         37,663 B  169eea380e41b316
+
+恢复
+  把 river_segments.json 拷回 data/map/rivers/，覆盖当前文件，
+  再双击仓库根目录的 重建地图.cmd 重新生成派生层与地图。
+
+管线
+  sync_river_editor.py → rivers_from_editor.py →
+  build_sea_from_coast.py → make_vector_map.py

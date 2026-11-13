@@ -671,7 +671,10 @@ cv.addEventListener('pointerdown', e => {
     snap();
     S.selEdge = new Set([v.edge.id]);
     S.selRealm = null;
-    S.drag = { type:'vertex', edge:v.edge, idx:v.idx, moved:false };
+    const n = v.edge.pts.length;
+    const isEnd = !v.edge.closed && (v.idx === 0 || v.idx === n - 1);
+    S.drag = { type:'vertex', edge:v.edge, idx:v.idx, moved:false,
+               isEnd, orig:[v.edge.pts[v.idx][0], v.edge.pts[v.idx][1]] };
     renderSel(); draw(); return;
   }
   const ed = hitEdge(wx, wy);
@@ -711,7 +714,15 @@ cv.addEventListener('pointermove', e => {
   }
   if (S.drag && S.drag.type === 'vertex'){
     const e = S.drag.edge;
-    e.pts[S.drag.idx] = [Math.round(wx*10)/10, Math.round(wy*10)/10];
+    if (S.drag.isEnd){
+      // 端点：只能落在水系/其他边界线上
+      const t = snapTarget(wx, wy, 26);
+      S.drawTarget = t;
+      S.drag.snap = t;
+      e.pts[S.drag.idx] = t ? [t.x, t.y] : [wx, wy];
+    }else{
+      e.pts[S.drag.idx] = [Math.round(wx*10)/10, Math.round(wy*10)/10];
+    }
     S.drag.moved = true;
     draw(); return;
   }
@@ -720,9 +731,29 @@ cv.addEventListener('pointermove', e => {
 
 cv.addEventListener('pointerup', () => {
   if (S.drag && S.drag.type === 'vertex'){
-    const moved = S.drag.moved, eid = S.drag.edge.id;
-    S.drag = null;
-    if (moved) syncRealmsForEdge(eid);
+    const d = S.drag, e = d.edge;
+    S.drag = null; S.drawTarget = null;
+
+    if (e.closed){
+      // 闭环：首尾是同一个点，拖哪头都同步，且不需要吸附
+      const n = e.pts.length;
+      if (d.idx === 0) e.pts[n-1] = e.pts[0].slice();
+      if (d.idx === n-1) e.pts[0] = e.pts[n-1].slice();
+    }else if (d.isEnd){
+      if (!d.snap){
+        e.pts[d.idx] = d.orig;                 // 没吸上 → 还原
+        toast('端点必须落在海岸线 / 河流 / 湖泊 / 其他边界线上，已还原');
+        draw(); renderSel();
+        return;
+      }
+      // 更新端点记录
+      const k = d.idx === 0 ? 0 : 1;
+      e.ends = e.ends || [{}, {}];
+      e.ends[k] = {kind:d.snap.kind, id:d.snap.id, idx:d.snap.idx,
+                   x:e.pts[d.idx][0], y:e.pts[d.idx][1], ok:true};
+    }
+    if (d.moved) syncRealmsForEdge(e.id);
+    else draw();
     return;
   }
   if (S.box){

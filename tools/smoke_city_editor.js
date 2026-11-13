@@ -131,22 +131,39 @@ const back = api.items.find(i => i.id === first.id);
 check(Math.abs(back.x - x0) < 0.11 && Math.abs(back.y - y0) < 0.11,
       '撤销没有恢复坐标：' + back.x + ',' + back.y);
 
-// 归属刷：点一下就上色
+// 归属两级：国家 + 地方
+check(api.nations.length >= 1, '国家列表为空');
+const nat0 = api.nations[0];
+api.factions.push({ id:'F_test', name:'测试宗族', nation:nat0.id });
+
+// 归属刷：点一下就上色（两级）
 api.S.mode = 'paint';
-els['paintNation'].value = api.nations[0].id;
+api.S.paint = { n:nat0.id, f:'F_test' };
 const target = api.items.find(i => i.t === 0);
 const [tx2, ty2] = api.w2s(target.x, target.y);
 pd(ev(tx2, ty2)); pu(ev(tx2, ty2));
-check(api.owner[target.id] === api.nations[0].id,
-      '归属刷没生效：' + JSON.stringify(api.owner[target.id]));
+const got = api.owner[target.id];
+check(got && got.n === nat0.id && got.f === 'F_test',
+      '归属刷没生效：' + JSON.stringify(got));
+
+// 笔刷半径可调：笔刷调大后能一次刷到相邻的城
+api.S.brush = 60;
+const near = api.items.filter(i => i.t === 0 &&
+  Math.hypot(i.x - target.x, i.y - target.y) <= 60 / api.S.scale);
+pd(ev(tx2, ty2)); pu(ev(tx2, ty2));
+const painted = near.filter(i => (api.owner[i.id]||{}).n === nat0.id).length;
+check(painted >= Math.min(2, near.length), '大笔刷没有覆盖邻近城池：' + painted);
 api.S.mode = 'sel';
+api.S.brush = 16;
 
 // 渲染与导出不抛异常
 api.renderSel();
 api.draw();
 const csv = api.csvMap();
 check(csv.split('\r\n').length === api.items.length + 1, '地图 CSV 行数不对');
-check(api.csvOwn().split('\r\n').length === 1041, '归属 CSV 行数不对');
+const ownCsv = api.csvOwn();
+check(ownCsv.split('\r\n').length === 1041, '归属 CSV 行数不对');
+check(ownCsv.split('\r\n')[0].indexOf('faction') > 0, '归属 CSV 缺 faction 列');
 
 console.log('PASS  城池编辑器：DATA/命中/拖动/撤销/导出 ·',
   api.items.length + ' 项，人口行 ' + api.pops.length + '，归属 ' + Object.keys(api.owner).length);

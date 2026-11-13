@@ -48,8 +48,10 @@ def main():
         if r.get("owner"):
             owner[r["city_id"]] = r["owner"]
 
+    factions = []      # 地方势力，编辑时自定义；结构 {id, name, nation}
     data = {"items": items, "pops": pops, "groups": groups,
-            "nations": nations, "owner": owner, "size": [W, H]}
+            "nations": nations, "factions": factions, "owner": owner,
+            "palette": PALETTE, "size": [W, H]}
 
     html = (TPL
             .replace("__DATA__", json.dumps(data, ensure_ascii=False, separators=(",", ":")))
@@ -109,6 +111,20 @@ TPL = r"""<!DOCTYPE html>
   .poprow input{width:70px;flex:none}
   .poprow .x{margin-left:auto;color:#a05040;cursor:pointer;font-size:12px}
   .k{color:#7a6547}
+  #paintBar{display:none;align-items:center;gap:6px}
+  #paintBar input[type=range]{width:90px}
+  #mgr{position:fixed;inset:0;background:rgba(30,20,10,.45);display:none;
+    align-items:center;justify-content:center;z-index:20}
+  #mgr.on{display:flex}
+  #mgrBox{background:var(--paper);border:1px solid var(--line);border-radius:10px;
+    width:min(760px,92vw);max-height:82vh;overflow:auto;padding:18px 20px}
+  #mgrBox h2{font-size:15px;margin:0 0 12px;letter-spacing:1px;color:var(--accent)}
+  #mgrBox h3{font-size:12px;letter-spacing:2px;color:#8a7350;font-weight:400;margin:16px 0 8px}
+  .mrow{display:flex;align-items:center;gap:6px;margin:4px 0}
+  .mrow input[type=text]{flex:1}
+  .mrow input[type=color]{width:30px;height:26px;padding:0;border:1px solid var(--line);border-radius:5px}
+  .mrow .x{color:#a05040;cursor:pointer;padding:0 4px}
+  .mfoot{margin-top:14px;text-align:right}
 </style>
 </head>
 <body>
@@ -122,7 +138,14 @@ TPL = r"""<!DOCTYPE html>
 
 <div id="bar" class="panel">
   <input id="q" placeholder="搜索城池名，回车定位">
-  <select id="paintNation" title="归属刷的目标国" style="display:none"></select>
+  <span id="paintBar">
+    <select id="paintNation" title="刷哪个国家"></select>
+    <select id="paintFaction" title="刷哪个地方"></select>
+    <span style="color:#7a6547;font-size:12px">笔刷</span>
+    <input id="brushSize" type="range" min="6" max="60" value="16">
+    <span id="brushVal" style="font-size:12px;color:#7a6547">16</span>
+  </span>
+  <button id="bMgr" title="增删国家与地方势力">国家/地方…</button>
   <button id="bFit">全图</button>
   <button id="bLayers">图层 ▾</button>
   <span class="sp"></span>
@@ -153,6 +176,22 @@ TPL = r"""<!DOCTYPE html>
   <div class="hint" id="statBox"></div>
 </div>
 
+<div id="mgr"><div id="mgrBox">
+  <h2>国家与地方势力</h2>
+  <div class="hint" style="padding:0 0 6px">国家是归属的第一级，地方（宗族/家族/封君）是第二级。
+  这里改完立刻写进自动存档；城市归属用「国家/地方…」旁边的两个下拉选择。</div>
+  <h3>国家</h3>
+  <div id="mgrNations"></div>
+  <div class="mrow"><button id="bAddNation">＋ 新增国家</button></div>
+  <h3>地方势力</h3>
+  <div id="mgrFactions"></div>
+  <div class="mrow"><button id="bAddFaction">＋ 新增地方</button></div>
+  <div class="mfoot">
+    <button id="bMgrCsv">导出国家/地方 CSV</button>
+    <button id="bMgrClose">关闭</button>
+  </div>
+</div></div>
+
 <div id="status" class="panel">
   城池 <b id="sCity">0</b> · 部族 <b id="sTribe">0</b> · 选中 <b id="sSel">0</b> ·
   缩放 <b id="sZoom">—</b> · <span id="sSave">—</span>
@@ -166,13 +205,24 @@ const W = W_PX, H = H_PX;
 let items = DATA.items.map(d => Object.assign({}, d));
 let pops  = DATA.pops.map(d => Object.assign({}, d));
 const groups = DATA.groups.slice();
-const nations = DATA.nations;
-let owner = Object.assign({}, DATA.owner);
+const PALETTE = DATA.palette || ['#c0392b','#2980b9','#27ae60','#8e44ad','#d35400'];
+let nations  = (DATA.nations || []).map(n => Object.assign({}, n));   // 可增删改
+let factions = (DATA.factions || []).map(f => Object.assign({}, f));  // 地方：{id,name,nation}
+
+// 归属两级：{ n: 国家id, f: 地方id }；兼容旧的纯字符串
+let owner = {};
+for (const k in DATA.owner){
+  const v = DATA.owner[k];
+  owner[k] = (typeof v === 'string') ? { n:v, f:'' } : { n:v.n || '', f:v.f || '' };
+}
+const natOf = id => nations.find(x => x.id === id) || null;
+const facOf = id => factions.find(x => x.id === id) || null;
 
 const S = {
   mode:'sel', sel:new Set(), layers:{sea:1,lake:1,coast:1,river:1,city:1,name:1,tribe:1,ownerColor:1},
   V:{sea:[],rivers:[],lakes:[],coasts:[]},
-  scale:0.15, tx:0, ty:0, drag:null, box:null
+  scale:0.15, tx:0, ty:0, drag:null, box:null,
+  cursor:null, brush:16, paint:{ n:'', f:'' }
 };
 
 const cv = document.getElementById('cv');
@@ -243,8 +293,8 @@ function draw(){
     if (it.t === 0 && !S.layers.city) continue;
     const [sx, sy] = w2s(it.x, it.y);
     if (sx < -30 || sy < -30 || sx > vw+30 || sy > vh+30) continue;
-    const n = owner[it.id];
-    const nat = n ? nations.find(x => x.id === n) : null;
+    const o = owner[it.id];
+    const nat = (o && o.n) ? natOf(o.n) : null;
     const col = (S.layers.ownerColor && nat) ? nat.color
               : (it.kind === '都' ? COL.city : it.kind === '城' ? COL.county : COL.village);
     const sel = S.sel.has(it.id);
@@ -259,6 +309,15 @@ function draw(){
       ctx.fillStyle = 'rgba(60,45,30,.92)';
       ctx.fillText(label, sx + r + 3, sy + 1);
     }
+  }
+
+  // 归属刷预览：圆环跟随鼠标
+  if (S.mode === 'paint' && S.cursor){
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.beginPath(); ctx.arc(S.cursor[0], S.cursor[1], S.brush, 0, 6.283);
+    ctx.strokeStyle = 'rgba(45,93,128,.9)'; ctx.lineWidth = 1.6; ctx.stroke();
+    const nat = natOf(S.paint.n);
+    if (nat){ ctx.fillStyle = nat.color + '33'; ctx.fill(); }
   }
 
   if (S.box){
@@ -286,14 +345,16 @@ function hit(wx, wy, px){
 }
 // 归属刷：给落点附近的城池上色，返回是否有改动
 function paintAt(wx, wy){
-  const nid = $('paintNation') ? $('paintNation').value : '';
-  const tol = 16 / S.scale;
+  const tol = S.brush / S.scale;          // 笔刷半径（屏幕像素）
+  const n = S.paint.n, f = S.paint.f;
   let changed = false;
   for (const it of items){
     if (it.t !== 0) continue;
     if (Math.hypot(it.x - wx, it.y - wy) > tol) continue;
-    if ((owner[it.id] || '') === nid) continue;
-    if (nid) owner[it.id] = nid; else delete owner[it.id];
+    const cur = owner[it.id] || { n:'', f:'' };
+    if (cur.n === n && cur.f === f) continue;
+    if (!n && !f) delete owner[it.id];
+    else owner[it.id] = { n, f };
     changed = true;
   }
   return changed;
@@ -315,7 +376,7 @@ async function pushSave(){
   if (saving) return;
   saving = true;
   try{
-    const body = JSON.stringify({ items, pops, owner, at: new Date().toISOString() });
+    const body = JSON.stringify({ items, pops, owner, nations, factions, at: new Date().toISOString() });
     const r = await fetch('/api/map/save', { method:'POST',
       headers:{'Content-Type':'application/json'}, body });
     if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -408,6 +469,8 @@ cv.addEventListener('pointerdown', e => {
 cv.addEventListener('pointermove', e => {
   const r = cv.getBoundingClientRect();
   const mx = e.clientX - r.left, my = e.clientY - r.top;
+  S.cursor = [mx, my];
+  if (S.mode === 'paint' && !S.drag && !S.box){ draw(); }
   if (S.drag && S.drag.type === 'pan'){
     S.tx = S.drag.tx + (mx - S.drag.mx);
     S.ty = S.drag.ty + (my - S.drag.my);
@@ -449,6 +512,8 @@ cv.addEventListener('pointerup', () => {
   draw();
 });
 
+cv.addEventListener('pointerleave', () => { if (S.mode === 'paint'){ S.cursor = null; draw(); } });
+
 cv.addEventListener('wheel', e => {
   e.preventDefault();
   const r = cv.getBoundingClientRect();
@@ -483,13 +548,20 @@ function renderSel(){
   if (ids.length > 1){
     box.innerHTML =
       '<div class="fld"><span>已选</span><b>' + ids.length + '</b> 个</div>' +
-      '<div class="fld"><span>归属</span><select id="ownSel">' + nationOptions('') + '</select>' +
-      '<button id="bSetOwn">应用</button></div>' +
+      '<div class="fld"><span>国家</span><select id="ownSel">' + nationOptions('') + '</select></div>' +
+      '<div class="fld"><span>地方</span><select id="ownFaction2">' + factionOptions('', '') + '</select></div>' +
+      '<div class="fld"><span></span><button id="bSetOwn">应用归属</button></div>' +
       '<div class="fld"><span></span><button id="bDelSel">删除选中</button></div>';
+    $('ownSel').onchange = () => {
+      $('ownFaction2').innerHTML = factionOptions($('ownSel').value, '');
+    };
     $('bSetOwn').onclick = () => {
       snap();
-      const v = $('ownSel').value;
-      for (const id of ids){ if (v) owner[id] = v; else delete owner[id]; }
+      const n = $('ownSel').value, f = $('ownFaction2').value;
+      for (const id of ids){
+        if (!n && !f) delete owner[id];
+        else owner[id] = { n, f };
+      }
       draw(); scheduleSave();
     };
     $('bDelSel').onclick = () => {
@@ -512,16 +584,27 @@ function renderSel(){
     '<div class="fld"><span>类型</span><select id="fKind">' +
       ['都','城','邑','部族'].map(k => '<option' + (k === it.kind ? ' selected' : '') + '>' + k + '</option>').join('') +
     '</select></div>' +
-    '<div class="fld"><span>归属</span><select id="ownSel">' + nationOptions(owner[it.id] || '') + '</select></div>' +
+    '<div class="fld"><span>国家</span><select id="ownNation">' + nationOptions((owner[it.id]||{}).n || '') + '</select></div>' +
+    '<div class="fld"><span>地方</span><select id="ownFaction">' + factionOptions((owner[it.id]||{}).n || '', (owner[it.id]||{}).f || '') + '</select></div>' +
     '<div class="fld"><span>坐标</span><span class="k">' + it.x.toFixed(1) + ', ' + it.y.toFixed(1) + '</span></div>' +
     '<div class="fld"><span>人口</span><span class="k">' + popOf(it.id).toFixed(2) + '</span></div>' +
     '<div class="fld"><span></span><button id="bDelOne">删除</button></div>';
 
   $('fName').oninput = e => { it.name = e.target.value; draw(); scheduleSave(); };
   $('fKind').onchange = e => { snap(); it.kind = e.target.value; draw(); scheduleSave(); };
-  $('ownSel').onchange = e => {
+  $('ownNation').onchange = e => {
     snap();
-    if (e.target.value) owner[it.id] = e.target.value; else delete owner[it.id];
+    const cur = owner[it.id] || { n:'', f:'' };
+    cur.n = e.target.value;
+    cur.f = '';                       // 换国家时清掉旧地方
+    if (!cur.n && !cur.f) delete owner[it.id]; else owner[it.id] = cur;
+    renderSel(); draw(); scheduleSave();
+  };
+  $('ownFaction').onchange = e => {
+    snap();
+    const cur = owner[it.id] || { n:'', f:'' };
+    cur.f = e.target.value;
+    if (!cur.n && !cur.f) delete owner[it.id]; else owner[it.id] = cur;
     draw(); scheduleSave();
   };
   $('bDelOne').onclick = () => {
@@ -576,6 +659,11 @@ function nationOptions(cur){
   return '<option value="">—</option>' + nations.map(n =>
     '<option value="' + n.id + '"' + (n.id === cur ? ' selected' : '') + '>' + n.name + '</option>').join('');
 }
+function factionOptions(nation, cur){
+  const list = factions.filter(f => !nation || f.nation === nation);
+  return '<option value="">—</option>' + list.map(f =>
+    '<option value="' + f.id + '"' + (f.id === cur ? ' selected' : '') + '>' + f.name + '</option>').join('');
+}
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
 
 function updateStatus(){
@@ -606,8 +694,11 @@ function csvPop(){
   return "\ufeff" + rows.map(r => r.join(",")).join("\r\n");
 }
 function csvOwn(){
-  const rows = [["city_id","owner","note"]];
-  for (const it of items) if (it.t === 0) rows.push([it.id, owner[it.id] || "", ""]);
+  const rows = [["city_id","owner","faction","note"]];
+  for (const it of items) if (it.t === 0){
+    const o = owner[it.id] || { n:'', f:'' };
+    rows.push([it.id, o.n || "", o.f || "", ""]);
+  }
   return "\ufeff" + rows.map(r => r.join(",")).join("\r\n");
 }
 
@@ -617,14 +708,29 @@ document.querySelectorAll('#rail .mode').forEach(b => {
     S.mode = b.dataset.m;
     document.querySelectorAll('#rail .mode').forEach(x => x.classList.toggle('on', x === b));
     cv.style.cursor = S.mode === 'add' ? 'copy' : S.mode === 'paint' ? 'crosshair' : 'default';
-    $('paintNation').style.display = S.mode === 'paint' ? '' : 'none';
+    $('paintBar').style.display = S.mode === 'paint' ? 'flex' : 'none';
+    if (S.mode === 'paint') fillPaint();
   };
 });
-(function fillPaintNation(){
-  const sel = $('paintNation');
-  sel.innerHTML = '<option value="">— 无归属 —</option>' +
-    nations.map(n => '<option value="' + n.id + '">' + n.name + '</option>').join('');
-})();
+function fillPaint(){
+  const ns = $('paintNation'), fs = $('paintFaction');
+  ns.innerHTML = '<option value="">— 无国家 —</option>' +
+    nations.map(n => '<option value="' + n.id + '"' + (n.id === S.paint.n ? ' selected' : '') + '>' + n.name + '</option>').join('');
+  fs.innerHTML = factionOptions(ns.value, S.paint.f);
+  S.paint.n = ns.value;
+}
+$('paintNation').onchange = () => {
+  S.paint.n = $('paintNation').value;
+  $('paintFaction').innerHTML = factionOptions(S.paint.n, '');
+  S.paint.f = '';
+  draw();
+};
+$('paintFaction').onchange = () => { S.paint.f = $('paintFaction').value; draw(); };
+$('brushSize').oninput = e => {
+  S.brush = +e.target.value;
+  $('brushVal').textContent = S.brush;
+  draw();
+};
 $('bFit').onclick = fit;
 $('bLayers').onclick = () => $('layers').classList.toggle('on');
 $('bUndo').onclick = undo;
@@ -655,12 +761,83 @@ $('q').addEventListener('keydown', e => {
 
 window.addEventListener('resize', resize);
 
+/* ---------- 国家 / 地方 管理 ---------- */
+function newId(prefix, list){
+  let i = 1;
+  while (list.some(x => x.id === prefix + i)) i++;
+  return prefix + i;
+}
+function renderMgr(){
+  const nb = $('mgrNations');
+  nb.innerHTML = nations.map(n =>
+    '<div class="mrow" data-id="' + n.id + '">' +
+      '<input type="color" value="' + n.color + '">' +
+      '<input type="text" value="' + esc(n.name) + '">' +
+      '<span class="x" title="删除">✕</span>' +
+    '</div>').join('') || '<div class="hint">还没有国家。</div>';
+  nb.querySelectorAll('.mrow').forEach(row => {
+    const n = natOf(row.dataset.id);
+    row.querySelector('input[type=color]').oninput = e => { n.color = e.target.value; draw(); scheduleSave(); };
+    row.querySelector('input[type=text]').oninput = e => { n.name = e.target.value; fillPaint(); scheduleSave(); };
+    row.querySelector('.x').onclick = () => {
+      if (!confirm('删除国家「' + n.name + '」？相关城市归属会被清空。')) return;
+      snap();
+      nations = nations.filter(x => x !== n);
+      factions = factions.filter(f => f.nation !== n.id);
+      for (const k in owner){
+        if (owner[k].n === n.id){ if (owner[k].f) owner[k].n = ''; else delete owner[k]; }
+      }
+      renderMgr(); fillPaint(); renderSel(); draw(); scheduleSave();
+    };
+  });
+
+  const fb = $('mgrFactions');
+  fb.innerHTML = factions.map(f =>
+    '<div class="mrow" data-id="' + f.id + '">' +
+      '<select>' + nations.map(n => '<option value="' + n.id + '"' + (n.id === f.nation ? ' selected' : '') + '>' + n.name + '</option>').join('') + '</select>' +
+      '<input type="text" value="' + esc(f.name) + '">' +
+      '<span class="x" title="删除">✕</span>' +
+    '</div>').join('') || '<div class="hint">还没有地方势力。先加国家，再加它下面的宗族/家族。</div>';
+  fb.querySelectorAll('.mrow').forEach(row => {
+    const f = facOf(row.dataset.id);
+    row.querySelector('select').onchange = e => { f.nation = e.target.value; fillPaint(); scheduleSave(); };
+    row.querySelector('input[type=text]').oninput = e => { f.name = e.target.value; scheduleSave(); };
+    row.querySelector('.x').onclick = () => {
+      snap();
+      factions = factions.filter(x => x !== f);
+      for (const k in owner) if (owner[k].f === f.id) owner[k].f = '';
+      renderMgr(); renderSel(); draw(); scheduleSave();
+    };
+  });
+}
+$('bMgr').onclick = () => { renderMgr(); $('mgr').classList.add('on'); };
+$('bMgrClose').onclick = () => $('mgr').classList.remove('on');
+$('mgr').onclick = e => { if (e.target.id === 'mgr') $('mgr').classList.remove('on'); };
+$('bAddNation').onclick = () => {
+  snap();
+  nations.push({ id:newId('N', nations), name:'新国家', color:PALETTE[nations.length % PALETTE.length] });
+  renderMgr(); fillPaint(); scheduleSave();
+};
+$('bAddFaction').onclick = () => {
+  snap();
+  if (!nations.length){ alert('先加一个国家'); return; }
+  factions.push({ id:newId('F', factions), name:'新地方', nation:nations[0].id });
+  renderMgr(); scheduleSave();
+};
+$('bMgrCsv').onclick = () => {
+  const rows = [["kind","id","name","nation","color"]];
+  for (const n of nations) rows.push(["nation", n.id, n.name, "", n.color]);
+  for (const f of factions) rows.push(["faction", f.id, f.name, f.nation, ""]);
+  dl('nations_factions.csv', "\ufeff" + rows.map(r => r.join(",")).join("\r\n"));
+};
+
 /* ---------- 调试 / 冒烟测试入口 ---------- */
 window.__CITY_EDITOR__ = {
   S, draw, fit, center, renderSel, undo, redo, hit, w2s, s2w, popOf,
   csvMap, csvPop, csvOwn,
-  nations,
-  paintAt,
+  get nations(){ return nations; },
+  get factions(){ return factions; },
+  paintAt, renderMgr, fillPaint,
   get items(){ return items; },
   get pops(){ return pops; },
   get owner(){ return owner; }
@@ -682,13 +859,16 @@ window.__CITY_EDITOR__ = {
     if (r.ok){
       const a = await r.json();
       if (a && Array.isArray(a.items) && a.items.length){
-        items = a.items; pops = a.pops || pops; owner = a.owner || owner;
+        items = a.items; pops = a.pops || pops;
+        if (a.owner) owner = a.owner;
+        if (Array.isArray(a.nations) && a.nations.length) nations = a.nations;
+        if (Array.isArray(a.factions)) factions = a.factions;
         lastSave = '已从服务端恢复';
         draw(); updateStatus();
       }
     }
   }catch(e){}
-  renderSel();
+  renderSel(); fillPaint();
 
   // 深链：city_editor.html#n0231 → 选中并居中（控制台"在地图中打开"用）
   if (typeof location !== 'undefined' && location.hash){

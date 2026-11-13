@@ -299,7 +299,7 @@ function dijkstra(a, b){
 }
 
 /* 端点吸附：必须落在海岸线/河流/湖泊/其他边界线上 */
-function snapTarget(wx, wy, tolPx){
+function snapTarget(wx, wy, tolPx, excludeEdgeId){
   const tol = tolPx / S.scale;
   let best = null;
   const consider = (kind, id, pts) => {
@@ -322,7 +322,10 @@ function snapTarget(wx, wy, tolPx){
   for (const c of S.V.coasts) consider('coast', c.id, flatToPts(c.pts));
   for (const l of S.V.lakes)  consider('lake',  l.id, flatToPts(l.pts));
   for (let i=0;i<S.V.rivers.length;i++) consider('river', 'r'+i, flatToPts(S.V.rivers[i].slice(1)));
-  for (const e of edges) consider('edge', e.id, e.pts, true);
+  for (const e of edges){
+    if (e.id === excludeEdgeId) continue;      // 别吸到自己身上
+    consider('edge', e.id, e.pts);
+  }
   return best;
 }
 
@@ -514,7 +517,7 @@ function draw(){
     }
   }
   // 吸附点提示
-  if (S.drawTarget && S.mode === 'draw'){
+  if (S.drawTarget){
     const [sx,sy] = w2s(S.drawTarget.x, S.drawTarget.y);
     ctx.beginPath(); ctx.arc(sx,sy,5,0,6.283);
     ctx.strokeStyle = '#2d5d80'; ctx.lineWidth = 1.8; ctx.stroke();
@@ -631,6 +634,7 @@ function hitEdge(wx, wy, px){
 
 cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('pointerdown', e => {
+  try{ cv.setPointerCapture(e.pointerId); }catch(_){}
   const r = cv.getBoundingClientRect();
   const mx = e.clientX-r.left, my = e.clientY-r.top;
   const [wx,wy] = s2w(mx,my);
@@ -716,7 +720,7 @@ cv.addEventListener('pointermove', e => {
     const e = S.drag.edge;
     if (S.drag.isEnd){
       // 端点：只能落在水系/其他边界线上
-      const t = snapTarget(wx, wy, 26);
+      const t = snapTarget(wx, wy, 26, S.drag.edge.id);
       S.drawTarget = t;
       S.drag.snap = t;
       e.pts[S.drag.idx] = t ? [t.x, t.y] : [wx, wy];

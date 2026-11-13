@@ -215,36 +215,41 @@ check(!!api.S.draft.end, '终点应吸附到河上');
   api.S.mode = 'sel';
 }
 
-// 9) 端点拖动受约束：吸不上就还原；内部顶点自由
+// 9) 端点拖动受约束：附近没有任何水系时，端点不能停在空白处
 {
-  const cx = api.cities[20].x, cy = api.cities[20].y;
-  const q2 = [[cx-300,cy-300],[cx+300,cy-300],[cx+300,cy+300],[cx-300,cy+300],[cx-300,cy-300]];
-  const rs2 = []; for (let i=0;i<4;i++) rs2.push([3.0, q2[i][0], q2[i][1], q2[i+1][0], q2[i+1][1]]);
-  api.setVector({ sea:[], rivers:rs2, lakes:[], coasts:[] });
+  api.setVector({ sea:[], rivers:[], lakes:[], coasts:[] });   // 清空水系
   api.S.mode = 'sel';
   api.setEdges([{ id:'b001', closed:false,
-    pts:[[cx-300,cy],[cx-100,cy],[cx+100,cy],[cx+300,cy]], ends:[] }]);
+    pts:[[2000,2000],[2200,2000],[2400,2000],[2600,2000]], ends:[] }]);
   api.S.selEdge = new Set(['b001']);
-  api.center(cx, cy, 1);
+  api.center(2300, 2000, 1);
 
   const s2 = (x,y) => api.w2s(x,y);
+  const evv = (x,y) => ({ button:0, clientX:x, clientY:y, pointerId:1, preventDefault(){}, code:'', key:'' });
   const pd = listeners.cv.pointerdown, pm = listeners.cv.pointermove, pu = listeners.cv.pointerup;
-  const evv = (x,y) => ({ button:0, clientX:x, clientY:y, preventDefault(){}, code:'', key:'' });
-  // 端点拖到空白处 → 松手应还原
-  const p0 = s2(cx-300, cy);
-  pd(evv(p0[0], p0[1]));
-  pm(evv(p0[0]+60, p0[1]+60));
-  pu(evv(p0[0]+60, p0[1]+60));
-  const e = api.edges[0];
-  check(Math.abs(e.pts[0][0] - (cx-300)) < 0.5 && Math.abs(e.pts[0][1] - cy) < 0.5,
-        '端点拖到空白处居然没还原：' + JSON.stringify(e.pts[0]));
 
-  // 内部顶点自由拖
-  const p1 = s2(cx-100, cy);
+  // 只挪 10px：以前会"吸到自己身上"从而自由移动
+  let p0 = s2(2000, 2000);
+  pd(evv(p0[0], p0[1]));
+  pm(evv(p0[0]+10, p0[1]+6));
+  pu(evv(p0[0]+10, p0[1]+6));
+  check(Math.abs(api.edges[0].pts[0][0] - 2000) < 0.5 && Math.abs(api.edges[0].pts[0][1] - 2000) < 0.5,
+        '端点挪 10px 没还原（被自己吸住）：' + JSON.stringify(api.edges[0].pts[0]));
+
+  // 挪很远也一样要还原
+  p0 = s2(2000, 2000);
+  pd(evv(p0[0], p0[1]));
+  pm(evv(p0[0]+200, p0[1]+160));
+  pu(evv(p0[0]+200, p0[1]+160));
+  check(Math.abs(api.edges[0].pts[0][0] - 2000) < 0.5,
+        '端点拖到空白处没还原：' + JSON.stringify(api.edges[0].pts[0]));
+
+  // 内部顶点自由
+  const p1 = s2(2200, 2000);
   pd(evv(p1[0], p1[1]));
   pm(evv(p1[0], p1[1]+50));
   pu(evv(p1[0], p1[1]+50));
-  check(Math.abs(api.edges[0].pts[1][1] - cy) > 10, '内部顶点没有跟随拖动');
+  check(Math.abs(api.edges[0].pts[1][1] - 2000) > 10, '内部顶点没有跟随拖动');
 }
 
 console.log('PASS  国界绘制器：补全/闭环/内外判定/悬空报错/归属应用/拖点重算');

@@ -20,6 +20,7 @@
   #vp.addcur{cursor:copy}
   #world{position:absolute;left:0;top:0;width:9101px;height:8509px;transform-origin:0 0}
   #world img{position:absolute;left:0;top:0;width:9101px;height:8509px;user-select:none;-webkit-user-drag:none}
+  #vmap{position:absolute;left:0;top:0;width:9101px;height:8509px}
   #paint{position:absolute;inset:0;pointer-events:none;z-index:6}
   body.painting #paint{pointer-events:auto;cursor:crosshair}
   .mk{position:absolute;border-radius:50%;box-sizing:border-box;transform:translate(-50%,-50%);
@@ -70,7 +71,7 @@
   <span id="stat"></span>
 </div>
 <div id="body">
-  <div id="vp"><div id="world"><img src="ditu.png" alt="map"><div id="mks"></div></div>
+  <div id="vp"><div id="world"><canvas id="vmap" width="9101" height="8509"></canvas><img data-src="ditu.png" alt="map"><div id="mks"></div></div>
     <canvas id="paint"></canvas>
     <div id="hint">滚轮缩放 · 右键拖平移 · 空格复位</div>
   </div>
@@ -277,7 +278,7 @@ function undo(){
 function save(){
   try { localStorage.setItem(KEY, JSON.stringify({
     items: items.map(({_mk,_lb,...r})=>r), pops: pops, owner: owner })); } catch(e){}
-  scheduleWrite(); ownerSchedule();
+  scheduleWrite(); ownerSchedule(); serverSave();
 }
 
 /* ---------- 绑定本地文件，自动写盘 ---------- */
@@ -655,5 +656,70 @@ fitCanvas(); build(); center(5000,3700,1.2);
   if (!h) return;
   const it = byId[h];
   if (it){ sel.clear(); sel.add(h); center(it.x, it.y, Math.max(z, 1.8)); repaint(); }
+})();
+
+/* ---------- 矢量底图（来自 /api/vector，失败则回退到 ditu.png） ---------- */
+(async function initVector(){
+  const el = document.getElementById("vmap");
+  if (!el) return;
+  const g = el.getContext("2d");
+  const bg = document.querySelector("#world img");
+  const path = flat => { const p = new Path2D(); p.moveTo(flat[0], flat[1]);
+    for (let i = 2; i < flat.length; i += 2) p.lineTo(flat[i], flat[i+1]); return p; };
+  try{
+    const r = await fetch("/api/vector", {cache:"no-store"});
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const V = await r.json();
+    g.fillStyle = "#f3e8cf"; g.fillRect(0, 0, el.width, el.height);
+    g.fillStyle = "#b2c4cb";
+    for (const f of (V.sea || [])) g.fill(path(f));
+    g.fillStyle = "#8ec3d8"; g.strokeStyle = "#3e7ca6"; g.lineWidth = 2.5;
+    for (const l of (V.lakes || [])){ const q = path(l.pts); q.closePath(); g.fill(q); g.stroke(q); }
+    g.strokeStyle = "#40606f"; g.lineWidth = 5; g.lineCap = g.lineJoin = "round";
+    for (const c of (V.coasts || [])){ const q = path(c.pts); if (c.closed) q.closePath(); g.stroke(q); }
+    g.strokeStyle = "#2e7fb0";
+    for (const e of (V.rivers || [])){
+      const q = new Path2D(); q.moveTo(e[1], e[2]);
+      for (let i = 3; i < e.length; i += 2) q.lineTo(e[i], e[i+1]);
+      g.lineWidth = Math.max(1.5, e[0]); g.stroke(q);
+    }
+    if (bg) bg.style.display = "none";
+  }catch(err){
+    // 拿不到矢量数据才去下位图（14 MB），平时不下载
+    if (bg && bg.dataset && bg.dataset.src){
+      bg.src = bg.dataset.src;
+      bg.style.display = "";
+    }
+  }
+})();
+
+/* ---------- 服务端自动存盘 ---------- */
+let svTimer = null, svBusy = false;
+function serverSave(){
+  clearTimeout(svTimer);
+  svTimer = setTimeout(async () => {
+    if (svBusy) return;
+    svBusy = true;
+    try{
+      const body = JSON.stringify({ items: items.map(({_mk,_lb,...r}) => r), pops: pops, owner: owner });
+      const r = await fetch("/api/map/save", {method:"POST", headers:{"Content-Type":"application/json"}, body});
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      setFstat("已存盘 " + new Date().toLocaleTimeString(), "#7dd3a0");
+    }catch(e){
+      setFstat("存盘失败：" + e.message, "#f0a8a8");
+    }finally{ svBusy = false; }
+  }, 700);
+}
+(async function serverLoad(){
+  try{
+    const r = await fetch("/api/map/load", {cache:"no-store"});
+    if (!r.ok) return;
+    const a = await r.json();
+    if (a && Array.isArray(a.items) && a.items.length === items.length){
+      items = a.items; pops = a.pops || pops; owner = a.owner || owner;
+      build(); repaint();
+      setFstat("已从服务端恢复", "#7dd3a0");
+    }
+  }catch(e){}
 })();
 </script></body></html>

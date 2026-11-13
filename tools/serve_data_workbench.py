@@ -31,6 +31,9 @@ ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "dist"            # 服务整个 dist/，页面才能相对取到 ../map-review/ditu.png
 EDITOR = ROOT / "dist" / "river-editor"
 DATA = ROOT / "data" / "map" / "rivers" / "river_segments.json"
+VEC = ROOT / "data" / "map" / "vector"
+CITY_STATE = ROOT / "data" / "map" / "_editor" / "city_state.json"
+CITY_BACKUP = ROOT / "data" / "map" / "_editor" / "_backup"
 BAKDIR = ROOT / "data" / "map" / "rivers" / "_backup"
 KEEP = 30
 
@@ -92,6 +95,26 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith("/api/ping"):
             return self._json({"ok": True, "data": str(DATA)})
+        if self.path.startswith("/api/vector"):
+            try:
+                def load(name, default):
+                    f = VEC / name
+                    return json.loads(f.read_text(encoding="utf-8")) if f.exists() else default
+                return self._json({
+                    "sea": load("sea_from_coast.json", []),
+                    "rivers": load("rivers_w.json", []),
+                    "lakes": load("lakes_drawn.json", []),
+                    "coasts": load("coast_drawn.json", []),
+                })
+            except Exception as e:
+                return self._json({"error": str(e)}, 500)
+        if self.path.startswith("/api/map/load"):
+            try:
+                if not CITY_STATE.exists():
+                    return self._json({"state": None})
+                return self._json(json.loads(CITY_STATE.read_text(encoding="utf-8-sig")))
+            except Exception as e:
+                return self._json({"error": str(e)}, 500)
         if self.path.startswith("/api/load"):
             if not DATA.exists():
                 return self._json({"version": 3, "canvas": [9101, 8509], "segments": []})
@@ -114,6 +137,27 @@ class Handler(SimpleHTTPRequestHandler):
         return super().do_GET()
 
     def do_POST(self):
+        if self.path.startswith("/api/map/save"):
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+                data = json.loads(self.rfile.read(n).decode("utf-8"))
+                if not isinstance(data.get("items"), list):
+                    return self._json({"error": "items 必须是数组"}, 400)
+                CITY_STATE.parent.mkdir(parents=True, exist_ok=True)
+                CITY_BACKUP.mkdir(parents=True, exist_ok=True)
+                if CITY_STATE.exists():
+                    stamp = time.strftime("%Y%m%d-%H%M%S")
+                    dst = CITY_BACKUP / f"city_state-{stamp}.json"
+                    if not dst.exists():
+                        dst.write_text(CITY_STATE.read_text(encoding="utf-8"), encoding="utf-8")
+                    olds = sorted(CITY_BACKUP.glob("city_state-*.json"))
+                    for f in olds[:-30]:
+                        f.unlink(missing_ok=True)
+                atomic_write(CITY_STATE, json.dumps(data, ensure_ascii=False, indent=1))
+                return self._json({"ok": True, "items": len(data["items"]),
+                                   "at": time.strftime("%H:%M:%S")})
+            except Exception as e:
+                return self._json({"error": str(e)}, 500)
         if not self.path.startswith("/api/save"):
             return self._json({"error": "not found"}, 404)
         try:

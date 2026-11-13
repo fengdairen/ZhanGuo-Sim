@@ -27,7 +27,7 @@ if not exist "%PY%" goto no_python
 
 :have_py
 echo Starting local server on 127.0.0.1:8765 ...
-%PY% tools\serve_data_workbench.py --open
+%PY% tools\pipeline\serve_data_workbench.py --open
 if errorlevel 1 goto failed
 exit /b 0
 

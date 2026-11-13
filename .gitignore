@@ -32,3 +32,11 @@ data/map/_backup_*.csv
 
 # ===== 描迹器 =====
 data/map/rivers/_backup/
+
+# ===== 2026-11-13 整理 =====
+assets/
+tools/**/_*.txt
+tools/**/*.log
+tools/**/*.png
+data/map/_editor/_backup/
+data/map/rivers/_archive/

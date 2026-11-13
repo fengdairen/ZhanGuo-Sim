@@ -29,22 +29,22 @@ if not exist "%PY%" goto no_python
 :have_py
 echo.
 echo === 1/4  sync traced data ===
-%PY% tools\sync_river_editor.py
+%PY% tools\pipeline\sync_river_editor.py
 if errorlevel 1 goto failed
 
 echo.
 echo === 2/4  traced data to vector layers ===
-%PY% tools\rivers_from_editor.py
+%PY% tools\pipeline\rivers_from_editor.py
 if errorlevel 1 goto failed
 
 echo.
 echo === 3/4  coastline to sea polygon ===
-%PY% tools\build_sea_from_coast.py
+%PY% tools\pipeline\build_sea_from_coast.py
 if errorlevel 1 goto failed
 
 echo.
 echo === 4/4  build map.html ===
-%PY% tools\make_vector_map.py
+%PY% tools\pipeline\make_vector_map.py
 if errorlevel 1 goto failed
 
 echo.

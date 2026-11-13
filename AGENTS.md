@@ -31,20 +31,22 @@
 
 ```
 /
-├── 备份.xlsm      数据模板（只读参考，别改）
-├── data/
-│   ├── state.json         权威状态（九国经济/军事/制度）
-│   └── map/               地图层：nodes/regions/populations/ownership/economy
-├── dist/           ZhanGuo.Workbench.exe + map-review/ 与 map-vector/ 两个 HTML 工具
-├── src/
-│   ├── ZhanGuo.Core/      纯数据 + 公式，无 UI 依赖，可被任何引擎引用
-│   ├── ZhanGuo.Workbench/ WPF 数据控制台
-│   └── ZhanGuo.Verify/    命令行校验器
-├── docs/          00 入口 + 1-设计 / 2-数据 / 3-工程 / 4-决策 / 5-调研 / 6-推演记录
-├── tools/         提取、生成、校验脚本（`tools/_*.txt` 是可删的报告）
-├── 推演风格/       用户提供的原始推演日志（xlsx）
-└── 军事设计/       用户提供的军事系统设计（md）
+├── 启动数据台.cmd / 重建地图.cmd    两个入口
+├── 备份.xlsm                       数据模板（只读参考，别改）
+├── assets/                         大件（ditu.psd，不进库）
+├── data/                           state.json + map/（城邑/部族/人口/归属/经济 + rivers/ vector/）
+├── dist/                           产物：index.html、river-editor/、map-review/、map-vector/
+├── docs/                           00 入口 + 1-设计 … 6-推演记录（见 docs/README.md）
+├── materials/                      用户提供的原始材料（推演风格 / 军事设计）
+├── src/                            Core（纯公式）/ Workbench（WPF）/ Verify（校验器）
+├── tools/
+│   ├── pipeline/                   当前在用的脚本（21 个）
+│   ├── smoke/                      冒烟测试（3 个）
+│   └── legacy/                     历史脚本（47 个，不再维护）
+└── 七张源图 PNG                    历史脚本按名引用，留在根目录
 ```
+
+**新增文件前先看 `docs/3-工程/33-目录结构.md`。**
 
 ## 构建与运行
 
@@ -57,7 +59,7 @@ $env:DOTNET_CLI_UI_LANGUAGE = 'en'   # 中文错误信息在 GBK 控制台下会
 
 dotnet build src\ZhanGuo.Workbench -c Release
 dotnet run  --project src\ZhanGuo.Verify -- <repo>    # 公式校验，exit 0 即通过
-python tools\export_state.py                          # xlsm → JSON
+python tools\pipeline\export_state.py                          # xlsm → JSON
 ```
 
 ## 环境备注（踩过的坑）

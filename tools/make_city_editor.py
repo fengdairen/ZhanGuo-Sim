@@ -260,28 +260,51 @@ function pathOf(a){
   for (let i = 2; i < flat.length; i += 2) p.lineTo(flat[i], flat[i+1]); return p;
 }
 
-function draw(){
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.fillStyle = '#e9dbb8'; ctx.fillRect(0,0,vw,vh);
-  ctx.setTransform(dpr*S.scale,0,0,dpr*S.scale,dpr*S.tx,dpr*S.ty);
+let bgCanvas = null, bgKey = '';
+function bgState(){
+  return [S.scale, S.tx, S.ty, vw, vh, S.layers.sea?1:0, S.layers.lake?1:0,
+          S.layers.coast?1:0, S.layers.river?1:0].join('|');
+}
+// 矢量底图缓存在离屏画布上：只有视图或图层变了才重画
+function drawBg(){
+  const key = bgState();
+  if (bgCanvas && key === bgKey){
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.drawImage(bgCanvas, 0, 0, vw, vh);
+    return;
+  }
+  bgKey = key;
+  if (!bgCanvas) bgCanvas = document.createElement('canvas');
+  bgCanvas.width = Math.round(vw*dpr); bgCanvas.height = Math.round(vh*dpr);
+  const g = bgCanvas.getContext('2d');
+  g.setTransform(dpr,0,0,dpr,0,0);
+  g.fillStyle = '#e9dbb8'; g.fillRect(0,0,vw,vh);
+  g.setTransform(dpr*S.scale,0,0,dpr*S.scale,dpr*S.tx,dpr*S.ty);
 
-  if (S.layers.sea) for (const f of S.V.sea){ ctx.fillStyle = COL.sea; ctx.fill(pathOf(f)); }
+  if (S.layers.sea) for (const f of S.V.sea){ g.fillStyle = COL.sea; g.fill(pathOf(f)); }
   if (S.layers.lake){
-    ctx.strokeStyle = COL.lakeEdge; ctx.lineWidth = 2.2/S.scale; ctx.fillStyle = COL.lake;
-    for (const l of S.V.lakes){ const p = pathOf(l.pts); p.closePath(); ctx.fill(p); ctx.stroke(p); }
+    g.strokeStyle = COL.lakeEdge; g.lineWidth = 2.2/S.scale; g.fillStyle = COL.lake;
+    for (const l of S.V.lakes){ const p = pathOf(l.pts); p.closePath(); g.fill(p); g.stroke(p); }
   }
   if (S.layers.coast){
-    ctx.strokeStyle = COL.coast; ctx.lineWidth = Math.max(1, 4/S.scale); ctx.lineCap = 'round';
-    for (const c of S.V.coasts){ const p = pathOf(c.pts); if (c.closed) p.closePath(); ctx.stroke(p); }
+    g.strokeStyle = COL.coast; g.lineWidth = Math.max(1, 4/S.scale); g.lineCap = 'round';
+    for (const c of S.V.coasts){ const p = pathOf(c.pts); if (c.closed) p.closePath(); g.stroke(p); }
   }
   if (S.layers.river){
-    ctx.strokeStyle = COL.river; ctx.lineJoin = 'round';
+    g.strokeStyle = COL.river; g.lineJoin = 'round';
     for (const e of S.V.rivers){
       const p = new Path2D(); p.moveTo(e[1], e[2]);
       for (let i = 3; i < e.length; i += 2) p.lineTo(e[i], e[i+1]);
-      ctx.lineWidth = Math.max(1.2/S.scale, e[0]); ctx.stroke(p);
+      g.lineWidth = Math.max(1.2/S.scale, e[0]); g.stroke(p);
     }
   }
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.drawImage(bgCanvas, 0, 0, vw, vh);
+}
+
+function draw(){
+  S.draws = (S.draws || 0) + 1;
+  drawBg();
 
   /* 城邑 / 部族 */
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -470,7 +493,7 @@ cv.addEventListener('pointermove', e => {
   const r = cv.getBoundingClientRect();
   const mx = e.clientX - r.left, my = e.clientY - r.top;
   S.cursor = [mx, my];
-  if (S.mode === 'paint' && !S.drag && !S.box){ draw(); }
+  if (S.mode === 'paint' && !S.box) draw();
   if (S.drag && S.drag.type === 'pan'){
     S.tx = S.drag.tx + (mx - S.drag.mx);
     S.ty = S.drag.ty + (my - S.drag.my);
@@ -491,7 +514,8 @@ cv.addEventListener('pointermove', e => {
     draw(); return;
   }
   if (S.drag && S.drag.type === 'paint'){
-    if (paintAt(wx, wy)) draw();
+    paintAt(wx, wy);
+    draw();
     return;
   }
   if (S.box){ S.box.x1 = mx; S.box.y1 = my; draw(); }
@@ -758,7 +782,7 @@ for (const [id, key] of Object.entries(LAYER_MAP)){
   const el = $(id);
   if (!el) continue;
   el.checked = !!S.layers[key];
-  el.onchange = () => { S.layers[key] = el.checked; draw(); };
+  el.onchange = () => { S.layers[key] = el.checked; bgKey = ''; draw(); };
 }
 
 $('q').addEventListener('keydown', e => {

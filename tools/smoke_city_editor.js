@@ -164,6 +164,18 @@ check(painted >= Math.min(2, near.length), '大笔刷没有覆盖邻近城池：
 api.S.mode = 'sel';
 api.S.brush = 16;
 
+// 按住左键刷：光标移动必须重绘（画笔圈跟手）
+{
+  const before = api.S.draws || 0;
+  const [ex, ey] = api.w2s(200, 200);          // 空地
+  pd(ev(ex, ey));                               // 按下 → 开始刷
+  pm(ev(ex + 12, ey + 8));
+  pm(ev(ex + 24, ey + 16));
+  pu(ev(ex + 24, ey + 16));
+  const after = api.S.draws || 0;
+  check(after - before >= 3, '刷的过程中没有重绘：' + (after - before));
+}
+
 // 渲染与导出不抛异常
 api.renderSel();
 api.draw();

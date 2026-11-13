@@ -471,7 +471,7 @@ function draw(){
         i ? ctx.lineTo(sx,sy) : ctx.moveTo(sx,sy);
       }
       ctx.strokeStyle = sel ? '#d35400' : COL.edge;
-      ctx.lineWidth = sel ? 3.4 : 2.2; ctx.lineCap='round'; ctx.stroke();
+      ctx.lineWidth = sel ? 5.5 : 3.8; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke();
       for (const at of (e.ends || [])){
         const [sx,sy] = w2s(at.x, at.y);
         ctx.beginPath(); ctx.arc(sx,sy,3.4,0,6.283);
@@ -539,6 +539,13 @@ function draw(){
 }
 
 /* ================= 交互 ================= */
+function hitRealm(wx, wy){
+  for (let i = realms.length-1; i >= 0; i--){
+    const r = realms[i];
+    if (r.ring && r.ring.length > 2 && pointInPoly([wx, wy], r.ring)) return r;
+  }
+  return null;
+}
 function hitEdge(wx, wy, px){
   const tol = (px||8)/S.scale;
   for (let i=edges.length-1;i>=0;i--){
@@ -575,13 +582,19 @@ cv.addEventListener('pointerdown', e => {
     draw(); return;
   }
 
-  // 选择模式
+  // 选择模式：先找边界线，再找疆域内部
   const ed = hitEdge(wx, wy);
   if (ed){
     if (e.shiftKey) S.selEdge.has(ed.id) ? S.selEdge.delete(ed.id) : S.selEdge.add(ed.id);
     else S.selEdge = new Set([ed.id]);
     S.selRealm = null;
     renderSel(); draw(); return;
+  }
+  const rp = hitRealm(wx, wy);
+  if (rp){
+    S.selEdge = new Set(rp.edges || []);
+    S.selRealm = rp.id;
+    renderSel(); renderList(); draw(); return;
   }
   S.box = {x0:mx, y0:my, x1:mx, y1:my}; S.selEdge = new Set(); S.selRealm = null;
   renderSel(); draw();
@@ -703,18 +716,15 @@ function renderRealmBox(){
         '<option value="">—</option>' + nations.map(n =>
           '<option value="' + n.id + '"' + (n.id===r.nation?' selected':'') + '>' + n.name + '</option>').join('') +
       '</select></div>' +
-      '<div class="fld"><span>地方</span><input id="rFaction" value="' + esc(r.faction||'') + '" placeholder="留空 = 中央直辖"></div>' +
       '<div class="fld"><span>面积</span><span class="tag">' + Math.round(r.area||0).toLocaleString() + ' px²</span></div>' +
       '<div class="fld"><span>城邑</span><span id="rCount" class="tag">—</span></div>' +
       '<div class="fld"><span></span><button id="bApply">应用归属</button><button id="bDelRealm">删除疆域</button></div>';
     $('rName').oninput = e => { r.name = e.target.value; scheduleSave(); renderList(); };
     $('rNation').onchange = e => { r.nation = e.target.value; scheduleSave(); draw(); renderList(); fillRealmCount(r); };
-    $('rFaction').oninput = e => { r.faction = e.target.value; scheduleSave(); };
     $('bApply').onclick = () => applyRealm(r);
     $('bDelRealm').onclick = () => {
-      if (!confirm('删除这个疆域？（城邑归属不变）')) return;
-      snap(); realms = realms.filter(x => x !== r); S.selRealm = null;
-      scheduleSave(); renderSel(); renderList(); draw();
+      if (!confirm('删除疆域？里面的城邑会变回无归属。')) return;
+      dropRealm(r);
     };
     fillRealmCount(r);
     return;
@@ -746,9 +756,8 @@ function renderList(){
       renderSel(); draw();
     };
     row.querySelector('.x').onclick = () => {
-      snap(); realms = realms.filter(x => x.id !== row.dataset.id);
-      if (S.selRealm === row.dataset.id) S.selRealm = null;
-      scheduleSave(); renderSel(); renderList(); draw();
+      const r = realms.find(x => x.id === row.dataset.id);
+      if (r && confirm('删除疆域「' + (r.name || r.id) + '」？里面的城邑会变回无归属。')) dropRealm(r);
     };
   });
 }
@@ -757,6 +766,27 @@ function renderList(){
 function doBuildRealm(){
   const ids = [...S.selEdge];
   if (!ids.length){ toast('先选中边界线'); return; }
+
+  // 单条自身闭合的边界线：直接当疆域，不需要补全
+  if (ids.length === 1){
+    const e = edges.find(x => x.id === ids[0]);
+    const a0 = e.pts[0], a1 = e.pts[e.pts.length-1];
+    if (e.pts.length >= 4 && Math.hypot(a0[0]-a1[0], a0[1]-a1[1]) <= 2){
+      const ring = e.pts.slice();
+      let area = 0;
+      for (let i=0;i+1<ring.length;i++) area += ring[i][0]*ring[i+1][1] - ring[i+1][0]*ring[i][1];
+      area = Math.abs(area)/2;
+      if (area < 500){ toast('这个环太小（' + Math.round(area) + ' px²）'); return; }
+      snap();
+      const id = 'q' + (realms.length + 1);
+      realms.push({ id, name:'新疆域', nation:'', edges:[e.id], ring, area });
+      S.selRealm = id;
+      toast('闭合边界线已转为疆域：' + Math.round(area).toLocaleString() + ' px²');
+      scheduleSave(); renderSel(); renderList(); draw();
+      return;
+    }
+  }
+
   const r = buildRealm(ids);
   if (r.error){ toast(r.error); return; }
   snap();
@@ -768,26 +798,44 @@ function doBuildRealm(){
   scheduleSave(); renderSel(); renderList(); draw();
 }
 
+async function saveOwnership(){
+  try{
+    const res = await fetch('/api/ownership/save', { method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify({ owner }) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return true;
+  }catch(e){ return e.message; }
+}
+
 async function applyRealm(r){
   if (!r.nation){ toast('先指定国家'); return; }
   snap();
   let n = 0;
   for (const c of cities){
-    if (pointInPoly([c.x, c.y], r.ring)){
-      owner[c.id] = { n: r.nation, f: r.faction || '' }; n++;
-    }
+    if (pointInPoly([c.x, c.y], r.ring)){ owner[c.id] = { n: r.nation, f: '' }; n++; }
   }
   const nm = (nations.find(x => x.id === r.nation) || {}).name || r.nation;
   draw();
-  try{
-    const res = await fetch('/api/ownership/save', { method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ owner }) });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    toast(n + ' 个城邑已归入 ' + nm + '，ownership.csv 已更新');
-  }catch(e){
-    toast(n + ' 个城邑已归入 ' + nm + '（写盘失败：' + e.message + '）');
+  const ok = await saveOwnership();
+  toast(ok === true ? (n + ' 个城邑已归入 ' + nm + '，ownership.csv 已更新')
+                    : (n + ' 个城邑已归入 ' + nm + '（写盘失败：' + ok + '）'));
+}
+
+// 删疆域 → 里面的城池变无归属
+async function dropRealm(r){
+  snap();
+  let n = 0;
+  for (const c of cities){
+    if (pointInPoly([c.x, c.y], r.ring) && owner[c.id] && owner[c.id].n === r.nation){
+      delete owner[c.id]; n++;
+    }
   }
+  realms = realms.filter(x => x !== r);
+  if (S.selRealm === r.id) S.selRealm = null;
+  draw(); renderSel(); renderList(); scheduleSave();
+  const ok = await saveOwnership();
+  toast(ok === true ? ('疆域已删除，' + n + ' 个城邑改为无归属')
+                    : ('疆域已删除，' + n + ' 城改无归属（写盘失败：' + ok + '）'));
 }
 
 /* ================= 存盘 ================= */
@@ -858,7 +906,7 @@ window.addEventListener('resize', resize);
 
 window.__BORDER_EDITOR__ = {
   S, draw, fit, center, w2s, s2w, snapTarget, buildRealm, buildNet, pointInPoly, dijkstra, commitDraft,
-  doBuildRealm, applyRealm, undo, redo,
+  doBuildRealm, applyRealm, dropRealm, hitRealm, undo, redo,
   get edges(){ return edges; }, get realms(){ return realms; }, get owner(){ return owner; },
   get cities(){ return cities; }, get nations(){ return nations; },
   setVector(V){ S.V = V; bgKey = ''; },

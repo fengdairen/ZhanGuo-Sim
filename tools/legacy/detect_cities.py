@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image
 
 ROOT = Path(r"D:\Files\HUST_OFFLINE\ds工作站\战国演义数据台")
-SRC = ROOT / "城池.png"
+SRC = ROOT / "assets" / "source" / "城池.png"
 OUT_CSV = ROOT / "tools" / "_components.csv"
 
 img = Image.open(SRC).convert("RGBA")

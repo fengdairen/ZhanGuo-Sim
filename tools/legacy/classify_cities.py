@@ -86,7 +86,7 @@ with (out / "nodes.csv").open("w", newline="", encoding="utf-8-sig") as f:
 print("nodes ->", out / "nodes.csv")
 
 # 叠加验证图：在合成图上标出三类
-im = Image.open(ROOT / "ditu.png").convert("RGB")
+im = Image.open(ROOT / "assets" / "source" / "ditu.png").convert("RGB")
 draw = ImageDraw.Draw(im)
 COLOR = {"都": (220, 0, 0), "城": (0, 90, 220), "邑": (0, 150, 0)}
 R = {"都": 14, "城": 10, "邑": 7}

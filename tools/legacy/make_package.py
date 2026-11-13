@@ -23,7 +23,7 @@ per = (len(items) + GROUPS - 1) // GROUPS
 groups = [items[i * per:(i + 1) * per] for i in range(GROUPS)]
 groups = [g for g in groups if g]
 
-shutil.copy2(ROOT / "ditu.png", PKG / "ditu.png")
+shutil.copy2(ROOT / "assets" / "source" / "ditu.png", PKG / "ditu.png")
 
 TPL = r"""<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8">

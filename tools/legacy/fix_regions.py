@@ -52,7 +52,7 @@ if gumie:
     print(f"姑蔑 → 城邑 n1038 @ ({nx},{ny})")
 
 # ---------- 3) 补 舒鲍 ----------
-alpha = np.asarray(Image.open(ROOT / "城池名称.png").convert("RGBA"))[:, :, 3] > 0
+alpha = np.asarray(Image.open(ROOT / "assets" / "source" / "城池名称.png").convert("RGBA"))[:, :, 3] > 0
 H, W = alpha.shape
 shu = next((p for p in uniq if p["name"] == "舒龚"), None)
 if shu:

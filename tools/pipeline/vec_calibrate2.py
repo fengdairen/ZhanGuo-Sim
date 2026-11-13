@@ -115,7 +115,7 @@ def comp_stats(labels, runs, n):
 
 
 # ---------- 底图水体 ----------
-ditu = Image.open(ROOT / "ditu.png").convert("RGB")
+ditu = Image.open(ROOT / "assets" / "source" / "ditu.png").convert("RGB")
 a = np.array(ditu)
 water = (
     (np.abs(a[..., 0].astype(np.int16) - 199) <= 5)
@@ -134,7 +134,7 @@ band = sea_d & ~sea_e
 log(f"水陆边界带像素: {int(band.sum())}")
 
 # ---------- 海岸线偏移 ----------
-coast = np.array(Image.open(ROOT / "海岸线.png").convert("RGBA"))
+coast = np.array(Image.open(ROOT / "assets" / "source" / "海岸线.png").convert("RGBA"))
 cm = coast[..., 3] > 100
 cm2 = pool(cm)
 log(f"海岸线像素 {int(cm.sum())} -> 1/{S} {int(cm2.sum())}")
@@ -167,7 +167,7 @@ COAST = (5815 + best[1], 1509 + best[2])
 log(f"海岸线偏移 => {COAST}  (PSD 记录为 (5815,1509))")
 
 # ---------- 湖泊质心匹配 ----------
-riv = np.array(Image.open(ROOT / "河道湖泊.png").convert("RGBA"))
+riv = np.array(Image.open(ROOT / "assets" / "source" / "河道湖泊.png").convert("RGBA"))
 alpha = riv[..., 3] > 100
 rgb = riv[..., :3].astype(np.int16)
 blue = alpha & (rgb[..., 2] > 170) & (rgb[..., 0] < 100) & (rgb[..., 1] < 170)

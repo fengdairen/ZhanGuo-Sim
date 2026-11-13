@@ -70,7 +70,7 @@ with (ROOT / "data" / "map" / "review_todo.csv").open("w", newline="", encoding=
         w.writerow([r["id"], r["kind"], round(r["x"]), round(r["y"]), r["name"], r["_status"], ""])
 
 # 联系表
-im = Image.open(ROOT / "ditu.png").convert("RGB")
+im = Image.open(ROOT / "assets" / "source" / "ditu.png").convert("RGB")
 font = ImageFont.truetype("C:/Windows/Fonts/msyhbd.ttc", 20)
 CW, CH, SCALE, COLS, ROWS = 240, 150, 2, 4, 8
 per = COLS * ROWS

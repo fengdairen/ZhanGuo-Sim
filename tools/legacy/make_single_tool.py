@@ -241,7 +241,7 @@ if PKG.exists():
     for f in PKG.glob("group-*.html"):
         f.unlink()
 (PKG / "names.html").write_text(html, encoding="utf-8")
-shutil.copy2(ROOT / "ditu.png", PKG / "ditu.png")
+shutil.copy2(ROOT / "assets" / "source" / "ditu.png", PKG / "ditu.png")
 if (PKG / "names-all.html").exists():
     (PKG / "names-all.html").unlink()
 shutil.copy2(ROOT / "data" / "map" / "nodes.csv", PKG / "nodes_reference.csv")

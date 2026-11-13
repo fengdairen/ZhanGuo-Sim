@@ -21,7 +21,7 @@ G = 28
 CL = ROOT / "tools" / "clusters"
 CL.mkdir(parents=True, exist_ok=True)
 
-alpha = np.asarray(Image.open(ROOT / "城池名称.png").convert("RGBA"))[:, :, 3] > 0
+alpha = np.asarray(Image.open(ROOT / "assets" / "source" / "城池名称.png").convert("RGBA"))[:, :, 3] > 0
 H, W = alpha.shape
 
 # ---------- 1) 连通域（字形） ----------

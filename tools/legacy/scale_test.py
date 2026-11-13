@@ -11,7 +11,7 @@ OX, OY = 512, 866
 OUT = ROOT / "tools" / "scale_test"
 OUT.mkdir(exist_ok=True)
 
-names_img = Image.open(ROOT / "城池名称.png").convert("RGBA")
+names_img = Image.open(ROOT / "assets" / "source" / "城池名称.png").convert("RGBA")
 alpha = np.asarray(names_img)[:, :, 3] > 0
 H, W = alpha.shape
 # 关键：必须用「白底合成图」取像素，直接 RGBA→RGB 会把透明区变成黑色

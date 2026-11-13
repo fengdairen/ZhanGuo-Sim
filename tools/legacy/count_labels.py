@@ -6,7 +6,7 @@ import numpy as np
 from PIL import Image
 
 ROOT = Path(r"D:\Files\HUST_OFFLINE\ds工作站\战国演义数据台")
-a = np.asarray(Image.open(ROOT / "城池名称.png").convert("RGBA"))[:, :, 3] > 0
+a = np.asarray(Image.open(ROOT / "assets" / "source" / "城池名称.png").convert("RGBA"))[:, :, 3] > 0
 H, W = a.shape
 print("ink px", int(a.sum()))
 

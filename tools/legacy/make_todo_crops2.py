@@ -16,7 +16,7 @@ for f in OUT.glob("*.png"):
 SCALE = 3
 L, R, U, D = 190, 230, 60, 60
 
-im = Image.open(ROOT / "ditu.png").convert("RGB")
+im = Image.open(ROOT / "assets" / "source" / "ditu.png").convert("RGB")
 W, H = im.size
 rows = list(csv.DictReader((ROOT / "data" / "map" / "nodes.csv").open(encoding="utf-8-sig")))
 todo = [r for r in rows if (not r["name"]) or len(r["name"]) >= 3]

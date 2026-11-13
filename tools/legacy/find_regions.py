@@ -21,7 +21,7 @@ CROP.mkdir(parents=True, exist_ok=True)
 for f in CROP.glob("*.png"):
     f.unlink()
 
-alpha = np.asarray(Image.open(ROOT / "城池名称.png").convert("RGBA"))[:, :, 3] > 0
+alpha = np.asarray(Image.open(ROOT / "assets" / "source" / "城池名称.png").convert("RGBA"))[:, :, 3] > 0
 white = Image.open(ROOT / "tools" / "_names_white.png").convert("RGB")
 H, W = alpha.shape
 

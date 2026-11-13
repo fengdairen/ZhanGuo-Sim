@@ -26,7 +26,7 @@ for r in rows:
     r["x"] = float(r["x"])
     r["y"] = float(r["y"])
 
-im = Image.open(ROOT / "ditu.png").convert("RGB")
+im = Image.open(ROOT / "assets" / "source" / "ditu.png").convert("RGB")
 W, H = im.size
 font = ImageFont.truetype(FONT_PATH, FONT_SIZE)
 

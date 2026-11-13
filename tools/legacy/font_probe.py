@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(r"D:\Files\HUST_OFFLINE\ds工作站\战国演义数据台")
 OX, OY = 512, 866
 G = 24
-alpha = np.asarray(Image.open(ROOT / "城池名称.png").convert("RGBA"))[:, :, 3] > 0
+alpha = np.asarray(Image.open(ROOT / "assets" / "source" / "城池名称.png").convert("RGBA"))[:, :, 3] > 0
 H, W = alpha.shape
 
 FONTS = [

@@ -19,7 +19,7 @@ tools/_*
 debug.log
 
 # ===== 构建输出 =====
-.dotnet/
+.cache/dotnet/
 .nuget/
 bin/
 obj/
@@ -40,3 +40,4 @@ tools/**/*.log
 tools/**/*.png
 data/map/_editor/_backup/
 data/map/rivers/_archive/
+.cache/

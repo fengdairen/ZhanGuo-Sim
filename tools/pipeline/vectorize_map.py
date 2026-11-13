@@ -38,15 +38,15 @@ def load_rgb(name):
 
 
 # ---------------- 掩膜 ----------------
-riv = load_rgb("底图河道湖泊.png")
+riv = load_rgb("assets/source/底图河道湖泊.png")
 red = (riv[..., 0] > 200) & (riv[..., 1] < 80) & (riv[..., 2] < 80)
 blue = (riv[..., 2] > 200) & (riv[..., 0] < 80) & (riv[..., 1] < 80)
 brown = (np.abs(riv[..., 0] - 101) <= 30) & (np.abs(riv[..., 1] - 55) <= 30) & (riv[..., 2] <= 45)
 del riv
-coa_rgb = load_rgb("底图海岸线.png")
+coa_rgb = load_rgb("assets/source/底图海岸线.png")
 coast = coa_rgb.max(axis=2) < 60
 del coa_rgb
-ditu = load_rgb("ditu.png")
+ditu = load_rgb("assets/source/ditu.png")
 water = ((np.abs(ditu[..., 0] - 199) <= 5) & (np.abs(ditu[..., 1] - 154) <= 5)
          & (np.abs(ditu[..., 2] - 102) <= 5))
 del ditu

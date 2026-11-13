@@ -33,7 +33,7 @@
 /
 ├── 启动数据台.cmd / 重建地图.cmd    两个入口
 ├── 备份.xlsm                       数据模板（只读参考，别改）
-├── assets/                         大件（ditu.psd，不进库）
+├── assets/                         源图与 PSD（source/ 七张原图、ditu.psd，不进库）
 ├── data/                           state.json + map/（城邑/部族/人口/归属/经济 + rivers/ vector/）
 ├── dist/                           产物：index.html、river-editor/、map-review/、map-vector/
 ├── docs/                           00 入口 + 1-设计 … 6-推演记录（见 docs/README.md）
@@ -43,7 +43,6 @@
 │   ├── pipeline/                   当前在用的脚本（21 个）
 │   ├── smoke/                      冒烟测试（3 个）
 │   └── legacy/                     历史脚本（47 个，不再维护）
-└── 七张源图 PNG                    历史脚本按名引用，留在根目录
 ```
 
 **新增文件前先看 `docs/3-工程/33-目录结构.md`。**
@@ -53,7 +52,7 @@
 构建前必须重定向 .NET 的写目录（沙箱不允许写用户目录）：
 
 ```powershell
-$env:DOTNET_CLI_HOME = "<repo>\.dotnet"
+$env:DOTNET_CLI_HOME = "<repo>\.cache\dotnet"
 $env:NUGET_PACKAGES  = "<repo>\.nuget\packages"
 $env:DOTNET_CLI_UI_LANGUAGE = 'en'   # 中文错误信息在 GBK 控制台下会乱码
 

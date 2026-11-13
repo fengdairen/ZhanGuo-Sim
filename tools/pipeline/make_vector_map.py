@@ -35,6 +35,39 @@ for r in csv.DictReader(open(ROOT / "data" / "map" / "nodes.csv", encoding="utf-
     cities.append([r["id"], r["name"], r["kind"], round(float(r["x"]), 1), round(float(r["y"]), 1),
                    round(float(r["pop"] or 0), 2)])
 
+# 国界疆域
+PALETTE = ["#c0392b","#2980b9","#27ae60","#8e44ad","#d35400",
+           "#16a085","#2c3e50","#c2185b","#7f8c8d","#f39c12",
+           "#5d6d7e","#a04000","#1abc9c","#9b59b6","#e67e22"]
+nation_color = {}
+try:
+    _st = json.loads((ROOT / "data" / "state.json").read_text(encoding="utf-8"))
+    for _i, _n in enumerate(_st.get("nations", [])):
+        nation_color[_n["id"]] = PALETTE[_i % len(PALETTE)]
+except Exception:
+    pass
+
+realms = []
+_bp = ROOT / "data" / "map" / "borders.json"
+if _bp.exists():
+    try:
+        _b = json.loads(_bp.read_text(encoding="utf-8-sig"))
+        for _r in _b.get("realms", []):
+            ring = _r.get("ring") or []
+            if len(ring) < 4:
+                continue
+            flat = []
+            for _p in ring:
+                flat.append(round(_p[0], 1)); flat.append(round(_p[1], 1))
+            realms.append({
+                "name": _r.get("name") or "",
+                "color": nation_color.get(_r.get("nation"), "#7a6248"),
+                "nation": _r.get("nation") or "",
+                "pts": flat,
+            })
+    except Exception as _e:
+        print("borders.json 读取失败：", _e)
+
 regions = []
 for r in csv.DictReader(open(ROOT / "data" / "map" / "regions.csv", encoding="utf-8-sig")):
     regions.append([r["id"], r["name"], round(float(r["x"]), 1), round(float(r["y"]), 1),
@@ -56,6 +89,7 @@ data = {
     "coast": [],
     "lakes": [],
     "rivers": rivers,
+    "realms": realms,
     "riverLabels": river_labels,
     "coastDrawn": coast_drawn,
     "lakesDrawn": lakes_drawn,
@@ -190,6 +224,11 @@ function pathOf(poly, close){
   return p;
 }
 
+function rgba(hex, a){
+  const h = hex.replace('#','');
+  const n = parseInt(h.length === 3 ? h.split('').map(c=>c+c).join('') : h, 16);
+  return 'rgba(' + ((n>>16)&255) + ',' + ((n>>8)&255) + ',' + (n&255) + ',' + a + ')';
+}
 const G = { sea:new Path2D(), islands:new Path2D(), lakes:new Path2D(),
             coast:new Path2D(), riverBuckets:[] };
 for (const poly of DATA.sea) G.sea.addPath(pathOf(poly, true));
@@ -201,6 +240,7 @@ G.coastDrawnLine = new Path2D();
 G.islandDrawn = new Path2D();
 G.lakesDrawn = new Path2D();
 for (const l of (DATA.lakesDrawn || [])) G.lakesDrawn.addPath(pathOf(l.pts, true));
+G.realms = (DATA.realms || []).map(r => ({ name:r.name, color:r.color, path:pathOf(r.pts, true) }));
 for (const c of (DATA.coastDrawn || [])){
   if (c.closed) G.islandDrawn.addPath(pathOf(c.pts, true));
   else G.coastDrawnLine.addPath(pathOf(c.pts, false));
@@ -292,6 +332,29 @@ function draw(){
   ctx.strokeRect(0, 0, CW, CH);
 
   ctx.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
+
+  // ---- 国界疆域 ----
+  if (G.realms.length){
+    for (const r of G.realms){
+      // 面：极淡底色
+      ctx.fillStyle = rgba(r.color, 0.10);
+      ctx.fill(r.path);
+      // 内侧渐变：多层递减描边 + 裁剪到面内
+      ctx.save();
+      ctx.clip(r.path);
+      const N = 8, W = 24 / V.scale;      // 渐变带宽度按屏幕像素算
+      for (let i = N; i >= 1; i--){
+        ctx.strokeStyle = rgba(r.color, 0.085);
+        ctx.lineWidth = (W * 2) * (i / N);
+        ctx.stroke(r.path);
+      }
+      ctx.restore();
+      // 边界：整圈一次描边，宽度统一
+      ctx.strokeStyle = rgba(r.color, 0.92);
+      ctx.lineWidth = 2.4 / V.scale;      // 整圈一次描边，宽度恒定，不会一节粗一节细
+      ctx.stroke(r.path);
+    }
+  }
 
   if (L.sea){
     ctx.fillStyle = COL.sea; ctx.fill(G.sea, 'evenodd');

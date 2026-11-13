@@ -79,9 +79,14 @@
 
   <h2>三 · 城池与人口（编辑与勘误）</h2>
   <div class="grid">
+    <a class="card" href="map-review/border_editor.html">
+      <div class="t">国界绘制器</div>
+      <div class="d">画边界线（吸附到海岸/河流/湖泊/其他边界线），选中数条自动用水系补全成封闭疆域，指定国家后疆域内城邑自动改归属。</div>
+      <div class="f">data/map/borders.json → data/map/ownership.csv</div>
+    </a>
     <a class="card" href="map-review/city_editor.html">
       <div class="t">城池编辑器</div>
-      <div class="d">矢量底图 + 图层开关；改名/归属/人口/拖动/新增/框选，<b>改动自动存盘</b>，可撤销。</div>
+      <div class="d">只改城池<b>位置 / 人口 / 等级</b>；归属由国界绘制器决定，这里只读显示。</div>
       <div class="f">data/map/_editor/city_state.json · 导出 CSV 再合并进 data/map/</div>
     </a>
     <a class="card" href="map-review/names.html">

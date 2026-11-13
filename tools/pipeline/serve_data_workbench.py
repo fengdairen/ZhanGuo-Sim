@@ -34,6 +34,9 @@ DATA = ROOT / "data" / "map" / "rivers" / "river_segments.json"
 VEC = ROOT / "data" / "map" / "vector"
 CITY_STATE = ROOT / "data" / "map" / "_editor" / "city_state.json"
 CITY_BACKUP = ROOT / "data" / "map" / "_editor" / "_backup"
+BORDERS = ROOT / "data" / "map" / "borders.json"
+BORDERS_BACKUP = ROOT / "data" / "map" / "_editor" / "_backup"
+OWNERSHIP = ROOT / "data" / "map" / "ownership.csv"
 BAKDIR = ROOT / "data" / "map" / "rivers" / "_backup"
 KEEP = 30
 
@@ -110,6 +113,26 @@ class Handler(SimpleHTTPRequestHandler):
                 })
             except Exception as e:
                 return self._json({"error": str(e)}, 500)
+        if self.path.startswith("/api/ownership/load"):
+            try:
+                import csv, io
+                if not OWNERSHIP.exists():
+                    return self._json({"owner": {}})
+                rows = list(csv.DictReader(OWNERSHIP.open(encoding="utf-8-sig")))
+                own = {}
+                for r in rows:
+                    if r.get("owner"):
+                        own[r["city_id"]] = {"n": r["owner"], "f": r.get("faction", "")}
+                return self._json({"owner": own})
+            except Exception as e:
+                return self._json({"error": str(e)}, 500)
+        if self.path.startswith("/api/borders/load"):
+            try:
+                if not BORDERS.exists():
+                    return self._json({"version": 1, "edges": [], "realms": []})
+                return self._json(json.loads(BORDERS.read_text(encoding="utf-8-sig")))
+            except Exception as e:
+                return self._json({"error": str(e)}, 500)
         if self.path.startswith("/api/map/load"):
             try:
                 if not CITY_STATE.exists():
@@ -139,6 +162,66 @@ class Handler(SimpleHTTPRequestHandler):
         return super().do_GET()
 
     def do_POST(self):
+        if self.path.startswith("/api/ownership/save"):
+            try:
+                import csv
+                n = int(self.headers.get("Content-Length") or 0)
+                data = json.loads(self.rfile.read(n).decode("utf-8"))
+                own = data.get("owner") or {}
+                if not isinstance(own, dict):
+                    return self._json({"error": "owner 必须是对象"}, 400)
+                # 保留原有行顺序与 note，只改 owner/faction
+                old = {}
+                if OWNERSHIP.exists():
+                    for r in csv.DictReader(OWNERSHIP.open(encoding="utf-8-sig")):
+                        old[r["city_id"]] = r
+                ids = list(old.keys()) or sorted(own.keys())
+                for cid in own:
+                    if cid not in old:
+                        ids.append(cid)
+                buf = ["city_id,owner,faction,note"]
+                for cid in ids:
+                    o = own.get(cid) or {}
+                    note = (old.get(cid) or {}).get("note", "")
+                    buf.append("%s,%s,%s,%s" % (cid, o.get("n", ""), o.get("f", ""), note))
+                BORDERS.parent.mkdir(parents=True, exist_ok=True)
+                CITY_BACKUP.mkdir(parents=True, exist_ok=True)
+                if OWNERSHIP.exists():
+                    stamp = time.strftime("%Y%m%d-%H%M%S")
+                    dst = CITY_BACKUP / f"ownership-{stamp}.csv"
+                    if not dst.exists():
+                        dst.write_text(OWNERSHIP.read_text(encoding="utf-8-sig"), encoding="utf-8")
+                    olds = sorted(CITY_BACKUP.glob("ownership-*.csv"))
+                    for f in olds[:-30]:
+                        f.unlink(missing_ok=True)
+                atomic_write(OWNERSHIP, "\r\n".join(buf) + "\r\n")
+                return self._json({"ok": True, "cities": len(ids),
+                                   "owned": len([c for c in ids if (own.get(c) or {}).get("n")]),
+                                   "at": time.strftime("%H:%M:%S")})
+            except Exception as e:
+                return self._json({"error": str(e)}, 500)
+        if self.path.startswith("/api/borders/save"):
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+                data = json.loads(self.rfile.read(n).decode("utf-8"))
+                if not isinstance(data.get("edges"), list):
+                    return self._json({"error": "edges 必须是数组"}, 400)
+                BORDERS.parent.mkdir(parents=True, exist_ok=True)
+                BORDERS_BACKUP.mkdir(parents=True, exist_ok=True)
+                if BORDERS.exists():
+                    stamp = time.strftime("%Y%m%d-%H%M%S")
+                    dst = BORDERS_BACKUP / f"borders-{stamp}.json"
+                    if not dst.exists():
+                        dst.write_text(BORDERS.read_text(encoding="utf-8"), encoding="utf-8")
+                    olds = sorted(BORDERS_BACKUP.glob("borders-*.json"))
+                    for f in olds[:-30]:
+                        f.unlink(missing_ok=True)
+                atomic_write(BORDERS, json.dumps(data, ensure_ascii=False, indent=1))
+                return self._json({"ok": True, "edges": len(data["edges"]),
+                                   "realms": len(data.get("realms") or []),
+                                   "at": time.strftime("%H:%M:%S")})
+            except Exception as e:
+                return self._json({"error": str(e)}, 500)
         if self.path.startswith("/api/map/save"):
             try:
                 n = int(self.headers.get("Content-Length") or 0)

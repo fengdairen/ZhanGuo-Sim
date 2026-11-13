@@ -227,11 +227,11 @@ public partial class MainWindow
 
     private void OpenInMap_Click(object sender, RoutedEventArgs e)
     {
-        // 依次向上找 dist/map-review/map_editor.html
+        // 依次向上找 dist/map-review/city_editor.html
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         for (var i = 0; i < 8 && dir is not null; i++, dir = dir.Parent)
         {
-            var p = Path.Combine(dir.FullName, "dist", "map-review", "map_editor.html");
+            var p = Path.Combine(dir.FullName, "dist", "map-review", "city_editor.html");
             if (File.Exists(p))
             {
                 var sel = CityGrid.SelectedItems.Cast<CityRow>().FirstOrDefault();
@@ -241,7 +241,7 @@ public partial class MainWindow
                 return;
             }
         }
-        StatusText.Text = "找不到 map_editor.html";
+        StatusText.Text = "找不到 city_editor.html";
     }
 
     // 极简 CSV 读取（本项目写出的 CSV 无引号逗号）

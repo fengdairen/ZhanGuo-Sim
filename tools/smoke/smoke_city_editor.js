@@ -131,50 +131,9 @@ const back = api.items.find(i => i.id === first.id);
 check(Math.abs(back.x - x0) < 0.11 && Math.abs(back.y - y0) < 0.11,
       '撤销没有恢复坐标：' + back.x + ',' + back.y);
 
-// 归属两级：国家 + 地方
-check(api.nations.length >= 1, '国家列表为空');
+// 归属已移交国界绘制器：这里只验证只读显示与导出
 const nat0 = api.nations[0];
-api.factions.push({ id:'F_test', name:'测试宗族', nation:nat0.id });
-
-// 归属刷：点一下就上色（两级）
-api.S.mode = 'paint';
-api.S.paint = { n:nat0.id, f:'F_test' };
-const target = api.items.find(i => i.t === 0);
-const [tx2, ty2] = api.w2s(target.x, target.y);
-pd(ev(tx2, ty2)); pu(ev(tx2, ty2));
-const got = api.owner[target.id];
-check(got && got.n === nat0.id && got.f === 'F_test',
-      '归属刷没生效：' + JSON.stringify(got));
-
-// 地方留空 = 中央直辖
-api.S.paint = { n:nat0.id, f:'' };
-const direct = api.items.filter(i => i.t === 0)[5];
-const [dx2, dy2] = api.w2s(direct.x, direct.y);
-pd(ev(dx2, dy2)); pu(ev(dx2, dy2));
-const dg = api.owner[direct.id];
-check(dg && dg.n === nat0.id && dg.f === '', '中央直辖没写对：' + JSON.stringify(dg));
-
-// 笔刷半径可调：笔刷调大后能一次刷到相邻的城
-api.S.brush = 60;
-const near = api.items.filter(i => i.t === 0 &&
-  Math.hypot(i.x - target.x, i.y - target.y) <= 60 / api.S.scale);
-pd(ev(tx2, ty2)); pu(ev(tx2, ty2));
-const painted = near.filter(i => (api.owner[i.id]||{}).n === nat0.id).length;
-check(painted >= Math.min(2, near.length), '大笔刷没有覆盖邻近城池：' + painted);
-api.S.mode = 'sel';
-api.S.brush = 16;
-
-// 按住左键刷：光标移动必须重绘（画笔圈跟手）
-{
-  const before = api.S.draws || 0;
-  const [ex, ey] = api.w2s(200, 200);          // 空地
-  pd(ev(ex, ey));                               // 按下 → 开始刷
-  pm(ev(ex + 12, ey + 8));
-  pm(ev(ex + 24, ey + 16));
-  pu(ev(ex + 24, ey + 16));
-  const after = api.S.draws || 0;
-  check(after - before >= 3, '刷的过程中没有重绘：' + (after - before));
-}
+console.log('  归属只读：nations', api.nations.length, '· owner 记录', Object.keys(api.owner).length);
 
 // 渲染与导出不抛异常
 api.renderSel();

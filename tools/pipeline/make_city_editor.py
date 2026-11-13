@@ -8,7 +8,7 @@ import csv
 import json
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "dist" / "map-review" / "city_editor.html"
 W, H = 9101, 8509
 
@@ -133,19 +133,10 @@ TPL = r"""<!DOCTYPE html>
 <div id="rail" class="panel">
   <button class="mode on" data-m="sel" title="选择 / 拖动 / 框选（Esc 取消）">选择</button>
   <button class="mode" data-m="add" title="点空白处新增城池">新增</button>
-  <button class="mode" data-m="paint" title="按住拖动，把刷到的城池改成当前归属">归属刷</button>
 </div>
 
 <div id="bar" class="panel">
   <input id="q" placeholder="搜索城池名，回车定位">
-  <span id="paintBar">
-    <select id="paintNation" title="刷哪个国家"></select>
-    <select id="paintFaction" title="刷哪个地方"></select>
-    <span style="color:#7a6547;font-size:12px">笔刷</span>
-    <input id="brushSize" type="range" min="6" max="60" value="16">
-    <span id="brushVal" style="font-size:12px;color:#7a6547">16</span>
-  </span>
-  <button id="bMgr" title="增删国家与地方势力">国家/地方…</button>
   <button id="bFit">全图</button>
   <button id="bLayers">图层 ▾</button>
   <span class="sp"></span>
@@ -175,22 +166,6 @@ TPL = r"""<!DOCTYPE html>
   <h2>统计</h2>
   <div class="hint" id="statBox"></div>
 </div>
-
-<div id="mgr"><div id="mgrBox">
-  <h2>国家与地方势力</h2>
-  <div class="hint" style="padding:0 0 6px">国家是归属的第一级，地方（宗族/家族/封君）是第二级。
-  这里改完立刻写进自动存档；城市归属用「国家/地方…」旁边的两个下拉选择。</div>
-  <h3>国家</h3>
-  <div id="mgrNations"></div>
-  <div class="mrow"><button id="bAddNation">＋ 新增国家</button></div>
-  <h3>地方势力</h3>
-  <div id="mgrFactions"></div>
-  <div class="mrow"><button id="bAddFaction">＋ 新增地方</button></div>
-  <div class="mfoot">
-    <button id="bMgrCsv">导出国家/地方 CSV</button>
-    <button id="bMgrClose">关闭</button>
-  </div>
-</div></div>
 
 <div id="status" class="panel">
   城池 <b id="sCity">0</b> · 部族 <b id="sTribe">0</b> · 选中 <b id="sSel">0</b> ·
@@ -222,7 +197,7 @@ const S = {
   mode:'sel', sel:new Set(), layers:{sea:1,lake:1,coast:1,river:1,city:1,name:1,tribe:1,ownerColor:1},
   V:{sea:[],rivers:[],lakes:[],coasts:[]},
   scale:0.15, tx:0, ty:0, drag:null, box:null,
-  cursor:null, brush:16, paint:{ n:'', f:'' }
+  cursor:null
 };
 
 const cv = document.getElementById('cv');
@@ -334,15 +309,6 @@ function draw(){
     }
   }
 
-  // 归属刷预览：圆环跟随鼠标
-  if (S.mode === 'paint' && S.cursor){
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-    ctx.beginPath(); ctx.arc(S.cursor[0], S.cursor[1], S.brush, 0, 6.283);
-    ctx.strokeStyle = 'rgba(45,93,128,.9)'; ctx.lineWidth = 1.6; ctx.stroke();
-    const nat = natOf(S.paint.n);
-    if (nat){ ctx.fillStyle = nat.color + '33'; ctx.fill(); }
-  }
-
   if (S.box){
     ctx.setTransform(dpr,0,0,dpr,0,0);
     const x = Math.min(S.box.x0, S.box.x1), y = Math.min(S.box.y0, S.box.y1);
@@ -367,22 +333,6 @@ function hit(wx, wy, px){
   return best ? best.it : null;
 }
 // 归属刷：给落点附近的城池上色，返回是否有改动
-function paintAt(wx, wy){
-  const tol = S.brush / S.scale;          // 笔刷半径（屏幕像素）
-  const n = S.paint.n, f = S.paint.f;
-  let changed = false;
-  for (const it of items){
-    if (it.t !== 0) continue;
-    if (Math.hypot(it.x - wx, it.y - wy) > tol) continue;
-    const cur = owner[it.id] || { n:'', f:'' };
-    if (cur.n === n && cur.f === f) continue;
-    if (!n && !f) delete owner[it.id];
-    else owner[it.id] = { n, f };
-    changed = true;
-  }
-  return changed;
-}
-
 function itemsInBox(x0,y0,x1,y1){
   const [ax, ay] = s2w(Math.min(x0,x1), Math.min(y0,y1));
   const [bx, by] = s2w(Math.max(x0,x1), Math.max(y0,y1));
@@ -457,13 +407,6 @@ cv.addEventListener('pointerdown', e => {
     renderSel(); draw(); scheduleSave();
     return;
   }
-  if (S.mode === 'paint'){
-    snap();
-    paintAt(wx, wy);
-    S.drag = { type:'paint', snapped:true };
-    draw(); scheduleSave();
-    return;
-  }
 
   const it = hit(wx, wy);
   if (it){
@@ -493,7 +436,6 @@ cv.addEventListener('pointermove', e => {
   const r = cv.getBoundingClientRect();
   const mx = e.clientX - r.left, my = e.clientY - r.top;
   S.cursor = [mx, my];
-  if (S.mode === 'paint' && !S.box) draw();
   if (S.drag && S.drag.type === 'pan'){
     S.tx = S.drag.tx + (mx - S.drag.mx);
     S.ty = S.drag.ty + (my - S.drag.my);
@@ -512,11 +454,6 @@ cv.addEventListener('pointermove', e => {
       if (it){ it.x = Math.round((o.x + dx)*10)/10; it.y = Math.round((o.y + dy)*10)/10; }
     }
     draw(); return;
-  }
-  if (S.drag && S.drag.type === 'paint'){
-    paintAt(wx, wy);
-    draw();
-    return;
   }
   if (S.box){ S.box.x1 = mx; S.box.y1 = my; draw(); }
 });
@@ -572,22 +509,8 @@ function renderSel(){
   if (ids.length > 1){
     box.innerHTML =
       '<div class="fld"><span>已选</span><b>' + ids.length + '</b> 个</div>' +
-      '<div class="fld"><span>国家</span><select id="ownSel">' + nationOptions('') + '</select></div>' +
-      '<div class="fld"><span>地方</span><select id="ownFaction2">' + factionOptions('', '') + '</select></div>' +
-      '<div class="fld"><span></span><button id="bSetOwn">应用归属</button></div>' +
+      '<div class="hint" style="padding:0 14px 6px">归属由「国界绘制器」按疆域自动判定，这里只改位置/人口/等级。</div>' +
       '<div class="fld"><span></span><button id="bDelSel">删除选中</button></div>';
-    $('ownSel').onchange = () => {
-      $('ownFaction2').innerHTML = factionOptions($('ownSel').value, '');
-    };
-    $('bSetOwn').onclick = () => {
-      snap();
-      const n = $('ownSel').value, f = $('ownFaction2').value;
-      for (const id of ids){
-        if (!n && !f) delete owner[id];
-        else owner[id] = { n, f };
-      }
-      draw(); scheduleSave();
-    };
     $('bDelSel').onclick = () => {
       if (!confirm('删除这 ' + ids.length + ' 个城池？')) return;
       snap();
@@ -608,8 +531,7 @@ function renderSel(){
     '<div class="fld"><span>类型</span><select id="fKind">' +
       ['都','城','邑','部族'].map(k => '<option' + (k === it.kind ? ' selected' : '') + '>' + k + '</option>').join('') +
     '</select></div>' +
-    '<div class="fld"><span>国家</span><select id="ownNation">' + nationOptions((owner[it.id]||{}).n || '') + '</select></div>' +
-    '<div class="fld"><span>地方</span><select id="ownFaction">' + factionOptions((owner[it.id]||{}).n || '', (owner[it.id]||{}).f || '') + '</select></div>' +
+    '<div class="fld"><span>归属</span><span class="k">' + ownText(it.id) + '</span></div>' +
     '<div class="fld"><span>摘要</span><span class="k" id="ownSummary">' + ownText(it.id) + '</span></div>' +
     '<div class="fld"><span>坐标</span><span class="k">' + it.x.toFixed(1) + ', ' + it.y.toFixed(1) + '</span></div>' +
     '<div class="fld"><span>人口</span><span class="k">' + popOf(it.id).toFixed(2) + '</span></div>' +
@@ -617,21 +539,6 @@ function renderSel(){
 
   $('fName').oninput = e => { it.name = e.target.value; draw(); scheduleSave(); };
   $('fKind').onchange = e => { snap(); it.kind = e.target.value; draw(); scheduleSave(); };
-  $('ownNation').onchange = e => {
-    snap();
-    const cur = owner[it.id] || { n:'', f:'' };
-    cur.n = e.target.value;
-    cur.f = '';                       // 换国家时清掉旧地方
-    if (!cur.n && !cur.f) delete owner[it.id]; else owner[it.id] = cur;
-    renderSel(); draw(); scheduleSave();
-  };
-  $('ownFaction').onchange = e => {
-    snap();
-    const cur = owner[it.id] || { n:'', f:'' };
-    cur.f = e.target.value;
-    if (!cur.n && !cur.f) delete owner[it.id]; else owner[it.id] = cur;
-    draw(); scheduleSave();
-  };
   $('bDelOne').onclick = () => {
     snap();
     items = items.filter(i => i.id !== it.id);
@@ -744,137 +651,18 @@ document.querySelectorAll('#rail .mode').forEach(b => {
   b.onclick = () => {
     S.mode = b.dataset.m;
     document.querySelectorAll('#rail .mode').forEach(x => x.classList.toggle('on', x === b));
-    cv.style.cursor = S.mode === 'add' ? 'copy' : S.mode === 'paint' ? 'crosshair' : 'default';
+    cv.style.cursor = S.mode === 'add' ? 'copy' : 'default';
     $('paintBar').style.display = S.mode === 'paint' ? 'flex' : 'none';
     if (S.mode === 'paint') fillPaint();
   };
 });
-function fillPaint(){
-  const ns = $('paintNation'), fs = $('paintFaction');
-  ns.innerHTML = '<option value="">— 无国家 —</option>' +
-    nations.map(n => '<option value="' + n.id + '"' + (n.id === S.paint.n ? ' selected' : '') + '>' + n.name + '</option>').join('');
-  fs.innerHTML = factionOptions(ns.value, S.paint.f);
-  S.paint.n = ns.value;
-}
-$('paintNation').onchange = () => {
-  S.paint.n = $('paintNation').value;
-  $('paintFaction').innerHTML = factionOptions(S.paint.n, '');
-  S.paint.f = '';
-  draw();
-};
-$('paintFaction').onchange = () => { S.paint.f = $('paintFaction').value; draw(); };
-$('brushSize').oninput = e => {
-  S.brush = +e.target.value;
-  $('brushVal').textContent = S.brush;
-  draw();
-};
-$('bFit').onclick = fit;
-$('bLayers').onclick = () => $('layers').classList.toggle('on');
-$('bUndo').onclick = undo;
-$('bRedo').onclick = redo;
-$('bMapCsv').onclick = () => dl('map_edited.csv', csvMap());
-$('bPopCsv').onclick = () => dl('populations.csv', csvPop());
-$('bOwnCsv').onclick = () => dl('ownership.csv', csvOwn());
-
-const LAYER_MAP = { lSea:'sea', lLake:'lake', lCoast:'coast', lRiver:'river',
-                    lCity:'city', lName:'name', lTribe:'tribe', lOwner:'ownerColor' };
-for (const [id, key] of Object.entries(LAYER_MAP)){
-  const el = $(id);
-  if (!el) continue;
-  el.checked = !!S.layers[key];
-  el.onchange = () => { S.layers[key] = el.checked; bgKey = ''; draw(); };
-}
-
-$('q').addEventListener('keydown', e => {
-  if (e.key !== 'Enter') return;
-  const q = e.target.value.trim();
-  if (!q) return;
-  const it = items.find(i => i.name === q) || items.find(i => i.name.includes(q));
-  if (!it) { alert('没找到「' + q + '」'); return; }
-  S.sel = new Set([it.id]);
-  center(it.x, it.y, Math.max(S.scale, 0.8));
-  renderSel();
-});
-
-window.addEventListener('resize', resize);
-
-/* ---------- 国家 / 地方 管理 ---------- */
-function newId(prefix, list){
-  let i = 1;
-  while (list.some(x => x.id === prefix + i)) i++;
-  return prefix + i;
-}
-function renderMgr(){
-  const nb = $('mgrNations');
-  nb.innerHTML = nations.map(n =>
-    '<div class="mrow" data-id="' + n.id + '">' +
-      '<input type="color" value="' + n.color + '">' +
-      '<input type="text" value="' + esc(n.name) + '">' +
-      '<span class="x" title="删除">✕</span>' +
-    '</div>').join('') || '<div class="hint">还没有国家。</div>';
-  nb.querySelectorAll('.mrow').forEach(row => {
-    const n = natOf(row.dataset.id);
-    row.querySelector('input[type=color]').oninput = e => { n.color = e.target.value; draw(); scheduleSave(); };
-    row.querySelector('input[type=text]').oninput = e => { n.name = e.target.value; fillPaint(); scheduleSave(); };
-    row.querySelector('.x').onclick = () => {
-      if (!confirm('删除国家「' + n.name + '」？相关城市归属会被清空。')) return;
-      snap();
-      nations = nations.filter(x => x !== n);
-      factions = factions.filter(f => f.nation !== n.id);
-      for (const k in owner){
-        if (owner[k].n === n.id){ if (owner[k].f) owner[k].n = ''; else delete owner[k]; }
-      }
-      renderMgr(); fillPaint(); renderSel(); draw(); scheduleSave();
-    };
-  });
-
-  const fb = $('mgrFactions');
-  fb.innerHTML = factions.map(f =>
-    '<div class="mrow" data-id="' + f.id + '">' +
-      '<select>' + nations.map(n => '<option value="' + n.id + '"' + (n.id === f.nation ? ' selected' : '') + '>' + n.name + '</option>').join('') + '</select>' +
-      '<input type="text" value="' + esc(f.name) + '">' +
-      '<span class="x" title="删除">✕</span>' +
-    '</div>').join('') || '<div class="hint">还没有地方势力。先加国家，再加它下面的宗族/家族。</div>';
-  fb.querySelectorAll('.mrow').forEach(row => {
-    const f = facOf(row.dataset.id);
-    row.querySelector('select').onchange = e => { f.nation = e.target.value; fillPaint(); scheduleSave(); };
-    row.querySelector('input[type=text]').oninput = e => { f.name = e.target.value; scheduleSave(); };
-    row.querySelector('.x').onclick = () => {
-      snap();
-      factions = factions.filter(x => x !== f);
-      for (const k in owner) if (owner[k].f === f.id) owner[k].f = '';
-      renderMgr(); renderSel(); draw(); scheduleSave();
-    };
-  });
-}
-$('bMgr').onclick = () => { renderMgr(); $('mgr').classList.add('on'); };
-$('bMgrClose').onclick = () => $('mgr').classList.remove('on');
-$('mgr').onclick = e => { if (e.target.id === 'mgr') $('mgr').classList.remove('on'); };
-$('bAddNation').onclick = () => {
-  snap();
-  nations.push({ id:newId('N', nations), name:'新国家', color:PALETTE[nations.length % PALETTE.length] });
-  renderMgr(); fillPaint(); scheduleSave();
-};
-$('bAddFaction').onclick = () => {
-  snap();
-  if (!nations.length){ alert('先加一个国家'); return; }
-  factions.push({ id:newId('F', factions), name:'新地方', nation:nations[0].id });
-  renderMgr(); scheduleSave();
-};
-$('bMgrCsv').onclick = () => {
-  const rows = [["kind","id","name","nation","color"]];
-  for (const n of nations) rows.push(["nation", n.id, n.name, "", n.color]);
-  for (const f of factions) rows.push(["faction", f.id, f.name, f.nation, ""]);
-  dl('nations_factions.csv', "\ufeff" + rows.map(r => r.join(",")).join("\r\n"));
-};
-
 /* ---------- 调试 / 冒烟测试入口 ---------- */
 window.__CITY_EDITOR__ = {
   S, draw, fit, center, renderSel, undo, redo, hit, w2s, s2w, popOf,
   csvMap, csvPop, csvOwn,
   get nations(){ return nations; },
   get factions(){ return factions; },
-  paintAt, renderMgr, fillPaint,
+  
   get items(){ return items; },
   get pops(){ return pops; },
   get owner(){ return owner; }

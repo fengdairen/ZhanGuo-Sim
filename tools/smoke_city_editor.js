@@ -146,6 +146,14 @@ const got = api.owner[target.id];
 check(got && got.n === nat0.id && got.f === 'F_test',
       '归属刷没生效：' + JSON.stringify(got));
 
+// 地方留空 = 中央直辖
+api.S.paint = { n:nat0.id, f:'' };
+const direct = api.items.filter(i => i.t === 0)[5];
+const [dx2, dy2] = api.w2s(direct.x, direct.y);
+pd(ev(dx2, dy2)); pu(ev(dx2, dy2));
+const dg = api.owner[direct.id];
+check(dg && dg.n === nat0.id && dg.f === '', '中央直辖没写对：' + JSON.stringify(dg));
+
 // 笔刷半径可调：笔刷调大后能一次刷到相邻的城
 api.S.brush = 60;
 const near = api.items.filter(i => i.t === 0 &&

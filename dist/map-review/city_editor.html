@@ -522,6 +522,7 @@ function renderSel(){
     '</select></div>' +
     '<div class="fld"><span>国家</span><select id="ownNation">' + nationOptions((owner[it.id]||{}).n || '') + '</select></div>' +
     '<div class="fld"><span>地方</span><select id="ownFaction">' + factionOptions((owner[it.id]||{}).n || '', (owner[it.id]||{}).f || '') + '</select></div>' +
+    '<div class="fld"><span>摘要</span><span class="k" id="ownSummary">' + ownText(it.id) + '</span></div>' +
     '<div class="fld"><span>坐标</span><span class="k">' + it.x.toFixed(1) + ', ' + it.y.toFixed(1) + '</span></div>' +
     '<div class="fld"><span>人口</span><span class="k">' + popOf(it.id).toFixed(2) + '</span></div>' +
     '<div class="fld"><span></span><button id="bDelOne">删除</button></div>';
@@ -595,9 +596,18 @@ function nationOptions(cur){
   return '<option value="">—</option>' + nations.map(n =>
     '<option value="' + n.id + '"' + (n.id === cur ? ' selected' : '') + '>' + n.name + '</option>').join('');
 }
+// 地方可以留空 —— 空 = 中央直辖
+function ownText(id){
+  const o = owner[id];
+  if (!o || !o.n) return '未归属';
+  const n = natOf(o.n), f = o.f ? facOf(o.f) : null;
+  return (n ? n.name : o.n) + ' · ' + (f ? f.name : '中央直辖');
+}
 function factionOptions(nation, cur){
-  const list = factions.filter(f => !nation || f.nation === nation);
-  return '<option value="">—</option>' + list.map(f =>
+  const head = '<option value="">中央直辖</option>';
+  if (!nation) return head;
+  const list = factions.filter(f => f.nation === nation);
+  return head + list.map(f =>
     '<option value="' + f.id + '"' + (f.id === cur ? ' selected' : '') + '>' + f.name + '</option>').join('');
 }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
@@ -608,8 +618,11 @@ function updateStatus(){
   $('sSel').textContent = S.sel.size;
   $('sZoom').textContent = Math.round(S.scale*100) + '%';
   $('sSave').textContent = lastSave ? ('已存盘 ' + lastSave) : '未存盘';
+  const owned = Object.keys(owner).length;
+  const direct = Object.keys(owner).filter(k => owner[k].n && !owner[k].f).length;
   $('statBox').innerHTML =
-    '已归属 ' + Object.keys(owner).length + ' / ' + items.filter(i => i.t === 0).length + ' 城<br>' +
+    '已归属 ' + owned + ' / ' + items.filter(i => i.t === 0).length + ' 城' +
+    '（其中中央直辖 ' + direct + '）<br>' +
     '人口行 ' + pops.length + ' 条 · 合计 ' + pops.reduce((s,p) => s + (p.amount||0), 0).toFixed(1) + ' 万';
 }
 

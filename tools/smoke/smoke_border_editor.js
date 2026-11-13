@@ -183,6 +183,38 @@ check(!!api.S.draft.end, '终点应吸附到河上');
   check(outside.every(c => !api.owner[c.id] || !api.owner[c.id].n),
         '离开疆域的城邑仍保留归属');
 
+// 8) 闭环工具
+{
+  api.S.mode = 'loop';
+  api.S.draft = null;
+  api.setEdges([]);
+  api.center(2200, 2200, 1);
+  const at = (wx,wy) => { const s2 = api.w2s(wx,wy); pd(ev(s2[0], s2[1])); };
+  at(2000,2000); at(2400,2000); at(2400,2400);
+  check(api.S.draft.pts.length === 3, '闭环应记录 3 个顶点');
+  at(2001,2001);                       // 点回起点附近 → 收环
+  check(api.edges.length === 1, '闭环没有生成（' + api.edges.length + '）');
+  check(api.edges[0].closed === true, '闭环标记丢了');
+  const ring = api.edges[0].pts;
+  check(Math.hypot(ring[0][0]-ring[ring.length-1][0], ring[0][1]-ring[ring.length-1][1]) < 0.01,
+        '闭环首尾没接上');
+  check(Math.abs(api.polyArea(ring) - 80000) < 500, '闭环面积不对：' + Math.round(api.polyArea(ring)));
+
+  // 起点落在已知点上 → 拒绝生成
+  const before = api.edges.length;
+  api.S.draft = { pts:[[2100,2100],[2300,2100],[2300,2300]], loop:true,
+                  startSnap:{kind:'river', id:'x', x:2100, y:2100} };
+  api.commitLoop();
+  check(api.edges.length === before, '起点在已知点上时不应生成闭环');
+
+  // 闭环直接转疆域
+  api.S.draft = null;
+  api.S.selEdge = new Set([api.edges[0].id]);
+  api.doBuildRealm();
+  check(api.realms.length >= 1, '闭环没能直接转成疆域');
+  api.S.mode = 'sel';
+}
+
 console.log('PASS  国界绘制器：补全/闭环/内外判定/悬空报错/归属应用/拖点重算');
   process.exit(0);
 })().catch(e => { console.error('FAIL: ' + e.message); process.exit(1); });

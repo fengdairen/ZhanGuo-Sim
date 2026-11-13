@@ -117,7 +117,8 @@ TPL = r"""<!DOCTYPE html>
 
 <div id="rail" class="panel">
   <button class="mode on" data-m="sel" title="选择 / 拖动 / 框选">选择</button>
-  <button class="mode" data-m="draw" title="像画河一样画边界线，起点终点必须落在水系或其他边界线上">画边界</button>
+  <button class="mode" data-m="draw" title="普通边界线：起止点必须落在海岸/河流/湖泊/其他边界线上">画边界</button>
+  <button class="mode" data-m="loop" title="闭环边界线：首尾自己咬上，端点不受水系约束">闭环</button>
 </div>
 
 <div id="bar" class="panel">
@@ -471,6 +472,7 @@ function draw(){
         i ? ctx.lineTo(sx,sy) : ctx.moveTo(sx,sy);
       }
       ctx.strokeStyle = sel ? '#d35400' : COL.edge;
+      if (e.closed) ctx.closePath();
       ctx.lineWidth = sel ? 5.5 : 3.8; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke();
       if (sel){
         for (const pt of e.pts){
@@ -635,6 +637,20 @@ cv.addEventListener('pointerdown', e => {
 
   if (e.button === 1 || e.button === 2 || e.code === 'Space'){ S.drag = {type:'pan', mx, my, tx:S.tx, ty:S.ty}; return; }
 
+  if (S.mode === 'loop'){
+    if (!S.draft){
+      const t = snapTarget(wx, wy, 16);
+      S.draft = { pts:[[wx, wy]], loop:true, startSnap:t, cursor:null };
+      draw(); return;
+    }
+    const first = S.draft.pts[0];
+    const nearStart = Math.hypot(wx-first[0], wy-first[1]) <= 12/S.scale;
+    if (S.draft.pts.length >= 3 && nearStart){ commitLoop(); return; }
+    S.draft.pts.push([wx, wy]);
+    S.draft.cursor = null;
+    draw(); return;
+  }
+
   if (S.mode === 'draw'){
     const t = snapTarget(wx, wy, 16);
     if (!S.draft){
@@ -682,6 +698,10 @@ cv.addEventListener('pointermove', e => {
   S.cursor = [mx,my];
   if (S.drag && S.drag.type === 'pan'){
     S.tx = S.drag.tx + (mx - S.drag.mx); S.ty = S.drag.ty + (my - S.drag.my); draw(); return;
+  }
+  if (S.mode === 'loop'){
+    if (S.draft) S.draft.cursor = [wx, wy];
+    draw(); return;
   }
   if (S.mode === 'draw'){
     const t = snapTarget(wx, wy, 16);
@@ -731,7 +751,7 @@ window.addEventListener('keydown', e => {
   const t = e.target;
   if (t && (t.tagName==='INPUT'||t.tagName==='SELECT')) return;
   if (e.key === 'Escape'){ S.draft = null; S.selEdge = new Set(); S.selRealm = null; renderSel(); draw(); }
-  if (e.key === 'Enter' && S.draft){ commitDraft(); }
+  if (e.key === 'Enter' && S.draft){ S.mode === 'loop' ? commitLoop() : commitDraft(); }
   if (e.key === 'Backspace' && S.draft){
     e.preventDefault();
     if (S.draft.pts.length > 1){ S.draft.pts.pop(); S.draft.end = null; }
@@ -757,6 +777,26 @@ function commitDraft(){
   S.draft = null; scheduleSave(); renderSel(); draw();
 }
 
+// 闭环工具：首尾自己咬上就成环；起点如果落在已知点上，拒绝生成
+function commitLoop(){
+  const d = S.draft;
+  if (!d || d.pts.length < 3){ toast('闭环至少要三个点'); return; }
+  if (d.startSnap){
+    toast('起点落在已知点（' + d.startSnap.kind + '）上，请改用「画边界」');
+    S.draft = null; draw(); return;
+  }
+  const ring = d.pts.concat([[d.pts[0][0], d.pts[0][1]]]).map(
+    p => [Math.round(p[0]*10)/10, Math.round(p[1]*10)/10]);
+  const area = polyArea(ring);
+  if (area < 500){ toast('这个环太小（' + Math.round(area) + ' px²）'); return; }
+  snap();
+  const id = 'b' + String(edges.length + 1).padStart(3,'0');
+  edges.push({ id, closed:true, pts:ring, ends:[] });
+  S.draft = null;
+  scheduleSave(); renderSel(); draw();
+  toast('闭环边界线已生成：' + Math.round(area).toLocaleString() + ' px²');
+}
+
 /* ================= 侧栏 ================= */
 function renderSel(){
   const box = $('edgeBox');
@@ -773,7 +813,7 @@ function renderSel(){
     const a = e.ends ? e.ends[0] : null, b = e.ends ? e.ends[1] : null;
     const lab = x => x ? (x.kind === 'river' ? '河' : x.kind === 'coast' ? '岸' : x.kind === 'lake' ? '湖' : '界') : '—';
     return '<div class="erow" data-id="' + id + '"><span class="tag">' + id + '</span>' +
-      '长 ' + Math.round(polyLen(e.pts)) + 'px · 两端 ' + lab(a) + '/' + lab(b) +
+      '长 ' + Math.round(polyLen(e.pts)) + 'px · ' + (e.closed ? '闭环' : ('两端 ' + lab(a) + '/' + lab(b))) +
       '<span class="x">✕</span></div>';
   }).join('') +
   '<div class="fld"><button id="bDelEdge" style="flex:1">删除选中的 ' + ids.length + ' 条边界线</button></div>';
@@ -858,7 +898,7 @@ function doBuildRealm(){
   if (ids.length === 1){
     const e = edges.find(x => x.id === ids[0]);
     const a0 = e.pts[0], a1 = e.pts[e.pts.length-1];
-    if (e.pts.length >= 4 && Math.hypot(a0[0]-a1[0], a0[1]-a1[1]) <= 2){
+    if (e.pts.length >= 4 && (e.closed || Math.hypot(a0[0]-a1[0], a0[1]-a1[1]) <= 2)){
       const ring = e.pts.slice();
       let area = 0;
       for (let i=0;i+1<ring.length;i++) area += ring[i][0]*ring[i+1][1] - ring[i+1][0]*ring[i][1];
@@ -993,7 +1033,7 @@ window.addEventListener('resize', resize);
 
 window.__BORDER_EDITOR__ = {
   S, draw, fit, center, w2s, s2w, snapTarget, buildRealm, buildNet, pointInPoly, dijkstra, commitDraft,
-  doBuildRealm, applyRealm, dropRealm, hitRealm, syncRealmsForEdge, vertexAt, polyArea, isClosedRing, undo, redo,
+  doBuildRealm, applyRealm, dropRealm, commitLoop, hitRealm, syncRealmsForEdge, vertexAt, polyArea, isClosedRing, undo, redo,
   get edges(){ return edges; }, get realms(){ return realms; }, get owner(){ return owner; },
   get cities(){ return cities; }, get nations(){ return nations; },
   setVector(V){ S.V = V; bgKey = ''; },

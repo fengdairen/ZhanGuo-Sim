@@ -75,7 +75,7 @@
   <button id="bOut">－</button>
 </div>
 <div id="foot" class="panel"></div>
-<a href="../index.html" class="panel" id="home" style="top:12px;left:12px;padding:6px 10px;text-decoration:none;color:#2d5d80;font-size:12.5px">← 数据台</a>
+<a href="../index.html" class="panel" id="home" style="bottom:58px;left:12px;padding:6px 12px;text-decoration:none;color:#2d5d80;font-size:12.5px">← 数据台</a>
 <div id="zoom" class="panel">—</div>
 <div id="tip"></div>
 
@@ -106,6 +106,21 @@ function resize(){
 }
 const FRAME_MAT = 220;              // 与 draw() 里的装裱边宽一致
 
+function centerAt(x, y, sc){
+  V.scale = sc; V.tx = cw/2 - x*sc; V.ty = ch/2 - y*sc; draw();
+}
+// 深链：#n0231 定位城池；#x,y,z 定位坐标与缩放
+function deepLink(){
+  if (typeof location === 'undefined') return;
+  const h = (location.hash || '').slice(1);
+  if (!h) return;
+  const c = CITIES.find(c2 => c2.id === h);
+  if (c){ centerAt(c.x, c.y, 0.9); hoverCity = c; return; }
+  const p2 = h.split(',').map(Number);
+  if (p2.length >= 2 && p2.every(n => !isNaN(n))) centerAt(p2[0], p2[1], p2[2] || 0.6);
+}
+window.addEventListener('hashchange', deepLink);
+
 function fit(){
   // 连装裱一起放进画面，否则绫边会被裁掉
   const s = Math.min(cw/(CW + FRAME_MAT*2), ch/(CH + FRAME_MAT*2)) * 0.97;
@@ -123,6 +138,14 @@ function pathOf(poly, close){
   return p;
 }
 
+function shade(hex, k){          // 混入墨色，让国界线与河网区分开
+  const h = hex.replace('#','');
+  const n = parseInt(h.length === 3 ? h.split('').map(c=>c+c).join('') : h, 16);
+  const r = Math.round(((n>>16)&255) * (1-k) + 58 * k);
+  const g = Math.round(((n>>8)&255) * (1-k) + 40 * k);
+  const b2 = Math.round((n&255) * (1-k) + 28 * k);
+  return 'rgb(' + r + ',' + g + ',' + b2 + ')';
+}
 function rgba(hex, a){
   const h = hex.replace('#','');
   const n = parseInt(h.length === 3 ? h.split('').map(c=>c+c).join('') : h, 16);
@@ -262,8 +285,8 @@ function draw(){
       }
       ctx.restore();
       // 边界：整圈一次描边，宽度统一
-      ctx.strokeStyle = rgba(r.color, 0.92);
-      ctx.lineWidth = 2.4 / V.scale;      // 整圈一次描边，宽度恒定，不会一节粗一节细
+      ctx.strokeStyle = rgba(shade(r.color, 0.45), 0.95);
+      ctx.lineWidth = 2.6 / V.scale;      // 整圈一次描边，宽度恒定，不会一节粗一节细
       ctx.stroke(r.path);
     }
   }
@@ -312,19 +335,6 @@ function draw(){
     ctx.stroke(G.coastDrawnLine);
   }
 
-  // 国号：画在江河湖海之上，避免被水系切断
-  if (G.realms.length){
-    for (const r of G.realms){
-      if (!r.nationName || r.area < 50000) continue;
-      const size = Math.max(90, Math.sqrt(r.area) / 3.6);
-      ctx.save();
-      ctx.font = '700 ' + size + 'px "Songti SC","SimSun",serif';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillStyle = rgba(r.color, 0.34);
-      ctx.fillText(r.nationName, r.center[0], r.center[1] + size * 0.04);
-      ctx.restore();
-    }
-  }
 
   ctx.setTransform(dpr,0,0,dpr,0,0);
 
@@ -347,24 +357,43 @@ function draw(){
     for (const c of CITIES){
       const [sx,sy] = w2s(c.x, c.y);
       if (sx < -10 || sy < -10 || sx > cw+10 || sy > ch+10) continue;
+      const k = Math.min(2.6, Math.max(1, V.scale / 0.18));   // 放大时城池点跟着变大
       if (c.kind === '都'){
-        ctx.beginPath(); ctx.arc(sx, sy, 4.4, 0, 6.283);
+        ctx.beginPath(); ctx.arc(sx, sy, 4.0*k, 0, 6.283);
         ctx.fillStyle = COL.du; ctx.fill();
-        ctx.beginPath(); ctx.arc(sx, sy, 6.8, 0, 6.283);
-        ctx.strokeStyle = 'rgba(139,46,30,.55)'; ctx.lineWidth = 1.1; ctx.stroke();
+        ctx.beginPath(); ctx.arc(sx, sy, 6.4*k, 0, 6.283);
+        ctx.strokeStyle = 'rgba(139,46,30,.55)'; ctx.lineWidth = 1.0*k; ctx.stroke();
       } else if (c.kind === '城'){
-        ctx.beginPath(); ctx.arc(sx, sy, 2.9, 0, 6.283);
+        ctx.beginPath(); ctx.arc(sx, sy, 2.6*k, 0, 6.283);
         ctx.fillStyle = COL.cheng; ctx.fill();
-        ctx.strokeStyle = 'rgba(246,238,216,.85)'; ctx.lineWidth = .7; ctx.stroke();
+        ctx.strokeStyle = 'rgba(246,238,216,.85)'; ctx.lineWidth = .7*k; ctx.stroke();
       } else {
-        ctx.beginPath(); ctx.arc(sx, sy, 1.5, 0, 6.283);
+        ctx.beginPath(); ctx.arc(sx, sy, 1.4*k, 0, 6.283);
         ctx.fillStyle = COL.yi; ctx.globalAlpha = .92; ctx.fill(); ctx.globalAlpha = 1;
       }
     }
   }
 
+  labelReset();
   if (L.label) drawLabels(L);
   if (L.rname && DATA.riverLabels) drawRiverNames();
+
+  // 国号：最后画，压在所有信息之上；只在"看整块疆域"时出现
+  if (G.realms.length && V.scale < 0.45){
+    for (const r of G.realms){
+      if (!r.nationName || r.area < 50000) continue;
+      // 这里已经是屏幕坐标系：世界尺寸要乘缩放
+      const [sx, sy] = w2s(r.center[0], r.center[1]);
+      const maxScreen = Math.min(cw, ch) * 0.16;
+      const size = Math.max(20, Math.min(Math.sqrt(r.area) / 8 * V.scale, maxScreen * 0.62));
+      ctx.save();
+      ctx.font = '600 ' + size + 'px "Songti SC","SimSun",serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = rgba(shade(r.color, 0.35), 0.42);
+      ctx.fillText(r.nationName, sx, sy + size * 0.03);
+      ctx.restore();
+    }
+  }
 
   if (hoverCity){
     const [sx,sy] = w2s(hoverCity.x, hoverCity.y);
@@ -398,6 +427,9 @@ function drawRiverNames(){
       if (!l.name) continue;
       const [sx, sy] = w2s(l.cx, l.cy);
       if (sx < -80 || sy < -20 || sx > cw + 80 || sy > ch + 20) continue;
+      ctx.font = 'italic 13px "Songti SC","SimSun",serif';
+      const lw = ctx.measureText(l.name).width;
+      if (!labelTry(sx - lw/2, sy - 8, lw, 16, 3)) continue;
       ctx.lineWidth = 3.4;
       ctx.strokeStyle = 'rgba(246,238,216,.9)';
       ctx.strokeText(l.name, sx, sy);
@@ -407,15 +439,24 @@ function drawRiverNames(){
     ctx.textAlign = 'left';
   }
   if (!list.length) return;
+  // 低缩放只保留大河名，避免满屏河名
+  const sc = V.scale;
+  const maxN = sc > 0.6 ? 999 : sc > 0.35 ? 90 : sc > 0.2 ? 40 : 16;
+  const ranked = list.slice().sort((a, b) =>
+    ((b.water || 0) - (a.water || 0)) || ((b.len || 0) - (a.len || 0)));
+  const picked = ranked.slice(0, maxN);
+  if (sc < 0.12) return;
   ctx.font = '13px "Songti SC","SimSun",serif';
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
   ctx.font = '13px "Songti SC","SimSun",serif';
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
-  for (const r of list){
+  for (const r of picked){
     const [sx, sy] = w2s(r.x, r.y);
     if (sx < -80 || sy < -20 || sx > cw + 80 || sy > ch + 20) continue;
+    const rw = ctx.measureText(r.name).width;
+    if (!labelTry(sx - rw/2, sy - 8, rw, 16, 4)) continue;
     ctx.lineWidth = 3.4;
     ctx.strokeStyle = 'rgba(246,238,216,.9)';
     ctx.strokeText(r.name, sx, sy);
@@ -425,46 +466,53 @@ function drawRiverNames(){
   ctx.textAlign = 'left';
 }
 
+let LB = null;                       // 每帧重建的标注占位表
+function labelReset(){
+  LB = { cell:110, grid:new Map() };
+}
+function labelTry(x, y, w, h, pad){
+  pad = pad || 0;
+  x -= pad; y -= pad; w += pad*2; h += pad*2;
+  const C = LB.cell;
+  const gx = Math.floor(x/C), gy = Math.floor(y/C);
+  for (let i=gx-1;i<=gx+1;i++) for (let j=gy-1;j<=gy+1;j++){
+    const arr = LB.grid.get(i+'|'+j); if (!arr) continue;
+    for (const b of arr) if (x < b[0]+b[2] && x+w > b[0] && y < b[1]+b[3] && y+h > b[1]) return false;
+  }
+  const k = Math.floor(x/C)+'|'+Math.floor(y/C);
+  if (!LB.grid.has(k)) LB.grid.set(k, []);
+  LB.grid.get(k).push([x,y,w,h]);
+  return true;
+}
+
 function drawLabels(L){
-  const showYi = V.scale > 0.30;
-  const fs = V.scale > 0.62 ? 13 : 12;
+  const sc = V.scale;
+  // 缩放决定"看到哪一层"：越小越只显示大城
+  const showCheng = sc > 0.20;
+  const showYi    = sc > 0.46;
+  const fs = sc > 1.1 ? 15 : sc > 0.55 ? 13 : 12;
   ctx.font = fs + 'px "Songti SC","SimSun",serif';
   ctx.textBaseline = 'middle';
-  const CELL = 96, grid = new Map();
-  const overlap = (x,y,w,h) => {
-    const gx = Math.floor(x/CELL), gy = Math.floor(y/CELL);
-    for (let i=gx-1;i<=gx+1;i++) for (let j=gy-1;j<=gy+1;j++){
-      const arr = grid.get(i+'|'+j); if (!arr) continue;
-      for (const b of arr) if (x < b[0]+b[2] && x+w > b[0] && y < b[1]+b[3] && y+h > b[1]) return true;
-    }
-    return false;
-  };
-  const push = (x,y,w,h) => {
-    const k = Math.floor(x/CELL)+'|'+Math.floor(y/CELL);
-    if (!grid.has(k)) grid.set(k, []);
-    grid.get(k).push([x,y,w,h]);
-  };
   const rank = {'都':0, '城':1, '邑':2};
   const list = CITIES.slice().sort((a,b)=> (rank[a.kind]-rank[b.kind]) || (b.pop-a.pop));
   for (const c of list){
+    if (c.kind === '城' && !showCheng) continue;
     if (c.kind === '邑' && !showYi) continue;
     const [sx,sy] = w2s(c.x, c.y);
     if (sx < -70 || sy < -24 || sx > cw+10 || sy > ch+24) continue;
-    const pad = c.kind === '邑' ? 5 : 7;
+    const pad = c.kind === '都' ? 6 : 8;
     const w = ctx.measureText(c.name).width;
     const h = fs + 2;
     const x = sx + pad, y = sy - h/2;
-    if (overlap(x, y, w, h)) continue;
-    push(x, y, w, h);
+    if (!labelTry(x, y, w, h, 2)) continue;
     ctx.lineWidth = 3.2;
     ctx.strokeStyle = COL.halo;
     ctx.strokeText(c.name, x, sy);
-    ctx.fillStyle = c.kind === '都' ? '#571c12' : (c.kind === '城' ? '#3b2918' : '#5c4934');
+    ctx.fillStyle = c.kind === '都' ? '#571c12' : (c.kind === '城' ? '#3b2918' : '#6b5940');
     ctx.fillText(c.name, x, sy);
   }
 }
 
-// ---------- 交互 ----------
 let dragging = false, last = null;
 cv.addEventListener('pointerdown', e => {
   dragging = true; last = [e.clientX, e.clientY];
@@ -565,7 +613,7 @@ setInterval(async () => {
 
 window.addEventListener('resize', resize);
 
-resize(); fit();
+resize(); fit(); deepLink();
 el('foot').textContent =
   '河 ' + DATA.rivers.length + ' 段 · 湖 ' + (DATA.lakesDrawn || []).length + ' 处 · 城邑 ' + CITIES.length +
   ' 座 · 部族 ' + REGIONS.length + '　｜　滚轮缩放 · 拖拽平移 · 双击放大 · P 看性能';

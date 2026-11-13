@@ -32,7 +32,7 @@ dist\map-vector\map.html
 **地图编辑器**（改名 / 改人口 / 移动标点 / 新增 / 删除）：
 
 ```
-dist\map-review\map_editor.html
+dist\map-review\city_editor.html
 ```
 
 **数据工作台**（经济表只读查看 + 变更单写入）：

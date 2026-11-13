@@ -59,15 +59,14 @@ def migrate(segs):
                 "idx": int(s["parent"].get("idx") or 0),
             })
         links.sort(key=lambda L: L["at"])
+        # parent 一律由 links 重新推导，不信任输入（旧数据里出现过 {"idx":10} 这种残废 parent）
+        nature = s.get("nature") or ("artificial" if rank == 4 else "natural")
         mouth_links = [L for L in links if L.get("kind") == "mouth" and L.get("river")]
-        if rank == 4:
+        if nature == "artificial" or not mouth_links:
             parent = None
-        elif s.get("parent"):
-            parent = s["parent"]
-        elif mouth_links:
-            parent = {"river": mouth_links[0]["river"], "seg": mouth_links[0]["seg"], "idx": mouth_links[0]["idx"]}
         else:
-            parent = None
+            parent = {"river": mouth_links[0]["river"], "seg": mouth_links[0]["seg"],
+                      "idx": mouth_links[0]["idx"]}
 
         out.append({
             "id": s.get("id") or f"r{len(out)+1:03d}",
@@ -76,7 +75,7 @@ def migrate(segs):
             "name": s.get("name") or "",
             "section": s.get("section") or "",
             "water": water,
-            "nature": (s.get("nature") or ("artificial" if rank == 4 else "natural")),
+            "nature": nature,
             "flow": flow,
             "links": links,
             "parent": parent,

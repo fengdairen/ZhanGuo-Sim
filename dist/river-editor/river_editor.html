@@ -1192,8 +1192,15 @@ function splitAt(segId, idx){
   const allLinks = seg.links || [];
   A.links = allLinks.filter(L => L.at <= idx).map(L => ({ ...L }));
   B.links = allLinks.filter(L => L.at > idx).map(L => ({ ...L, at: L.at - idx }));
-  A.parent = (A.nature === 'artificial') ? null : ((A.links[0] && { river:A.links[0].river, seg:A.links[0].seg, idx:A.links[0].idx }) || null);
-  B.parent = (B.nature === 'artificial') ? null : ((B.links[0] && { river:B.links[0].river, seg:B.links[0].seg, idx:B.links[0].idx }) || null);
+  // parent 只取"河口端 + 指向河道"的链接（切段时曾错拿 links[0]，把湖链接写成了坏 parent）
+  const mouthRiverParent = sg => {
+    if (!sg || sg.nature === 'artificial') return null;
+    const at = mouthIndex(sg);
+    const L = (sg.links || []).find(x => x.at === at && x.river);
+    return L ? { river: L.river, seg: L.seg, idx: L.idx } : null;
+  };
+  A.parent = mouthRiverParent(A);
+  B.parent = mouthRiverParent(B);
   S.segs.splice(i, 1, A, B);
   for (const k of kids){
     if (k.parent.idx <= idx) continue;              // 还在前半段

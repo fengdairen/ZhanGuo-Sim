@@ -142,6 +142,7 @@ HTML = r"""<!doctype html>
   <button id="bOut">－</button>
 </div>
 <div id="foot" class="panel"></div>
+<a href="../index.html" class="panel" id="home" style="top:12px;left:12px;padding:6px 10px;text-decoration:none;color:#2d5d80;font-size:12.5px">← 数据台</a>
 <div id="zoom" class="panel">—</div>
 <div id="tip"></div>
 

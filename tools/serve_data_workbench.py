@@ -101,10 +101,14 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json({"error": str(e)}, 500)
         if self.path in ("/", ""):
             self.send_response(302)
-            self.send_header("Location", "/river-editor/")
+            self.send_header("Location", "/index.html")
             self.end_headers()
             return
         # 目录访问补 index
+        if self.path.endswith("/"):
+            cand = WEB / self.path.lstrip("/") / "index.html"
+            if cand.exists():
+                self.path = self.path + "index.html"
         if self.path.endswith("/river-editor/"):
             self.path = "/river-editor/river_editor.html"
         return super().do_GET()

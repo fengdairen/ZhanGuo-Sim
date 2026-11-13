@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>战国演义 · 数据台</title>
+<style>
+  :root{
+    --paper:#f3e8cf; --ink:#33241a; --line:rgba(120,90,56,.28);
+    --desk:#54483a; --card:#faf3e2; --accent:#2d5d80; --warn:#8b2e1e;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--desk);
+    font:15px/1.65 "Songti SC","SimSun",serif;color:var(--ink);
+    padding:28px 20px 40px;display:flex;justify-content:center;
+  }
+  .sheet{
+    width:min(1080px,100%);background:var(--paper);border-radius:3px;
+    box-shadow:0 18px 60px rgba(0,0,0,.45), 0 0 0 1px rgba(0,0,0,.2);
+    padding:30px 34px 26px;
+  }
+  header{display:flex;align-items:baseline;gap:12px;border-bottom:2px solid var(--line);padding-bottom:12px}
+  h1{font-size:24px;margin:0;letter-spacing:2px}
+  .sub{color:#7a6547;font-size:13px}
+  .status{margin-left:auto;font-size:12.5px;color:#7a6547}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#b9a583;margin-right:5px;vertical-align:1px}
+  .dot.on{background:#3f8f6a}
+  .dot.off{background:#b0503c}
+  h2{font-size:13px;letter-spacing:3px;color:#8a7350;margin:26px 0 10px;font-weight:400}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+  a.card{
+    display:block;text-decoration:none;color:inherit;background:var(--card);
+    border:1px solid var(--line);border-radius:4px;padding:14px 16px;
+    transition:.14s;position:relative;
+  }
+  a.card:hover{border-color:var(--accent);box-shadow:0 3px 14px rgba(60,40,20,.14);transform:translateY(-1px)}
+  a.card .t{font-size:16px;color:var(--accent);letter-spacing:1px}
+  a.card .d{font-size:12.5px;color:#6b5940;margin-top:5px}
+  a.card .f{font-size:11.5px;color:#9a8464;margin-top:7px;font-family:Consolas,monospace}
+  .tag{float:right;font-size:11px;padding:1px 7px;border-radius:9px;border:1px solid var(--line);color:#8a7350}
+  .tag.on{border-color:#3f8f6a;color:#3f8f6a}
+  .tag.off{border-color:#b0503c;color:#b0503c}
+  .note{
+    margin-top:22px;padding:12px 15px;border-left:3px solid var(--accent);
+    background:rgba(45,93,128,.06);font-size:12.5px;color:#5a4a34;line-height:1.8;
+  }
+  code{background:rgba(120,90,56,.12);padding:1px 6px;border-radius:3px;font-size:12px}
+  footer{margin-top:20px;font-size:11.5px;color:#9a8464;border-top:1px solid var(--line);padding-top:12px}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <header>
+    <h1>战国演义 · 数据台</h1>
+    <span class="sub">BC 390 · 单机战国文字国策</span>
+    <span class="status" id="svc"><span class="dot"></span>检测本地服务…</span>
+  </header>
+
+  <h2>一 · 描迹（水系的真相）</h2>
+  <div class="grid">
+    <a class="card" href="river-editor/river_editor.html">
+      <span class="tag" id="tagRiver">需要本地服务</span>
+      <div class="t">河湖海描迹器</div>
+      <div class="d">画河流（干流/支流/岔流/运河）、湖泽、海岸线。类型自动判定，改动自动写盘。</div>
+      <div class="f">data/map/rivers/river_segments.json</div>
+    </a>
+  </div>
+
+  <h2>二 · 查看（出图）</h2>
+  <div class="grid">
+    <a class="card" href="map-vector/map.html">
+      <div class="t">矢量舆图</div>
+      <div class="d">由描迹数据生成的单文件地图：海面、河网、湖泽、城邑、部族。滚轮缩放，<code>P</code> 看性能。</div>
+      <div class="f">dist/map-vector/map.html · 双击 重建地图.cmd 更新</div>
+    </a>
+  </div>
+
+  <h2>三 · 城池与人口（编辑与勘误）</h2>
+  <div class="grid">
+    <a class="card" href="map-review/map_editor.html">
+      <div class="t">城池编辑器</div>
+      <div class="d">改城名、归属、坐标、人口；导出 CSV 覆盖 <code>data/map/</code>。</div>
+      <div class="f">nodes / regions / populations</div>
+    </a>
+    <a class="card" href="map-review/names.html">
+      <div class="t">地名勘误</div>
+      <div class="d">逐条核对可疑地名，人工确认或改写。</div>
+      <div class="f">data/map/nodes.csv</div>
+    </a>
+    <a class="card" href="map-review/pop_table.html">
+      <div class="t">人群库</div>
+      <div class="d">查看与维护人群类型（无认同人口等口径）。</div>
+      <div class="f">data/map/populations.csv</div>
+    </a>
+  </div>
+
+  <div class="note">
+    <b>两个入口的区别</b>：<br>
+    · 经本地服务打开（<code>启动数据台.cmd</code>）→ 描迹器可读写 <code>river_segments.json</code>，改动自动存盘。<br>
+    · 直接双击 HTML 文件 → 只能看；描迹器会退回浏览器缓存模式，关掉就丢。<br>
+    <b>出图</b>：画完双击仓库根目录的 <code>重建地图.cmd</code>，四步跑完即更新上面那张舆图。
+  </div>
+
+  <footer>
+    数据体检 <code>python tools/audit_map_data.py</code> ·
+    存档 <code>python tools/make_archive.py</code> ·
+    文档 <code>docs/2-数据/25-河流描迹.md</code>、<code>26-河网定稿.md</code>
+  </footer>
+</div>
+
+<script>
+(async function(){
+  const el = document.getElementById('svc');
+  const tag = document.getElementById('tagRiver');
+  const set = (ok, text) => {
+    el.innerHTML = '<span class="dot ' + (ok ? 'on' : 'off') + '"></span>' + text;
+    if (tag){
+      tag.textContent = ok ? '本地服务 · 自动存盘' : '未连服务 · 只读';
+      tag.className = 'tag ' + (ok ? 'on' : 'off');
+    }
+  };
+  if (location.protocol === 'file:'){
+    set(false, '直接打开的本地文件');
+    return;
+  }
+  try {
+    const r = await fetch('/api/ping', { cache:'no-store' });
+    set(r.ok, r.ok ? '本地服务在线 · 改动自动存盘' : '本地服务未响应');
+  } catch (e){
+    set(false, '本地服务未响应');
+  }
+})();
+</script>
+</body>
+</html>

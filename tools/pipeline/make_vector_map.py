@@ -39,11 +39,12 @@ for r in csv.DictReader(open(ROOT / "data" / "map" / "nodes.csv", encoding="utf-
 PALETTE = ["#c0392b","#2980b9","#27ae60","#8e44ad","#d35400",
            "#16a085","#2c3e50","#c2185b","#7f8c8d","#f39c12",
            "#5d6d7e","#a04000","#1abc9c","#9b59b6","#e67e22"]
-nation_color = {}
+nation_color, nation_name = {}, {}
 try:
     _st = json.loads((ROOT / "data" / "state.json").read_text(encoding="utf-8"))
     for _i, _n in enumerate(_st.get("nations", [])):
         nation_color[_n["id"]] = PALETTE[_i % len(PALETTE)]
+        nation_name[_n["id"]] = _n.get("name") or _n["id"]
 except Exception:
     pass
 
@@ -63,6 +64,7 @@ if _bp.exists():
                 "name": _r.get("name") or "",
                 "color": nation_color.get(_r.get("nation"), "#7a6248"),
                 "nation": _r.get("nation") or "",
+                "nationName": nation_name.get(_r.get("nation"), ""),
                 "pts": flat,
             })
     except Exception as _e:
@@ -240,7 +242,20 @@ G.coastDrawnLine = new Path2D();
 G.islandDrawn = new Path2D();
 G.lakesDrawn = new Path2D();
 for (const l of (DATA.lakesDrawn || [])) G.lakesDrawn.addPath(pathOf(l.pts, true));
-G.realms = (DATA.realms || []).map(r => ({ name:r.name, color:r.color, path:pathOf(r.pts, true) }));
+G.realms = (DATA.realms || []).map(r => {
+  const ring = [];
+  for (let i=0;i<r.pts.length;i+=2) ring.push([r.pts[i], r.pts[i+1]]);
+  let a = 0, cx = 0, cy = 0;
+  for (let i=0;i+1<ring.length;i++){
+    const cr = ring[i][0]*ring[i+1][1] - ring[i+1][0]*ring[i][1];
+    a += cr; cx += (ring[i][0]+ring[i+1][0])*cr; cy += (ring[i][1]+ring[i+1][1])*cr;
+  }
+  a = a/2;
+  const c = Math.abs(a) > 1 ? [cx/(6*a), cy/(6*a)] : [
+    ring.reduce((s,p)=>s+p[0],0)/ring.length, ring.reduce((s,p)=>s+p[1],0)/ring.length];
+  return { name:r.name, color:r.color, nationName:r.nationName || '',
+           path:pathOf(r.pts, true), area:Math.abs(a), center:c };
+});
 for (const c of (DATA.coastDrawn || [])){
   if (c.closed) G.islandDrawn.addPath(pathOf(c.pts, true));
   else G.coastDrawnLine.addPath(pathOf(c.pts, false));
@@ -398,6 +413,20 @@ function draw(){
     ctx.lineWidth = Math.max(1.0/V.scale, 5.5);
     ctx.stroke(G.islandDrawn);
     ctx.stroke(G.coastDrawnLine);
+  }
+
+  // 国号：画在江河湖海之上，避免被水系切断
+  if (G.realms.length){
+    for (const r of G.realms){
+      if (!r.nationName || r.area < 50000) continue;
+      const size = Math.max(90, Math.sqrt(r.area) / 3.6);
+      ctx.save();
+      ctx.font = '700 ' + size + 'px "Songti SC","SimSun",serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = rgba(r.color, 0.34);
+      ctx.fillText(r.nationName, r.center[0], r.center[1] + size * 0.04);
+      ctx.restore();
+    }
   }
 
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -624,6 +653,19 @@ window.addEventListener('keydown', e => {
   if (e.key === '0') fit();
   if (e.key === 'p' || e.key === 'P'){ perfOn = !perfOn; draw(); }
 });
+/* 源数据变了就自动刷新（服务端 /api/version） */
+let _stamp = null;
+setInterval(async () => {
+  if (document.visibilityState !== 'visible') return;
+  try{
+    const r = await fetch('/api/version', {cache:'no-store'});
+    if (!r.ok) return;
+    const j = await r.json();
+    if (_stamp === null){ _stamp = j.stamp; return; }
+    if (j.stamp > _stamp + 0.001) location.reload();
+  }catch(e){}
+}, 3000);
+
 window.addEventListener('resize', resize);
 
 resize(); fit();

@@ -20,6 +20,7 @@
 import argparse
 import json
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -47,6 +48,53 @@ def atomic_write(path: Path, text: str):
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(text, encoding="utf-8")
     os.replace(tmp, path)
+
+
+PIPE = ROOT / "tools" / "pipeline"
+MAP_HTML = ROOT / "dist" / "map-vector" / "map.html"
+SOURCES = [ROOT / "data" / "map" / "rivers" / "river_segments.json",
+           ROOT / "data" / "map" / "borders.json",
+           ROOT / "data" / "map" / "nodes.csv",
+           ROOT / "data" / "map" / "regions.csv",
+           ROOT / "data" / "map" / "ownership.csv",
+           ROOT / "data" / "map" / "state.json"]
+_rebuild_lock = threading.Lock()
+_last_build = [0.0]
+
+
+def sources_stamp():
+    """所有源文件的最新 mtime（毫秒）。"""
+    newest = 0.0
+    for p in SOURCES:
+        try:
+            newest = max(newest, p.stat().st_mtime)
+        except OSError:
+            pass
+    return newest
+
+
+def ensure_fresh():
+    """源文件比 map.html 新 → 就地重跑管线，舆图永远是最新的。"""
+    if not MAP_HTML.exists():
+        stale = True
+    else:
+        stale = sources_stamp() > MAP_HTML.stat().st_mtime + 0.001
+    if not stale:
+        return False
+    with _rebuild_lock:
+        # 拿到锁后再确认一次，避免并发重复构建
+        if MAP_HTML.exists() and sources_stamp() <= MAP_HTML.stat().st_mtime + 0.001:
+            return False
+        for script in ("sync_river_editor.py", "rivers_from_editor.py",
+                       "build_sea_from_coast.py", "make_vector_map.py"):
+            r = subprocess.run([sys.executable, str(PIPE / script)],
+                               cwd=str(ROOT), capture_output=True, text=True,
+                               encoding="utf-8", errors="replace")
+            if r.returncode != 0:
+                print("重建失败 %s: %s" % (script, (r.stderr or "")[-400:]))
+                return False
+        _last_build[0] = time.time()
+        return True
 
 
 def backup_once_per_minute():
@@ -98,6 +146,10 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith("/api/ping"):
             return self._json({"ok": True, "data": str(DATA)})
+        if self.path.startswith("/api/version"):
+            return self._json({"stamp": sources_stamp()})
+        if self.path.startswith("/map-vector/"):
+            ensure_fresh()
         if self.path.startswith("/api/vector"):
             try:
                 def load(name, default):

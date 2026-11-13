@@ -462,7 +462,7 @@
   {
    "id": "q1",
    "name": "新疆域",
-   "nation": "",
+   "nation": "qi",
    "edges": [
     "b001",
     "b002",

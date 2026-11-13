@@ -23,7 +23,7 @@
   #cv{flex:1;display:block;width:100%;height:100%;background:#e9dbb8}
   #rail{top:12px;left:12px;width:64px;padding:6px 5px;display:flex;flex-direction:column;gap:5px;z-index:7}
   #rail button{width:100%;padding:9px 0;letter-spacing:1px}
-  #bar{top:12px;left:88px;right:12px;padding:8px 10px;display:flex;align-items:center;
+  #bar{top:12px;left:88px;right:348px;padding:8px 10px;display:flex;align-items:center;
     gap:8px;z-index:6;flex-wrap:wrap}
   #bar .sp{flex:1}
   #layers{top:58px;left:88px;width:190px;padding:8px 10px;display:none;z-index:8;font-size:12.5px}
@@ -39,8 +39,11 @@
   .hint b{color:var(--accent)}
   #status{bottom:12px;left:12px;padding:6px 12px;font-size:12px;color:#5d4c37;z-index:6}
   #status b{color:var(--accent)}
-  .erow{display:flex;align-items:center;gap:6px;padding:4px 14px;font-size:12.5px}
-  .erow .x{color:#a05040;cursor:pointer;margin-left:auto}
+  .erow{display:flex;align-items:center;gap:6px;padding:5px 14px;font-size:12.5px;
+    border-bottom:1px solid rgba(120,90,56,.10)}
+  .erow:last-child{border-bottom:none}
+  .erow .x{color:#a05040;cursor:pointer;margin-left:auto;padding:0 4px;font-size:13px}
+  .erow.sel{background:rgba(45,93,128,.07)}
   .tag{font-size:11px;padding:0 6px;border-radius:8px;border:1px solid var(--line);color:#8a7350}
   #toast{position:absolute;left:50%;top:70px;transform:translateX(-50%);padding:8px 16px;
     background:rgba(40,26,12,.86);color:#f3e8cf;border-radius:7px;font-size:13px;
@@ -416,15 +419,28 @@ function draw(){
     }
   }
 
-  // 草稿线
+  // 草稿线：已确定的顶点连线 + 光标预览
   if (S.draft && S.draft.pts.length){
     ctx.beginPath();
     for (let i=0;i<S.draft.pts.length;i++){
       const [sx,sy] = w2s(S.draft.pts[i][0], S.draft.pts[i][1]);
       i ? ctx.lineTo(sx,sy) : ctx.moveTo(sx,sy);
     }
-    ctx.strokeStyle = 'rgba(211,84,0,.85)'; ctx.lineWidth = 2; ctx.setLineDash([6,5]); ctx.stroke();
-    ctx.setLineDash([]);
+    ctx.strokeStyle = 'rgba(211,84,0,.9)'; ctx.lineWidth = 2.2; ctx.stroke();
+    // 顶点
+    for (const pt of S.draft.pts){
+      const [sx,sy] = w2s(pt[0], pt[1]);
+      ctx.beginPath(); ctx.arc(sx,sy,3,0,6.283); ctx.fillStyle = '#d35400'; ctx.fill();
+    }
+    // 到光标的预览
+    const cur = S.draft.cursor;
+    if (cur){
+      const [ax,ay] = w2s(S.draft.pts[S.draft.pts.length-1][0], S.draft.pts[S.draft.pts.length-1][1]);
+      const [bx,by] = w2s(cur[0], cur[1]);
+      ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by);
+      ctx.setLineDash([5,5]); ctx.strokeStyle = 'rgba(211,84,0,.6)';
+      ctx.lineWidth = 1.6; ctx.stroke(); ctx.setLineDash([]);
+    }
   }
   // 吸附点提示
   if (S.drawTarget && S.mode === 'draw'){
@@ -486,23 +502,15 @@ cv.addEventListener('pointerdown', e => {
 
   if (S.mode === 'draw'){
     const t = snapTarget(wx, wy, 16);
-    if (!t){
-      if (!S.draft || S.draft.pts.length === 0){
-        toast('起点必须落在海岸线 / 河流 / 湖泊 / 其他边界线上');
-        return;
-      }
-    }
     if (!S.draft){
-      if (!t) return;
-      S.draft = {pts:[[t.x,t.y]], start:t};
+      if (!t){ toast('起点必须落在海岸线 / 河流 / 湖泊 / 其他边界线上'); return; }
+      S.draft = {pts:[[t.x, t.y]], start:t, end:null};
       draw(); return;
     }
-    if (S.draft.pts.length === 1 && t && t.kind === 'edge'){
-      toast('起点不能直接落在边界线上，请先拉一段距离');
-    }
-    const p = t ? [t.x,t.y] : [wx,wy];
-    S.draft.pts.push(p);
+    // 每点一次加一个顶点
+    S.draft.pts.push(t ? [t.x, t.y] : [wx, wy]);
     S.draft.end = t || null;
+    S.draft.cursor = null;
     draw(); return;
   }
 
@@ -529,11 +537,7 @@ cv.addEventListener('pointermove', e => {
   if (S.mode === 'draw'){
     const t = snapTarget(wx, wy, 16);
     S.drawTarget = t;
-    if (S.draft){
-      const last = S.draft.pts[S.draft.pts.length-1];
-      S.draft.pts[S.draft.pts.length-1] = t ? [t.x,t.y] : [wx,wy];
-      if (S.draft.pts.length > 1 && !t) S.draft.pts.push([wx,wy]);
-    }
+    if (S.draft){ S.draft.cursor = t ? [t.x, t.y] : [wx, wy]; }
     draw(); return;
   }
   if (S.box){ S.box.x1 = mx; S.box.y1 = my; draw(); }
@@ -560,11 +564,19 @@ cv.addEventListener('wheel', e => {
   bgKey = ''; draw();
 }, {passive:false});
 
+cv.addEventListener('dblclick', e => { if (S.mode === 'draw' && S.draft) commitDraft(); });
+
 window.addEventListener('keydown', e => {
   const t = e.target;
   if (t && (t.tagName==='INPUT'||t.tagName==='SELECT')) return;
   if (e.key === 'Escape'){ S.draft = null; S.selEdge = new Set(); S.selRealm = null; renderSel(); draw(); }
   if (e.key === 'Enter' && S.draft){ commitDraft(); }
+  if (e.key === 'Backspace' && S.draft){
+    e.preventDefault();
+    if (S.draft.pts.length > 1){ S.draft.pts.pop(); S.draft.end = null; }
+    else { S.draft = null; }
+    draw();
+  }
   if ((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){ e.preventDefault(); undo(); }
   if (e.key === '0') fit();
 });
@@ -603,7 +615,7 @@ function renderSel(){
       '长 ' + Math.round(polyLen(e.pts)) + 'px · 两端 ' + lab(a) + '/' + lab(b) +
       '<span class="x">✕</span></div>';
   }).join('') +
-  '<div class="fld"><span></span><button id="bDelEdge">删除选中边界线</button></div>';
+  '<div class="fld"><button id="bDelEdge" style="flex:1">删除选中的 ' + ids.length + ' 条边界线</button></div>';
   box.querySelectorAll('.erow').forEach(row => {
     row.querySelector('.x').onclick = () => {
       snap(); edges = edges.filter(e => e.id !== row.dataset.id);
@@ -754,6 +766,7 @@ function updateStatus(){
 document.querySelectorAll('#rail .mode').forEach(b => {
   b.onclick = () => {
     S.mode = b.dataset.m;
+    if (S.mode === 'draw' && S.draft){ S.draft = null; }
     document.querySelectorAll('#rail .mode').forEach(x => x.classList.toggle('on', x===b));
     cv.style.cursor = S.mode==='draw' ? 'crosshair' : 'default';
     if (S.mode !== 'draw'){ S.draft = null; }
@@ -783,8 +796,8 @@ $('q').addEventListener('keydown', e => {
 window.addEventListener('resize', resize);
 
 window.__BORDER_EDITOR__ = {
-  S, draw, fit, center, snapTarget, buildRealm, buildNet, pointInPoly, dijkstra,
-  commitDraft, doBuildRealm, applyRealm, undo, redo,
+  S, draw, fit, center, w2s, s2w, snapTarget, buildRealm, buildNet, pointInPoly, dijkstra, commitDraft,
+  doBuildRealm, applyRealm, undo, redo,
   get edges(){ return edges; }, get realms(){ return realms; }, get owner(){ return owner; },
   get cities(){ return cities; }, get nations(){ return nations; },
   setVector(V){ S.V = V; bgKey = ''; },

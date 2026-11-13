@@ -128,5 +128,21 @@ const inside = api.cities.filter(c => api.pointInPoly([c.x,c.y], box));
 check(inside.every(c => (api.owner[c.id]||{}).n === nat.id), '方框内还有城邑没改归属');
 console.log('  方框内城邑', inside.length, '个 →', nat.name, '（原有归属', before, '个）');
 
+// ---- 6) 画线是"一次次点"，不是跟着鼠标记点 ----
+api.setVector({ sea:[], rivers, lakes:[], coasts:[] });
+api.setEdges([]);
+api.S.mode = 'draw';
+const ev = (x,y) => ({ button:0, clientX:x, clientY:y, preventDefault(){}, code:'', key:'' });
+const pd = listeners.cv.pointerdown, pm = listeners.cv.pointermove;
+api.center(500, 500, 1);
+const sp = (wx,wy) => api.w2s(wx,wy);
+let p1 = sp(100, 400); pd(ev(p1[0], p1[1]));
+check(api.S.draft && api.S.draft.pts.length === 1, '第一次点击应建立草稿起点');
+for (let i=1;i<6;i++){ const q2 = sp(100 + i*40, 400); pm(ev(q2[0], q2[1])); }
+check(api.S.draft.pts.length === 1, '鼠标移动不应增加顶点（实际 ' + api.S.draft.pts.length + '）');
+const p2 = sp(900, 400); pd(ev(p2[0], p2[1]));
+check(api.S.draft.pts.length === 2, '第二次点击才加顶点（实际 ' + api.S.draft.pts.length + '）');
+check(!!api.S.draft.end, '终点应吸附到河上');
+
 console.log('PASS  国界绘制器：网络补全/单线闭环/两线闭环/内外判定/悬空报错/归属应用');
 process.exit(0);

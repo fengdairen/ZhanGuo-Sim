@@ -486,9 +486,9 @@ function draw(){
 
   labelReset();
   const REALM_LABELS = [];
-  if (G.realms.length && V.scale < 0.45){
-    // 越放大越收敛：全图时最大，接近 45% 时消失
-    const decay = Math.max(0, (0.45 - V.scale) / 0.36);
+  if (G.realms.length && V.scale < 0.34){
+    // 越放大越收敛：全图时最大，放大到看不清意义时就不写
+    const decay = Math.max(0, (0.34 - V.scale) / 0.25);
     for (const r of G.realms){
       if (!r.nationName || r.area < 50000) continue;
       const [sx, sy] = w2s(r.center[0], r.center[1]);
@@ -498,9 +498,9 @@ function draw(){
       const bbh = Math.max(0, (r.bb[3] - r.bb[1]) * V.scale);
       const maxByRealm = Math.min(bbw, bbh) * 0.34;
       if (maxByRealm < 15) continue;                    // 疆域太小，写不下
-      const base = Math.sqrt(r.area) / 26;
+      const base = Math.sqrt(r.area) / 52;    // 比上一版砍一半
       let fs = Math.min(base * decay, maxByRealm);
-      fs = Math.max(15, fs);                            // 不小于普通文字
+      fs = Math.max(12, fs);                            // 不小于普通文字
       ctx.font = '700 ' + fs + 'px "STZhongsong","SimHei","Microsoft YaHei",sans-serif';
       let tw = ctx.measureText(r.nationName).width;
       if (tw > bbw * 0.62){                             // 两个字太宽，收一点
@@ -508,7 +508,7 @@ function draw(){
         ctx.font = '700 ' + fs + 'px "STZhongsong","SimHei","Microsoft YaHei",sans-serif';
         tw = ctx.measureText(r.nationName).width;
       }
-      if (fs < 14) continue;
+      if (fs < 17) continue;                  // 小了就别写了，没意义
       REALM_LABELS.push({ r, sx, sy, fs, w: tw, h: fs });
       labelTry(sx - tw/2, sy - fs/2, tw, fs, 4);   // 只占字本身，不占一大块
     }

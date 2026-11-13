@@ -101,7 +101,9 @@ class Handler(SimpleHTTPRequestHandler):
                     f = VEC / name
                     return json.loads(f.read_text(encoding="utf-8")) if f.exists() else default
                 return self._json({
-                    "sea": load("sea_from_coast.json", []),
+                    "sea": [([v for xy in poly for v in xy]
+                             if poly and isinstance(poly[0], (list, tuple)) else poly)
+                            for poly in load("sea_from_coast.json", [])],
                     "rivers": load("rivers_w.json", []),
                     "lakes": load("lakes_drawn.json", []),
                     "coasts": load("coast_drawn.json", []),

@@ -203,8 +203,12 @@ function center(x,y,sc){
 /* ---------- 绘制 ---------- */
 const COL = { sea:'#b2c4cb', lake:'#8ec3d8', lakeEdge:'#3e7ca6', coast:'#40606f', river:'#2e7fb0',
               city:'#8b2e1e', county:'#6b4a2f', village:'#7a6248', tribe:'#6b4a2f' };
-function pathOf(flat){ const p = new Path2D(); p.moveTo(flat[0], flat[1]);
-  for (let i = 2; i < flat.length; i += 2) p.lineTo(flat[i], flat[i+1]); return p; }
+function pathOf(a){
+  // 兼容 [x1,y1,x2,y2,...] 与 [[x,y],[x,y],...] 两种形状
+  const flat = (a.length && Array.isArray(a[0])) ? a.flat() : a;
+  const p = new Path2D(); p.moveTo(flat[0], flat[1]);
+  for (let i = 2; i < flat.length; i += 2) p.lineTo(flat[i], flat[i+1]); return p;
+}
 
 function draw(){
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -280,6 +284,21 @@ function hit(wx, wy, px){
   }
   return best ? best.it : null;
 }
+// 归属刷：给落点附近的城池上色，返回是否有改动
+function paintAt(wx, wy){
+  const nid = $('paintNation') ? $('paintNation').value : '';
+  const tol = 16 / S.scale;
+  let changed = false;
+  for (const it of items){
+    if (it.t !== 0) continue;
+    if (Math.hypot(it.x - wx, it.y - wy) > tol) continue;
+    if ((owner[it.id] || '') === nid) continue;
+    if (nid) owner[it.id] = nid; else delete owner[it.id];
+    changed = true;
+  }
+  return changed;
+}
+
 function itemsInBox(x0,y0,x1,y1){
   const [ax, ay] = s2w(Math.min(x0,x1), Math.min(y0,y1));
   const [bx, by] = s2w(Math.max(x0,x1), Math.max(y0,y1));
@@ -355,25 +374,29 @@ cv.addEventListener('pointerdown', e => {
     return;
   }
   if (S.mode === 'paint'){
-    const it = hit(wx, wy, 14);
-    if (it && it.t === 0){
-      snap();
-      const nid = $('paintNation').value;
-      if (nid) owner[it.id] = nid; else delete owner[it.id];
-      S.drag = { type:'paint', snapped:true };
-      draw(); scheduleSave();
-    }
+    snap();
+    paintAt(wx, wy);
+    S.drag = { type:'paint', snapped:true };
+    draw(); scheduleSave();
     return;
   }
 
   const it = hit(wx, wy);
   if (it){
-    if (!e.shiftKey && !S.sel.has(it.id)) S.sel = new Set([it.id]);
-    else if (e.shiftKey) S.sel.has(it.id) ? S.sel.delete(it.id) : S.sel.add(it.id);
-    else S.sel = new Set([it.id]);
-    S.drag = { type:'move', x0:wx, y0:wy, snapped:false, orig:[...S.sel].map(id => {
-      const o = items.find(i => i.id === id); return { id, x:o.x, y:o.y };
-    })};
+    if (e.shiftKey){
+      S.sel.has(it.id) ? S.sel.delete(it.id) : S.sel.add(it.id);
+      renderSel(); draw(); return;
+    }
+    // 未选中 → 这一下只负责选中，不进入拖动（避免"打滑"改坐标）
+    if (!S.sel.has(it.id)){
+      S.sel = new Set([it.id]);
+      renderSel(); draw(); return;
+    }
+    // 已选中 → 准备拖动，但要有 4 屏幕像素的意图才真正开始
+    S.drag = { type:'move', x0:wx, y0:wy, mx, my, started:false, snapped:false,
+               orig:[...S.sel].map(id => {
+                 const o = items.find(i => i.id === id); return { id, x:o.x, y:o.y };
+               })};
     renderSel(); draw();
   } else {
     S.box = { x0:mx, y0:my, x1:mx, y1:my };
@@ -392,8 +415,12 @@ cv.addEventListener('pointermove', e => {
   }
   const [wx, wy] = s2w(mx, my);
   if (S.drag && S.drag.type === 'move'){
+    if (!S.drag.started){
+      if (Math.hypot(mx - S.drag.mx, my - S.drag.my) < 4) return;
+      S.drag.started = true;
+      snap();
+    }
     const dx = wx - S.drag.x0, dy = wy - S.drag.y0;
-    if (!S.drag.snapped && (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01)){ S.drag.snapped = true; snap(); }
     for (const o of S.drag.orig){
       const it = items.find(i => i.id === o.id);
       if (it){ it.x = Math.round((o.x + dx)*10)/10; it.y = Math.round((o.y + dy)*10)/10; }
@@ -401,12 +428,7 @@ cv.addEventListener('pointermove', e => {
     draw(); return;
   }
   if (S.drag && S.drag.type === 'paint'){
-    const it = hit(wx, wy, 14);
-    const nid = $('paintNation').value;
-    if (it && it.t === 0 && (owner[it.id] || '') !== nid){
-      if (nid) owner[it.id] = nid; else delete owner[it.id];
-      draw();
-    }
+    if (paintAt(wx, wy)) draw();
     return;
   }
   if (S.box){ S.box.x1 = mx; S.box.y1 = my; draw(); }
@@ -637,6 +659,8 @@ window.addEventListener('resize', resize);
 window.__CITY_EDITOR__ = {
   S, draw, fit, center, renderSel, undo, redo, hit, w2s, s2w, popOf,
   csvMap, csvPop, csvOwn,
+  nations,
+  paintAt,
   get items(){ return items; },
   get pops(){ return pops; },
   get owner(){ return owner; }

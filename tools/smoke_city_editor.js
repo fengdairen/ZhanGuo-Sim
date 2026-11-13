@@ -109,10 +109,18 @@ const ev = (x, y) => ({ button:0, clientX:x, clientY:y, shiftKey:false, pointerI
 const [sx, sy] = api.w2s(first.x, first.y);
 const pd = listeners['cv'].pointerdown, pm = listeners['cv'].pointermove, pu = listeners['cv'].pointerup;
 const x0 = first.x, y0 = first.y;
-pd(ev(sx, sy));
+
+// 第一次点：只选中，不动
+pd(ev(sx, sy)); pu(ev(sx, sy));
 check(api.S.sel.has(first.id), '点击没有选中');
-pm(ev(sx + 40, sy + 25));
-pu(ev(sx + 40, sy + 25));
+check(api.items.find(i => i.id === first.id).x === x0, '第一次点击不应移动');
+
+// 微小抖动（2px）也不应移动
+pd(ev(sx, sy)); pm(ev(sx + 2, sy + 1)); pu(ev(sx + 2, sy + 1));
+check(api.items.find(i => i.id === first.id).x === x0, '2px 抖动不应移动');
+
+// 明确拖动才动
+pd(ev(sx, sy)); pm(ev(sx + 40, sy + 25)); pu(ev(sx + 40, sy + 25));
 const moved = api.items.find(i => i.id === first.id);
 check(Math.abs(moved.x - x0) > 1 || Math.abs(moved.y - y0) > 1,
       '拖动没有移动：' + moved.x + ',' + moved.y);
@@ -122,6 +130,16 @@ api.undo();
 const back = api.items.find(i => i.id === first.id);
 check(Math.abs(back.x - x0) < 0.11 && Math.abs(back.y - y0) < 0.11,
       '撤销没有恢复坐标：' + back.x + ',' + back.y);
+
+// 归属刷：点一下就上色
+api.S.mode = 'paint';
+els['paintNation'].value = api.nations[0].id;
+const target = api.items.find(i => i.t === 0);
+const [tx2, ty2] = api.w2s(target.x, target.y);
+pd(ev(tx2, ty2)); pu(ev(tx2, ty2));
+check(api.owner[target.id] === api.nations[0].id,
+      '归属刷没生效：' + JSON.stringify(api.owner[target.id]));
+api.S.mode = 'sel';
 
 // 渲染与导出不抛异常
 api.renderSel();

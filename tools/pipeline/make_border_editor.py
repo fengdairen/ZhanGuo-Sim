@@ -472,6 +472,14 @@ function draw(){
       }
       ctx.strokeStyle = sel ? '#d35400' : COL.edge;
       ctx.lineWidth = sel ? 5.5 : 3.8; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke();
+      if (sel){
+        for (const pt of e.pts){
+          const [vx,vy] = w2s(pt[0], pt[1]);
+          ctx.beginPath(); ctx.arc(vx,vy,3.2,0,6.283);
+          ctx.fillStyle = '#fff8e6'; ctx.fill();
+          ctx.strokeStyle = '#d35400'; ctx.lineWidth = 1.6; ctx.stroke();
+        }
+      }
       for (const at of (e.ends || [])){
         const [sx,sy] = w2s(at.x, at.y);
         ctx.beginPath(); ctx.arc(sx,sy,3.4,0,6.283);
@@ -539,6 +547,65 @@ function draw(){
 }
 
 /* ================= 交互 ================= */
+function polyArea(ring){
+  let a = 0;
+  for (let i=0;i+1<ring.length;i++) a += ring[i][0]*ring[i+1][1] - ring[i+1][0]*ring[i][1];
+  return Math.abs(a)/2;
+}
+function isClosedRing(pts){
+  return pts.length >= 4 && Math.hypot(pts[0][0]-pts[pts.length-1][0], pts[0][1]-pts[pts.length-1][1]) <= 2;
+}
+// 顶点命中：选中的边界线优先
+function vertexAt(wx, wy, px){
+  const tol = (px||8)/S.scale;
+  let best = null;
+  const scan = (e) => {
+    for (let i=0;i<e.pts.length;i++){
+      const d = Math.hypot(e.pts[i][0]-wx, e.pts[i][1]-wy);
+      if (d <= tol && (!best || d < best.d)) best = {edge:e, idx:i, d};
+    }
+  };
+  for (const e of edges) if (S.selEdge.has(e.id)) scan(e);
+  for (const e of edges) if (!S.selEdge.has(e.id)) scan(e);
+  return best;
+}
+
+// 边界线改动后：受影响疆域重算几何 + 城邑归属
+async function syncRealmsForEdge(edgeId){
+  const e = edges.find(x => x.id === edgeId);
+  if (!e) return;
+  let touched = [], wrote = false;
+  for (const r of realms){
+    if (!r.edges || !r.edges.includes(edgeId)) continue;
+    const oldRing = r.ring;
+    if (r.edges.length === 1 && isClosedRing(e.pts)){
+      r.ring = e.pts.slice();
+      r.area = polyArea(r.ring);
+    }else{
+      const res = buildRealm(r.edges);
+      if (res.error){ toast('疆域「' + (r.name || r.id) + '」重算失败：' + res.error); continue; }
+      r.ring = res.ring; r.area = res.area;
+    }
+    touched.push(r);
+    if (r.nation){
+      for (const c of cities){
+        const wasIn = oldRing ? pointInPoly([c.x, c.y], oldRing) : false;
+        const nowIn = pointInPoly([c.x, c.y], r.ring);
+        if (nowIn) { owner[c.id] = { n: r.nation, f:'' }; wrote = true; }
+        else if (wasIn && owner[c.id] && owner[c.id].n === r.nation) { delete owner[c.id]; wrote = true; }
+      }
+    }
+  }
+  if (touched.length){
+    draw(); renderSel(); renderList(); scheduleSave(); bgKey = '';
+    if (wrote){
+      const ok = await saveOwnership();
+      if (ok === true) toast('疆域与城邑归属已跟随更新');
+      else toast('疆域已更新，但归属写盘失败：' + ok);
+    }
+  }
+}
+
 function hitRealm(wx, wy){
   for (let i = realms.length-1; i >= 0; i--){
     const r = realms[i];
@@ -582,7 +649,15 @@ cv.addEventListener('pointerdown', e => {
     draw(); return;
   }
 
-  // 选择模式：先找边界线，再找疆域内部
+  // 选择模式：顶点 → 边界线 → 疆域内部
+  const v = vertexAt(wx, wy);
+  if (v){
+    snap();
+    S.selEdge = new Set([v.edge.id]);
+    S.selRealm = null;
+    S.drag = { type:'vertex', edge:v.edge, idx:v.idx, moved:false };
+    renderSel(); draw(); return;
+  }
   const ed = hitEdge(wx, wy);
   if (ed){
     if (e.shiftKey) S.selEdge.has(ed.id) ? S.selEdge.delete(ed.id) : S.selEdge.add(ed.id);
@@ -614,10 +689,22 @@ cv.addEventListener('pointermove', e => {
     if (S.draft){ S.draft.cursor = t ? [t.x, t.y] : [wx, wy]; }
     draw(); return;
   }
+  if (S.drag && S.drag.type === 'vertex'){
+    const e = S.drag.edge;
+    e.pts[S.drag.idx] = [Math.round(wx*10)/10, Math.round(wy*10)/10];
+    S.drag.moved = true;
+    draw(); return;
+  }
   if (S.box){ S.box.x1 = mx; S.box.y1 = my; draw(); }
 });
 
 cv.addEventListener('pointerup', () => {
+  if (S.drag && S.drag.type === 'vertex'){
+    const moved = S.drag.moved, eid = S.drag.edge.id;
+    S.drag = null;
+    if (moved) syncRealmsForEdge(eid);
+    return;
+  }
   if (S.box){
     const [ax,ay] = s2w(Math.min(S.box.x0,S.box.x1), Math.min(S.box.y0,S.box.y1));
     const [bx,by] = s2w(Math.max(S.box.x0,S.box.x1), Math.max(S.box.y0,S.box.y1));
@@ -906,7 +993,7 @@ window.addEventListener('resize', resize);
 
 window.__BORDER_EDITOR__ = {
   S, draw, fit, center, w2s, s2w, snapTarget, buildRealm, buildNet, pointInPoly, dijkstra, commitDraft,
-  doBuildRealm, applyRealm, dropRealm, hitRealm, undo, redo,
+  doBuildRealm, applyRealm, dropRealm, hitRealm, syncRealmsForEdge, vertexAt, polyArea, isClosedRing, undo, redo,
   get edges(){ return edges; }, get realms(){ return realms; }, get owner(){ return owner; },
   get cities(){ return cities; }, get nations(){ return nations; },
   setVector(V){ S.V = V; bgKey = ''; },

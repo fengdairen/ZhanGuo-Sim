@@ -144,5 +144,45 @@ const p2 = sp(900, 400); pd(ev(p2[0], p2[1]));
 check(api.S.draft.pts.length === 2, '第二次点击才加顶点（实际 ' + api.S.draft.pts.length + '）');
 check(!!api.S.draft.end, '终点应吸附到河上');
 
-console.log('PASS  国界绘制器：网络补全/单线闭环/两线闭环/内外判定/悬空报错/归属应用');
-process.exit(0);
+// 7) 拖顶点 → 疆域重算 → 归属跟随
+(async () => {
+  // 围绕一个真实城邑造水系方框，保证带子里有城
+  const c0 = api.cities[10];
+  const cx = c0.x, cy = c0.y;
+  const q = [[cx-300,cy-300],[cx+300,cy-300],[cx+300,cy+300],[cx-300,cy+300],[cx-300,cy-300]];
+  const rs = [];
+  for (let i=0;i<4;i++) rs.push([3.0, q[i][0], q[i][1], q[i+1][0], q[i+1][1]]);
+  api.setVector({ sea:[], rivers:rs, lakes:[], coasts:[] });
+
+  const E1 = { id:'b001', pts:[[cx-300, cy-100],[cx+300, cy-100]], ends:[] };
+  const E2 = { id:'b002', pts:[[cx-300, cy+100],[cx+300, cy+100]], ends:[] };
+  api.setEdges([E1, E2]);
+  const rr = api.buildRealm(['b001','b002']);
+  check(!rr.error, '重建失败：' + rr.error);
+
+  const nat2 = api.nations[1];
+  api.realms.length = 0;
+  api.realms.push({ id:'q1', name:'拖动测试', nation:nat2.id, edges:['b001','b002'],
+                    ring:rr.ring, area:rr.area });
+  await api.applyRealm(api.realms[0]);
+  const a0 = api.realms[0].area;
+  const inside0 = api.cities.filter(c => api.pointInPoly([c.x,c.y], api.realms[0].ring));
+  check(inside0.length > 0, '拖动前带内没有城邑，无法验证');
+  check(inside0.every(c => (api.owner[c.id]||{}).n === nat2.id), '拖动前归属未写入');
+
+  // 把上边那条线往下拖到 cy+40：带子从 200 高收窄到 60
+  api.setEdges([{ id:'b001', pts:[[cx-300, cy+40],[cx+300, cy+40]], ends:[] }, E2]);
+  await api.syncRealmsForEdge('b001');
+  const a1 = api.realms[0].area;
+  check(a1 < a0, '疆域没有跟随顶点变化：' + Math.round(a0) + ' → ' + Math.round(a1));
+  const expect = 600*60;
+  check(Math.abs(a1 - expect)/expect < 0.06, '新面积不对：' + Math.round(a1) + ' 期望 ' + expect);
+
+  const outside = inside0.filter(c => !api.pointInPoly([c.x,c.y], api.realms[0].ring));
+  check(outside.length > 0, '没有城邑离开疆域，无法验证清理逻辑');
+  check(outside.every(c => !api.owner[c.id] || !api.owner[c.id].n),
+        '离开疆域的城邑仍保留归属');
+
+console.log('PASS  国界绘制器：补全/闭环/内外判定/悬空报错/归属应用/拖点重算');
+  process.exit(0);
+})().catch(e => { console.error('FAIL: ' + e.message); process.exit(1); });

@@ -60,11 +60,24 @@ if _bp.exists():
             flat = []
             for _p in ring:
                 flat.append(round(_p[0], 1)); flat.append(round(_p[1], 1))
+            # 圈内城邑数（用环直接判，和编辑器口径一致）
+            _ring = [tuple(_p) for _p in ring]
+            def _in(p, poly=_ring):
+                c = False
+                n2 = len(poly)
+                for k in range(n2):
+                    x1, y1 = poly[k]; x2, y2 = poly[(k + 1) % n2]
+                    if ((y1 > p[1]) != (y2 > p[1])) and                        (p[0] < (x2 - x1) * (p[1] - y1) / ((y2 - y1) or 1e-9) + x1):
+                        c = not c
+                return c
+            _cnt = sum(1 for _c in cities if _in((_c[3], _c[4])))
             realms.append({
                 "name": _r.get("name") or "",
                 "color": nation_color.get(_r.get("nation"), "#7a6248"),
                 "nation": _r.get("nation") or "",
                 "nationName": nation_name.get(_r.get("nation"), ""),
+                "cities": _cnt,
+                "edges": len(_r.get("edges") or []),
                 "pts": flat,
             })
     except Exception as _e:
@@ -147,6 +160,16 @@ HTML = r"""<!doctype html>
   #tip{position:fixed;pointer-events:none;padding:5px 9px;font-size:12px;background:rgba(48,33,20,.92);
     color:#f6eeda;border-radius:6px;transform:translate(-50%,-165%);opacity:0;transition:opacity .12s;
     white-space:nowrap;z-index:9}
+#rinfo{position:fixed;right:14px;top:64px;width:230px;background:rgba(250,243,226,.97);
+  border:1px solid rgba(120,90,56,.35);border-radius:8px;box-shadow:0 8px 26px rgba(40,26,12,.3);
+  padding:12px 14px 10px;display:none;z-index:20;font-family:"Songti SC","SimSun",serif;color:#33241a}
+#rinfo.on{display:block}
+#rinfo .rn{font-size:26px;font-weight:700;letter-spacing:4px;line-height:1.2}
+#rinfo .rr{font-size:11.5px;color:#8a7350;margin:2px 0 10px}
+#rinfo .rl{display:flex;justify-content:space-between;font-size:12.5px;color:#6b5940;
+  padding:3px 0;border-top:1px solid rgba(120,90,56,.14)}
+#rinfo .rl b{font-weight:600;color:#33241a}
+#rinfo .rx{margin-top:10px;font-size:11.5px;color:#2d5d80;cursor:pointer;text-align:right}
   .btn{position:fixed;right:14px;top:14px;display:flex;gap:6px;z-index:5}
   .btn button{padding:6px 11px;font:inherit;font-size:12px;color:#4a3524;cursor:pointer;
     background:rgba(250,244,229,.94);border:1px solid rgba(120,90,56,.35);border-radius:8px}
@@ -181,6 +204,15 @@ HTML = r"""<!doctype html>
 <a href="../index.html" class="panel" id="home" style="bottom:58px;left:12px;padding:6px 12px;text-decoration:none;color:#2d5d80;font-size:12.5px">← 数据台</a>
 <div id="zoom" class="panel">—</div>
 <div id="tip"></div>
+<div id="rinfo">
+  <div class="rn" id="rName">—</div>
+  <div class="rr" id="rSub"></div>
+  <div class="rl"><span>疆域</span><b id="rRealm">—</b></div>
+  <div class="rl"><span>城邑</span><b id="rCities">—</b></div>
+  <div class="rl"><span>边界</span><b id="rEdges">—</b></div>
+  <div class="rl"><span>面积</span><b id="rArea">—</b></div>
+  <div class="rx" id="rClose">关闭</div>
+</div>
 
 <script>
 const DATA = __DATA__;
@@ -217,6 +249,8 @@ function deepLink(){
   if (typeof location === 'undefined') return;
   const h = (location.hash || '').slice(1);
   if (!h) return;
+  const rl = G.realms.find(r => r.name === h || (r.nation && r.nation === h));
+  if (rl){ selRealm = rl; showRealm(rl); centerAt(rl.center[0], rl.center[1], 0.28); draw(); return; }
   const c = CITIES.find(c2 => c2.id === h);
   if (c){ centerAt(c.x, c.y, 0.9); hoverCity = c; return; }
   const p2 = h.split(',').map(Number);
@@ -284,7 +318,8 @@ G.realms = (DATA.realms || []).map(r => {
   const c = Math.abs(a) > 1 ? [cx/(6*a), cy/(6*a)] : [
     ring.reduce((s,p)=>s+p[0],0)/ring.length, ring.reduce((s,p)=>s+p[1],0)/ring.length];
   return { name:r.name, color:r.color, nationName:r.nationName || '',
-           path:pathOf(r.pts, true), area:Math.abs(a), center:c, bb };
+           nation:r.nation || '', cities:r.cities|0, edges:r.edges|0,
+           path:pathOf(r.pts, true), area:Math.abs(a), center:c, bb, ring };
 });
 for (const c of (DATA.coastDrawn || [])){
   if (c.closed) G.islandDrawn.addPath(pathOf(c.pts, true));
@@ -292,6 +327,8 @@ for (const c of (DATA.coastDrawn || [])){
 }
 
 // 自动提取的河网：只做淡色底衬，提示"这些还没描"
+window.__MAP__ = { get realms(){ return G.realms; }, realmAt, selRealm: () => selRealm };
+
 (function(){
   const p = new Path2D();
   for (const e of (DATA.auto || [])){
@@ -382,7 +419,8 @@ function draw(){
   if (G.realms.length){
     for (const r of G.realms){
       // 面：极淡底色
-      ctx.fillStyle = rgba(r.color, 0.10);
+      const on = (selRealm === r);
+      ctx.fillStyle = rgba(r.color, on ? 0.20 : 0.10);
       ctx.fill(r.path);
       // 内侧渐变：多层递减描边 + 裁剪到面内
       ctx.save();
@@ -395,8 +433,8 @@ function draw(){
       }
       ctx.restore();
       // 边界：整圈一次描边，宽度统一
-      ctx.strokeStyle = rgba(shade(r.color, 0.45), 0.95);
-      ctx.lineWidth = 2.6 / V.scale;      // 整圈一次描边，宽度恒定，不会一节粗一节细
+      ctx.strokeStyle = rgba(shade(r.color, on ? 0.55 : 0.45), on ? 1 : 0.95);
+      ctx.lineWidth = (on ? 4.2 : 2.6) / V.scale;      // 整圈一次描边，宽度恒定，不会一节粗一节细
       ctx.stroke(r.path);
     }
   }
@@ -485,47 +523,8 @@ function draw(){
   }
 
   labelReset();
-  const REALM_LABELS = [];
-  if (G.realms.length && V.scale < 0.34){
-    // 越放大越收敛：全图时最大，放大到看不清意义时就不写
-    const decay = Math.max(0, (0.34 - V.scale) / 0.25);
-    for (const r of G.realms){
-      if (!r.nationName || r.area < 50000) continue;
-      const [sx, sy] = w2s(r.center[0], r.center[1]);
-      if (sx < 60 || sy < 40 || sx > cw-60 || sy > ch-40) continue;
-      // 上限：不超过疆域本身（屏幕包围盒的三分之一）；下限：不小于普通地名文字
-      const bbw = Math.max(0, (r.bb[2] - r.bb[0]) * V.scale);
-      const bbh = Math.max(0, (r.bb[3] - r.bb[1]) * V.scale);
-      const maxByRealm = Math.min(bbw, bbh) * 0.34;
-      if (maxByRealm < 15) continue;                    // 疆域太小，写不下
-      const base = Math.sqrt(r.area) / 52;    // 比上一版砍一半
-      let fs = Math.min(base * decay, maxByRealm);
-      fs = Math.max(12, fs);                            // 不小于普通文字
-      ctx.font = '700 ' + fs + 'px "STZhongsong","SimHei","Microsoft YaHei",sans-serif';
-      let tw = ctx.measureText(r.nationName).width;
-      if (tw > bbw * 0.62){                             // 两个字太宽，收一点
-        fs *= (bbw * 0.62) / tw;
-        ctx.font = '700 ' + fs + 'px "STZhongsong","SimHei","Microsoft YaHei",sans-serif';
-        tw = ctx.measureText(r.nationName).width;
-      }
-      if (fs < 17) continue;                  // 小了就别写了，没意义
-      REALM_LABELS.push({ r, sx, sy, fs, w: tw, h: fs });
-      labelTry(sx - tw/2, sy - fs/2, tw, fs, 4);   // 只占字本身，不占一大块
-    }
-  }
   if (L.label) drawLabels(L);
   if (L.rname && DATA.riverLabels) drawRiverNames();
-
-  // 国号：纯文字压在图上，不画底衬（底衬会挡国界）
-  for (const it of REALM_LABELS){
-    const { r, sx, sy, fs } = it;
-    ctx.save();
-    ctx.font = '700 ' + fs + 'px "STZhongsong","SimHei","Microsoft YaHei",sans-serif';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'rgba(46,30,18,.55)';
-    ctx.fillText(r.nationName, sx, sy + fs * 0.04);
-    ctx.restore();
-  }
 
   if (hoverCity){
     const [sx,sy] = w2s(hoverCity.x, hoverCity.y);
@@ -645,13 +644,56 @@ function drawLabels(L){
   }
 }
 
+// ---- 疆域点选 ----
+let selRealm = null;
+function pointInRing(x, y, ring){
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++){
+    const [x1, y1] = ring[i], [x2, y2] = ring[j];
+    if (((y1 > y) !== (y2 > y)) && (x < (x2 - x1) * (y - y1) / ((y2 - y1) || 1e-9) + x1)) inside = !inside;
+  }
+  return inside;
+}
+function realmAt(x, y){
+  for (let i = G.realms.length - 1; i >= 0; i--){
+    const r = G.realms[i];
+    if (r.ring && pointInRing(x, y, r.ring)) return r;
+  }
+  return null;
+}
+function showRealm(r){
+  const box = el('rinfo');
+  if (!r){ box.classList.remove('on'); return; }
+  el('rName').textContent = r.nationName || r.name || '疆域';
+  el('rSub').textContent = r.nationName ? ('疆域 · ' + (r.name || '未命名')) : '未指定国家';
+  el('rRealm').textContent = r.name || '—';
+  el('rCities').textContent = r.cities ? (r.cities + ' 城') : '—';
+  el('rEdges').textContent = r.edges ? (r.edges + ' 段') : '—';
+  el('rArea').textContent = Math.round(r.area).toLocaleString() + ' px²';
+  box.classList.add('on');
+}
+el('rClose').onclick = () => { selRealm = null; showRealm(null); draw(); };
+
 let dragging = false, last = null;
 cv.addEventListener('pointerdown', e => {
   dragging = true; last = [e.clientX, e.clientY];
   cv.classList.add('drag');
   try { cv.setPointerCapture(e.pointerId); } catch(_){}
 });
-cv.addEventListener('pointerup', () => { dragging = false; cv.classList.remove('drag'); last = null; });
+cv.addEventListener('pointerup', e => {
+  const wasDrag = dragging && last && (Math.abs(e.clientX - last[0]) + Math.abs(e.clientY - last[1]) > 0);
+  dragging = false; cv.classList.remove('drag');
+  const r0 = cv.getBoundingClientRect();
+  const mx = e.clientX - r0.left, my = e.clientY - r0.top;
+  const [wx, wy] = [ (mx - V.tx)/V.scale, (my - V.ty)/V.scale ];
+  const hit = realmAt(wx, wy);
+  if (!wasDrag){
+    selRealm = hit;
+    showRealm(hit);
+    draw();
+  }
+  last = null;
+});
 cv.addEventListener('pointerleave', () => { tip.style.opacity = 0; hoverCity = null; draw(); });
 
 cv.addEventListener('pointermove', e => {

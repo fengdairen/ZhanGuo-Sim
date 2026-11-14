@@ -295,7 +295,17 @@ function deepLink(){
   const h = (location.hash || '').slice(1);
   if (!h) return;
   const rl = G.realms.find(r => r.name === h || (r.nation && r.nation === h));
-  if (rl){ selRealm = rl; showRealm(rl); centerAt(rl.center[0], rl.center[1], 0.28); draw(); return; }
+  if (rl){
+    const sameNation = selRealm && rl.nation && rl.nation === selRealm.nation;
+    if (rl.faction && sameNation && selFaction !== rl.faction){
+      selFaction = rl.faction; selFactionNation = rl.nation;
+      showFaction(rl.faction, rl.nation, rl);
+    } else {
+      selFaction = null; selFactionNation = null;
+      selRealm = rl; showRealm(rl);
+    }
+    centerAt(rl.center[0], rl.center[1], 0.28); draw(); return;
+  }
   const c = CITIES.find(c2 => c2.id === h);
   if (c){ centerAt(c.x, c.y, 0.9); hoverCity = c; return; }
   const p2 = h.split(',').map(Number);
@@ -318,6 +328,34 @@ function pathOf(poly, close){
   }
   if (close) p.closePath();
   return p;
+}
+
+// 地方势力色：在本国颜色上做小幅色相/明度偏移，表示"同国但另一股势力"
+function factionColor(hex, name){
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  const dh = ((h % 25) - 12) * 1.0;          // -12° ~ +12°
+  let r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b2 = parseInt(hex.slice(5,7),16)/255;
+  const mx = Math.max(r,g,b2), mn = Math.min(r,g,b2);
+  let hh = 0, ss = 0, ll = (mx+mn)/2;
+  if (mx !== mn){
+    const d = mx - mn;
+    ss = ll > 0.5 ? d/(2-mx-mn) : d/(mx+mn);
+    hh = mx === r ? ((g-b2)/d + (g < b2 ? 6 : 0)) : mx === g ? ((b2-r)/d + 2) : ((r-g)/d + 4);
+    hh *= 60;
+  }
+  hh = (hh + dh + 360) % 360;
+  ss = Math.min(1, ss * 1.15 + 0.06);
+  ll = Math.min(0.85, ll + 0.06);
+  const c = (1 - Math.abs(2*ll-1)) * ss;
+  const x2 = c * (1 - Math.abs((hh/60) % 2 - 1));
+  const m = ll - c/2;
+  let rr, gg, bb;
+  if (hh < 60){ rr=c; gg=x2; bb=0; } else if (hh < 120){ rr=x2; gg=c; bb=0; }
+  else if (hh < 180){ rr=0; gg=c; bb=x2; } else if (hh < 240){ rr=0; gg=x2; bb=c; }
+  else if (hh < 300){ rr=x2; gg=0; bb=c; } else { rr=c; gg=0; bb=x2; }
+  const to = v => Math.round((v+m)*255).toString(16).padStart(2,'0');
+  return '#' + to(rr) + to(gg) + to(bb);
 }
 
 function shade(hex, k){          // 混入墨色，让国界线与河网区分开（返回 hex）
@@ -479,6 +517,23 @@ function draw(){
       for (const r of list){
         ctx.fillStyle = rgba(color, on ? 0.20 : 0.075);
         ctx.fill(r.path, 'evenodd');
+      }
+
+      // 1.2) 地方势力：同国底色上叠一层偏移色，不画边界线
+      for (const r of list){
+        if (!r.faction) continue;
+        const fc = factionColor(color, r.faction);
+        const hot = selFaction && r.faction === selFaction && key === selFactionNation;
+        ctx.fillStyle = rgba(fc, hot ? 0.55 : 0.30);
+        ctx.fill(r.path, 'evenodd');
+        if (hot){
+          ctx.save();
+          ctx.setLineDash([6 / V.scale, 5 / V.scale]);
+          ctx.strokeStyle = rgba(shade(fc, 0.35), 0.95);
+          ctx.lineWidth = 2.2 / V.scale;
+          ctx.stroke(r.path);
+          ctx.restore();
+        }
       }
 
       // 2) 内侧渐变：栅格遮罩（先填并集，再减去模糊后的自己 → 紧贴国界向内淡出）
@@ -715,6 +770,7 @@ function drawLabels(L){
 // ---- 疆域点选 ----
 let selRealm = null;
 let selNation = null;
+let selFaction = null, selFactionNation = null;
 let off = null;
 function pointInRing(x, y, ring){
   let inside = false;
@@ -878,6 +934,22 @@ function realmAt(x, y){
   }
   return best;
 }
+// 地方势力信息：同一股势力可能横跨多个地块，一起统计与高亮
+function showFaction(fac, nation, anchor){
+  const box = el('rinfo');
+  const group = G.realms.filter(x => x.faction === fac && (x.nation || '') === (nation || ''));
+  const cities = group.reduce((s2, x) => s2 + (x.cities || 0), 0);
+  const area = group.reduce((s2, x) => s2 + (x.area || 0), 0);
+  el('rName').textContent = fac;
+  el('rSub').textContent = '地方势力 · 隶属' + ((anchor && anchor.nationName) || '');
+  el('rRealm').textContent = group.length + ' 块' + (group.length > 1 ? '（跨地块）' : '');
+  el('rCities').textContent = cities ? (cities + ' 城') : '—';
+  el('rArea').textContent = Math.round(area).toLocaleString() + ' px²';
+  el('rFac').textContent = (group.map(x => x.note || x.id).slice(0, 6).join('、') || '—');
+  el('rEdges').textContent = '同国其他区域不在高亮范围';
+  box.classList.add('on');
+}
+
 function showRealm(r){
   const box = el('rinfo');
   if (!r){ box.classList.remove('on'); return; }
@@ -895,7 +967,7 @@ function showRealm(r){
   el('rArea').textContent = Math.round(area).toLocaleString() + ' px²';
   box.classList.add('on');
 }
-el('rClose').onclick = () => { selRealm = null; selNation = null; showRealm(null); draw(); };
+el('rClose').onclick = () => { selRealm = null; selNation = null; selFaction = null; selFactionNation = null; showRealm(null); draw(); };
 
 let dragging = false, last = null;
 cv.addEventListener('pointerdown', e => {

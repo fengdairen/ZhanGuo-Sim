@@ -77,7 +77,18 @@ if _bp.exists():
                     if ((y1 > p[1]) != (y2 > p[1])) and                        (p[0] < (x2 - x1) * (p[1] - y1) / ((y2 - y1) or 1e-9) + x1):
                         c = not c
                 return c
-            _cnt = sum(1 for _c in cities if _in((_c[3], _c[4])))
+            _holes = []
+            for _h in (_r.get("holes") or []):
+                _hf = []
+                for _p in _h:
+                    _hf.append(round(_p[0], 1)); _hf.append(round(_p[1], 1))
+                _holes.append(_hf)
+            def _inPatch(p2):
+                if not _in(p2): return False
+                for _h in (_r.get("holes") or []):
+                    if len(_h) > 2 and _in(p2, [tuple(x) for x in _h]): return False
+                return True
+            _cnt = sum(1 for _c in cities if _inPatch((_c[3], _c[4])))
             realms.append({
                 "name": _r.get("name") or "",
                 "color": nation_color.get(_r.get("nation"), "#7a6248"),
@@ -85,6 +96,7 @@ if _bp.exists():
                 "nationName": nation_name.get(_r.get("nation"), ""),
                 "nationState": nation_state.get(_r.get("nation"), ""),
                 "faction": _r.get("faction") or "",
+                "holes": _holes,
                 "cities": _cnt,
                 "edges": len(_r.get("edges") or []),
                 "pts": flat,
@@ -326,8 +338,9 @@ G.realms = (DATA.realms || []).map(r => {
   a = a/2;
   const c = Math.abs(a) > 1 ? [cx/(6*a), cy/(6*a)] : [
     ring.reduce((s,p)=>s+p[0],0)/ring.length, ring.reduce((s,p)=>s+p[1],0)/ring.length];
+  const holesPts = (r.holes || []).map(h => pathOf(h, true));
   return { name:r.name, color:r.color, nationName:r.nationName || '',
-           nationState:r.nationState || '',
+           nationState:r.nationState || '', holes:holesPts,
            nation:r.nation || '', faction:r.faction || '',
            cities:r.cities|0, edges:r.edges|0,
            path:pathOf(r.pts, true), area:Math.abs(a), center:c, bb, ring };
@@ -440,7 +453,7 @@ function draw(){
       // 1) 面 + 内侧渐变
       for (const r of list){
         ctx.fillStyle = rgba(color, on ? 0.22 : 0.10);
-        ctx.fill(r.path);
+        ctx.fill(r.path, 'evenodd');
         ctx.save();
         ctx.clip(r.path);
         const N = 8, W = 24 / V.scale;
@@ -465,7 +478,7 @@ function draw(){
       g.lineWidth = (on ? 8.4 : 5.2) / V.scale;
       for (const r of list) g.stroke(r.path);
       g.globalCompositeOperation = 'destination-out';
-      for (const r of list) g.fill(r.path);
+      for (const r of list) g.fill(r.path, 'evenodd');
       g.globalCompositeOperation = 'source-over';
       ctx.setTransform(1,0,0,1,0,0);
       ctx.drawImage(off, 0, 0);
@@ -694,7 +707,11 @@ function pointInRing(x, y, ring){
 function realmAt(x, y){
   for (let i = G.realms.length - 1; i >= 0; i--){
     const r = G.realms[i];
-    if (r.ring && pointInRing(x, y, r.ring)) return r;
+    if (r.ring && pointInRing(x, y, r.ring)){
+      let inHole = false;
+      for (const h of (r.holes || [])) if (pointInRing(x, y, h)) inHole = true;
+      if (!inHole) return r;
+    }
   }
   return null;
 }

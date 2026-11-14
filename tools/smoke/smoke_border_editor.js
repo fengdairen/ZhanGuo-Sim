@@ -341,6 +341,26 @@ check(!!api.S.draft.end, '终点应吸附到河上');
   check(!rr2.error, '端点落在另一条选中线中间时应能成环：' + rr2.error);
 }
 
+// 15) 内部邻居挖洞，不是吸收
+{
+  const big = [[0,0],[1000,0],[1000,1000],[0,1000],[0,0]];
+  const small = [[300,300],[400,300],[400,400],[300,400],[300,300]];
+  api.realms.length = 0;
+  api.realms.push({ id:'q20', nation:'han', ring:small, area:10000, edges:[] });
+  const res = api.resolveClash(big);
+  check(res.holes.length === 1, '内部邻居应挖洞，实际 holes=' + res.holes.length);
+  check(res.absorbed.length === 0, '内部邻居不应被吸收，实际 ' + res.absorbed);
+  // 洞内的点不算属于地块
+  const fake = { ring:big, holes:res.holes };
+  check(api.inPatch(350, 350, fake) === false, '洞内点不应算在这个地块里');
+  check(api.inPatch(100, 100, fake) === true, '洞外点应算在这个地块里');
+  // 洞外的邻居才吸收
+  const side = [[900,900],[1200,900],[1200,1200],[900,1200],[900,900]];
+  api.realms.push({ id:'q21', nation:'chu', ring:side, area:0, edges:[] });
+  const res2 = api.resolveClash(big);
+  check(res2.absorbed.indexOf('q21') >= 0, '部分相交的邻居应被吸收');
+}
+
 console.log('PASS  国界绘制器：补全/闭环/内外判定/悬空报错/归属应用/拖点重算');
   process.exit(0);
 })().catch(e => { console.error('FAIL: ' + e.message); process.exit(1); });

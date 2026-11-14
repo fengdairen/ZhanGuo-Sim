@@ -511,6 +511,16 @@ function insideDeep(p, ring, tol){
   return true;
 }
 // 一块地的顶点有多少比例深入另一块内部
+function distToRing(p, ring){
+  let best = 1e9;
+  for (let i=0;i+1<ring.length;i++){
+    const [x1,y1] = ring[i], [x2,y2] = ring[i+1];
+    const dx = x2-x1, dy = y2-y1, L2 = dx*dx+dy*dy || 1e-9;
+    let t = ((p[0]-x1)*dx + (p[1]-y1)*dy)/L2; t = Math.max(0, Math.min(1, t));
+    best = Math.min(best, Math.hypot(x1+t*dx-p[0], y1+t*dy-p[1]));
+  }
+  return best;
+}
 function insideRatio(A, B, tol){
   tol = tol || 10;
   let hit = 0;
@@ -572,10 +582,10 @@ function draw(){
     for (const r of realms){
       if (!r.ring || r.ring.length < 3) continue;
       const nat = nations.find(n => n.id === r.nation);
-      const p = pathOf(r.ring); p.closePath();
+      const p = patchPath(r);
       const sameNation = r.nation && selRealmNation && r.nation === selRealmNation;
       ctx.fillStyle = (nat ? nat.color : '#7a6248') + (sameNation ? '3d' : '2e');
-      ctx.fill(p);
+      ctx.fill(p, 'evenodd');
       ctx.strokeStyle = (nat ? nat.color : '#7a6248'); ctx.lineWidth = 2.5/S.scale; ctx.stroke(p);
     }
   }
@@ -727,10 +737,37 @@ async function syncRealmsForEdge(edgeId){
   }
 }
 
+// 环 + 洞 的组合路径（evenodd 填充即挖洞）
+function patchPath(r){
+  const p = pathOf(r.ring);
+  p.closePath();
+  for (const h of (r.holes || [])){
+    const hp = pathOf(h);
+    hp.closePath();
+    p.addPath(hp);
+  }
+  return p;
+}
+function inPatch(wx, wy, r){
+  if (!r.ring || !pointInPoly([wx, wy], r.ring)) return false;
+  for (const h of (r.holes || [])) if (pointInPoly([wx, wy], h)) return false;
+  return true;
+}
+// 新环与已有地块的冲突处理：完全在内部的挖洞，部分相交的吸收
+function resolveClash(ring){
+  const clash = realms.filter(x => x.ring && x.ring.length > 2 && ringsOverlap(ring, x.ring));
+  const holes = [], absorbed = [];
+  for (const x of clash){
+    const fully = x.ring.every(pt => insideDeep(pt, ring, 2) || distToRing(pt, ring) < 3);
+    if (fully) holes.push(x.ring.slice());
+    else absorbed.push(x.id);
+  }
+  return { holes, absorbed };
+}
 function hitRealm(wx, wy){
   for (let i = realms.length-1; i >= 0; i--){
     const r = realms[i];
-    if (r.ring && r.ring.length > 2 && pointInPoly([wx, wy], r.ring)) return r;
+    if (r.ring && r.ring.length > 2 && inPatch(wx, wy, r)) return r;
   }
   return null;
 }
@@ -1129,12 +1166,11 @@ function doBuildRealm(){
       for (let i=0;i+1<ring.length;i++) area += ring[i][0]*ring[i+1][1] - ring[i+1][0]*ring[i][1];
       area = Math.abs(area)/2;
       if (area < 500){ toast('这个环太小（' + Math.round(area) + ' px²）'); return; }
-      const clash0 = realms.filter(x => x.ring && x.ring.length > 2 && ringsOverlap(ring, x.ring));
-      const absorbed0 = clash0.map(x => x.id);
-      if (clash0.length) realms = realms.filter(x => !clash0.includes(x));
+      const { holes: holes0, absorbed: absorbed0 } = resolveClash(ring);
+      if (absorbed0.length) realms = realms.filter(x => !absorbed0.includes(x.id));
       snap();
       const id = nextRealmId();
-      realms.push({ id, name:'', note:'', nation:'', faction:'', edges:[e.id], ring, area });
+      realms.push({ id, name:'', note:'', nation:'', faction:'', edges:[e.id], ring, holes:holes0, area });
       S.selRealm = id;
       toast('闭合边界线已转为地块：' + Math.round(area).toLocaleString() + ' px²' +
             (absorbed0.length ? ('；吸收 ' + absorbed0.join('、')) : ''));
@@ -1146,19 +1182,16 @@ function doBuildRealm(){
   const r = buildRealm(ids);
   if (r.error){ toast(r.error); return; }
 
-  // 与已有地块相交 → 吸收：删掉它们，由新地块接管这片区域
-  const clash = realms.filter(x => x.ring && x.ring.length > 2 && ringsOverlap(r.ring, x.ring));
-  let absorbed = [];
-  if (clash.length){
-    absorbed = clash.map(x => x.id);
-    realms = realms.filter(x => !clash.includes(x));
-  }
+  // 相交处理：完全在内部的邻居 → 挖洞保留；部分相交的才吸收
+  const { holes, absorbed } = resolveClash(r.ring);
+  if (absorbed.length) realms = realms.filter(x => !absorbed.includes(x.id));
   snap();
   const id = nextRealmId();
-  const realm = { id, name:'新疆域', nation:'', edges:r.used, ring:r.ring, area:r.area };
+  const realm = { id, name:'新疆域', nation:'', edges:r.used, ring:r.ring, holes, area:r.area };
   realms.push(realm);
   S.selRealm = id;
   toast('地块 ' + id + ' 已生成：' + Math.round(r.area).toLocaleString() + ' px²' +
+        (holes.length ? ('；挖出 ' + holes.length + ' 个洞') : '') +
         (absorbed.length ? ('；吸收 ' + absorbed.join('、')) : ''));
   scheduleSave(); renderSel(); renderList(); draw();
 }
@@ -1178,7 +1211,7 @@ async function applyRealm(r){
   let n = 0, skipped = 0;
   const others = realms.filter(x => x !== r && x.nation && x.nation !== r.nation && x.ring);
   for (const c of cities){
-    if (!pointInPoly([c.x, c.y], r.ring)) continue;
+    if (!inPatch(c.x, c.y, r)) continue;
     if (others.some(x => pointInPoly([c.x, c.y], x.ring))){ skipped++; continue; }  // 真在别国地块里才跳过
     owner[c.id] = { n: r.nation, f: r.faction || '' }; n++;
   }
@@ -1195,7 +1228,7 @@ async function dropRealm(r){
   snap();
   let n = 0;
   for (const c of cities){
-    if (pointInPoly([c.x, c.y], r.ring) && owner[c.id] && owner[c.id].n === r.nation){
+    if (inPatch(c.x, c.y, r) && owner[c.id] && owner[c.id].n === r.nation){
       delete owner[c.id]; n++;
     }
   }
@@ -1320,7 +1353,7 @@ window.__BORDER_EDITOR__ = {
   get cities(){ return cities; }, get nations(){ return nations; },
   setVector(V){ S.V = V; bgKey = ''; },
   setEdges(list){ edges = list; },
-  repairEdgeIds, nextEdgeId, repairRealmIds, nextRealmId,
+  repairEdgeIds, nextEdgeId, repairRealmIds, nextRealmId, resolveClash, inPatch, patchPath,
   snap(){ hist.push(JSON.stringify({edges, realms})); fut.length = 0; }
 };
 

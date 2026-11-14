@@ -21,6 +21,7 @@ import argparse
 import json
 import os
 import subprocess
+import shutil
 import sys
 import threading
 import time
@@ -85,6 +86,18 @@ def ensure_fresh():
         # 拿到锁后再确认一次，避免并发重复构建
         if MAP_HTML.exists() and sources_stamp() <= MAP_HTML.stat().st_mtime + 0.001:
             return False
+        # 先跑 faces.js（node）：把"面 + 认领"算成 data/map/faces.json，
+        # 否则舆图读到的还是上一次的（甚至空的）归属
+        node = shutil.which("node")
+        if node:
+            r = subprocess.run([node, str(PIPE / "faces.js")], cwd=str(ROOT),
+                               capture_output=True, text=True, encoding="utf-8", errors="replace")
+            if r.returncode == 0:
+                print("faces.js:", (r.stdout or "").strip()[:200])
+            else:
+                print("faces.js 失败:", (r.stderr or "")[-300:])
+        else:
+            print("faces.js 跳过：没找到 node")
         for script in ("sync_river_editor.py", "rivers_from_editor.py",
                        "build_sea_from_coast.py", "make_vector_map.py"):
             r = subprocess.run([sys.executable, str(PIPE / script)],

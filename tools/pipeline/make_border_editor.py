@@ -135,6 +135,9 @@ TPL = r"""<!DOCTYPE html>
 </head>
 <body>
 <canvas id="cv"></canvas>
+<div id="logBox" style="display:none;position:fixed;left:12px;bottom:56px;width:640px;max-height:320px;
+  overflow:auto;background:rgba(20,20,20,.92);color:#b9f6ca;font:12px/1.5 Consolas,monospace;
+  padding:10px 12px;border-radius:10px;white-space:pre-wrap;z-index:50"></div>
 
 <div id="rail" class="panel">
   <button class="mode on" data-m="sel" title="选择 / 拖动 / 框选">选择</button>
@@ -155,6 +158,7 @@ TPL = r"""<!DOCTYPE html>
     <select id="claimNation" title="填给哪个国家"></select>
     <input id="claimFaction" placeholder="地方（可空）" style="width:110px">
   </span>
+  <button id="bLog" title="查看/导出操作日志">日志</button>
   <button id="bNuke" title="清空全部边界线、地块与城邑归属">清空</button>
   <button id="bNations">国家…</button>
   <button id="bSave">存盘</button>
@@ -839,8 +843,11 @@ cv.addEventListener('pointerdown', e => {
       const cf = faceAt(c.seed[0], c.seed[1]);
       return cf && cf.id === f.id;
     });
+    log('填色点击', { x: Math.round(wx), y: Math.round(wy), 面: f.id, 面积: Math.round(f.area),
+                      outer: !!f.outer, 洞: (f.holes || []).length, 命中已有: idx >= 0, 认领前: claims.length });
     if (idx >= 0){ claims[idx].nation = nat; claims[idx].faction = fac; }
     else claims.push({ seed: [Math.round(wx*10)/10, Math.round(wy*10)/10], nation: nat, faction: fac, note: '' });
+    log('填色完成', { 认领后: claims.length, 地块: realms.length + (idx >= 0 ? 0 : 1) });
     rebuildRealms();
     scheduleSave(); renderSel(); renderList(); draw();
     return;
@@ -1096,6 +1103,7 @@ function commitLoop(){
   const id = nextEdgeId();
   edges.push({ id, closed:true, pts:ring, ends:[] });
   S.draft = null; FACES = null; facesReady = false;
+  log('闭环边界线', { id, 点数: ring.length, 面积: Math.round(area) });
   scheduleSave(); renderSel(); computeFaces(); draw();
   toast('闭环边界线已生成：' + Math.round(area).toLocaleString() + ' px²');
 }
@@ -1339,10 +1347,47 @@ async function pushSave(){
 
 /* ================= 撤销 ================= */
 const hist = [], fut = [];
-function snap(){ hist.push(JSON.stringify({edges, realms})); if (hist.length>40) hist.shift(); fut.length = 0; }
-function applyState(s){ const o = JSON.parse(s); edges = o.edges; realms = o.realms; draw(); renderSel(); renderList(); scheduleSave(); }
-function undo(){ if(!hist.length) return; fut.push(JSON.stringify({edges,realms})); applyState(hist.pop()); }
-function redo(){ if(!fut.length) return; hist.push(JSON.stringify({edges,realms})); applyState(fut.pop()); }
+function snapshot(){ return JSON.stringify({edges, claims, owner}); }
+function snap(){ hist.push(snapshot()); if (hist.length>60) hist.shift(); fut.length = 0; }
+function applyState(s){
+  const o = JSON.parse(s);
+  edges = o.edges || [];
+  claims = o.claims || [];
+  owner = o.owner || {};
+  S.selEdge = new Set(); S.selRealm = null; S.selRealmNation = null; S.draft = null;
+  FACES = null; facesReady = false;
+  renderSel(); draw(); scheduleSave();
+  computeFaces();
+}
+function undo(){ if(!hist.length){ log('撤销：无可撤销'); return; } fut.push(snapshot()); const s = hist.pop(); log('撤销 → 剩 ' + hist.length + ' 步'); applyState(s); }
+function redo(){ if(!fut.length){ log('重做：无可重做'); return; } hist.push(snapshot()); const s = fut.pop(); log('重做 → 剩 ' + fut.length + ' 步'); applyState(s); }
+
+/* ================= 日志 ================= */
+const LOG = [];
+function log(msg, data){
+  const t = new Date().toTimeString().slice(0, 8);
+  let line = '[' + t + '] ' + msg;
+  if (data !== undefined){
+    try{ line += ' ' + JSON.stringify(data, (k, v) => (typeof v === 'number' ? Math.round(v * 10) / 10 : v)); }
+    catch(_){ line += ' ' + String(data); }
+  }
+  LOG.push(line);
+  if (LOG.length > 500) LOG.shift();
+  const box = $('logBox');
+  if (box && box.style.display !== 'none') box.textContent = LOG.slice(-200).join('\n');
+}
+function dumpLog(){
+  const head = [
+    '# 国界编辑器日志 ' + new Date().toISOString(),
+    '# 边界线 ' + edges.length + ' 条 · 认领 ' + claims.length + ' 条 · 面 ' + (FACES ? FACES.length : 'null'),
+    ''
+  ].join('\n');
+  const blob = new Blob([head + LOG.join('\n')], {type: 'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'border-editor-log-' + Date.now() + '.txt';
+  a.click();
+}
 
 /* ================= 面（平面划分） ================= */
 let FACES = null, selFace = null;
@@ -1396,6 +1441,9 @@ function computeFaces(){
       FACES.forEach((f, i) => f.id = 'F' + (i + 1));
       facesReady = true;
       rebuildRealms();
+      const nInner = FACES.filter(f => !f.outer).length;
+      log('算面', { 面: FACES.length, 内部: nInner, 认领: claims.length, 地块: realms.length,
+                    边界: edges.length, 耗时: Date.now() - t0 });
       lastSave = '面 ' + FACES.length + ' / 认领 ' + claims.length + ' / 地块 ' + realms.length + ' (' + (Date.now()-t0) + 'ms)';
       toast('面：' + FACES.length + ' 个（' + (Date.now() - t0) + 'ms）');
       draw(); renderSel(); renderList();
@@ -1492,6 +1540,14 @@ $('bUndo').onclick = undo;
 $('bRedo').onclick = redo;
 $('bRealm').onclick = doBuildRealm;
 $('bSave').onclick = pushSave;
+$('bLog').onclick = () => {
+  const b = $('logBox');
+  const on = b.style.display === 'none';
+  b.style.display = on ? 'block' : 'none';
+  b.textContent = LOG.slice(-200).join('\n');
+  if (on) toast('日志已打开；点「导出」可存成文件');
+  else if (confirm('导出日志到文件？')) dumpLog();
+};
 $('bNuke').onclick = async () => {
   if (!confirm('清空全部边界线、地块与城邑归属？此操作会立刻存盘。')) return;
   snap();
@@ -1579,6 +1635,7 @@ window.__BORDER_EDITOR__ = {
     }
   }catch(e){}
   renderSel(); renderList(); draw();
+  log('初始化', { 边界: edges.length, 认领: claims.length, 城邑: cities.length });
   computeFaces();          // 启动即算面，claims 才能落回地块
 })();
 </script>

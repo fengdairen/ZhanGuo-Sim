@@ -454,15 +454,6 @@ function draw(){
       for (const r of list){
         ctx.fillStyle = rgba(color, on ? 0.22 : 0.10);
         ctx.fill(r.path, 'evenodd');
-        ctx.save();
-        ctx.clip(r.path);
-        const N = 8, W = 24 / V.scale;
-        for (let i = N; i >= 1; i--){
-          ctx.strokeStyle = rgba(color, 0.085);
-          ctx.lineWidth = (W * 2) * (i / N);
-          ctx.stroke(r.path);
-        }
-        ctx.restore();
       }
       // 2) 只留外轮廓：先整组描边，再把地块内部擦掉
       if (!off) off = document.createElement('canvas');
@@ -474,6 +465,7 @@ function draw(){
       g.clearRect(0,0,off.width,off.height);
       g.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
       g.lineJoin = 'round'; g.lineCap = 'round';
+      // 国界线
       g.strokeStyle = rgba(shade(color, on ? 0.55 : 0.45), on ? 1 : 0.95);
       g.lineWidth = (on ? 8.4 : 5.2) / V.scale;
       for (const r of list) g.stroke(r.path);
@@ -705,15 +697,15 @@ function pointInRing(x, y, ring){
   return inside;
 }
 function realmAt(x, y){
-  for (let i = G.realms.length - 1; i >= 0; i--){
-    const r = G.realms[i];
-    if (r.ring && pointInRing(x, y, r.ring)){
-      let inHole = false;
-      for (const h of (r.holes || [])) if (pointInRing(x, y, h)) inHole = true;
-      if (!inHole) return r;
-    }
+  let best = null;
+  for (const r of G.realms){
+    if (!r.ring || !pointInRing(x, y, r.ring)) continue;
+    let inHole = false;
+    for (const h of (r.holes || [])) if (pointInRing(x, y, h)) inHole = true;
+    if (inHole) continue;
+    if (!best || (r.area || 0) < (best.area || 0)) best = r;   // 被包住的小地块优先
   }
-  return null;
+  return best;
 }
 function showRealm(r){
   const box = el('rinfo');

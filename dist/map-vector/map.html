@@ -363,13 +363,13 @@ function draw(){
         if (!r.faction) continue;
         const fc = factionColor(color, r.faction);
         const hot = selFaction && r.faction === selFaction && key === selFactionNation;
-        ctx.fillStyle = rgba(fc, hot ? 0.55 : 0.30);
+        ctx.fillStyle = rgba(fc, hot ? 0.30 : 0.13);
         ctx.fill(r.path, 'evenodd');
         if (hot){
           ctx.save();
           ctx.setLineDash([6 / V.scale, 5 / V.scale]);
-          ctx.strokeStyle = rgba(shade(fc, 0.35), 0.95);
-          ctx.lineWidth = 2.2 / V.scale;
+          ctx.strokeStyle = rgba(shade(fc, 0.35), 0.55);
+          ctx.lineWidth = 1.6 / V.scale;
           ctx.stroke(r.path);
           ctx.restore();
         }
@@ -822,9 +822,16 @@ cv.addEventListener('pointerup', e => {
   const [wx, wy] = [ (mx - V.tx)/V.scale, (my - V.ty)/V.scale ];
   const hit = realmAt(wx, wy);
   if (!wasDrag){
-    selRealm = hit;
-    selNation = hit ? (hit.nation || ('_' + hit.id)) : null;
-    showRealm(hit);
+    const sameNation = hit && selRealm && hit.nation && hit.nation === selRealm.nation;
+    if (hit && hit.faction && sameNation && selFaction !== hit.faction){
+      selFaction = hit.faction; selFactionNation = hit.nation;
+      showFaction(hit.faction, hit.nation, hit);
+    } else {
+      selFaction = null; selFactionNation = null;
+      selRealm = hit;
+      selNation = hit ? (hit.nation || ('_' + hit.id)) : null;
+      showRealm(hit);
+    }
     draw();
   }
   last = null;

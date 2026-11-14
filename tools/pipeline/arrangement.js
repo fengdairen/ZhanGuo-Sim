@@ -257,8 +257,12 @@
     const neg = loops.length - pos;
     const keepSign = pos >= neg ? 1 : -1;
     for (const l of loops){
-      if (Math.sign(l.area) !== keepSign) continue;
-      faces.push({ ring: keepSign > 0 ? l.ring : l.ring.slice().reverse(), area: Math.abs(l.area) });
+      const inner = Math.sign(l.area) === keepSign;
+      faces.push({
+        ring: inner ? (keepSign > 0 ? l.ring : l.ring.slice().reverse()) : l.ring,
+        area: Math.abs(l.area),
+        outer: !inner
+      });
     }
 
     return {

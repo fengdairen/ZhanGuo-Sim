@@ -896,7 +896,8 @@ cv.addEventListener('pointerdown', e => {
     if (f){
       selFace = f;
       const nCity = cities.filter(c => window.Arrangement.contains(f, c.x, c.y)).length;
-      toast(f.id + ' · ' + Math.round(f.area).toLocaleString() + ' px² · ' + nCity + ' 城');
+      toast((f.outer ? '外部面（线没闭合，这里连通到图外）' : f.id) +
+            ' · ' + Math.round(f.area).toLocaleString() + ' px² · ' + nCity + ' 城');
       draw(); renderList(); return;
     }
   }
@@ -1370,6 +1371,7 @@ function computeFaces(){
       for (const l of S.V.lakes){ const pts = []; for (let i=0;i<l.pts.length;i+=2) pts.push([l.pts[i], l.pts[i+1]]); water.push(pts); }
       const res = window.Arrangement.build(edges.map(e => e.pts).concat(water), { minArea: 300 });
       FACES = res.faces.map((f, i) => ({ id: 'F' + (i + 1), ring: f.ring, area: f.area,
+                                         outer: !!f.outer,
                                          center: window.Arrangement.representative(f) }));
       FACES.sort((a2, b2) => b2.area - a2.area);
       FACES.forEach((f, i) => f.id = 'F' + (i + 1));

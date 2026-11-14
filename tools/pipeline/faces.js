@@ -43,7 +43,7 @@ function main() {
   const out = [];
   for (const c of claims) {
     if (!c.seed) continue;
-    const f = faces.find(fc => A.contains(fc, c.seed[0], c.seed[1]));
+    const f = faces.find(fc => !fc.outer && A.contains(fc, c.seed[0], c.seed[1]));
     if (!f) continue;
     out.push({ nation: c.nation || '', faction: c.faction || '', note: c.note || '',
                area: Math.round(f.area), ring: f.ring });

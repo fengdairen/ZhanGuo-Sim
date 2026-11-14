@@ -36,12 +36,8 @@ function main() {
     .concat(load('coast_drawn.json').map(c => flatToPts(c.pts)))
     .concat(load('lakes_drawn.json').map(l => flatToPts(l.pts)));
 
-  const bp2 = [];
-  for (const e of edges) { if (e.length) { bp2.push(e[0]); bp2.push(e[e.length - 1]); } }
-  const near = line => line.some(q => bp2.some(p => Math.hypot(p[0] - q[0], p[1] - q[1]) < 30));
-  const used = water.filter(near);
-
-  const res = A.build(edges.concat(used), { minArea: 300 });
+  // 全部水系参与：种子被河围着、没有边界线时也要能成面
+  const res = A.build(edges.concat(water), { minArea: 300 });
   const faces = res.faces;
 
   const out = [];

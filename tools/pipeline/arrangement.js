@@ -36,10 +36,36 @@
     return { t, u, x: p1[0] + t * d1x, y: p1[1] + t * d1y };
   }
 
+  function rdp(pts, eps) {
+    if (pts.length < 3) return pts;
+    const keep = new Uint8Array(pts.length);
+    keep[0] = keep[pts.length - 1] = 1;
+    const stack = [[0, pts.length - 1]];
+    while (stack.length) {
+      const [i, j] = stack.pop();
+      let best = -1, bd = eps;
+      const a = pts[i], b = pts[j];
+      const vx = b[0] - a[0], vy = b[1] - a[1];
+      const L = Math.hypot(vx, vy) || 1e-9;
+      for (let k = i + 1; k < j; k++) {
+        const p = pts[k];
+        const d = Math.abs((p[0] - a[0]) * vy - (p[1] - a[1]) * vx) / L;
+        if (d > bd) { bd = d; best = k; }
+      }
+      if (best > 0) { keep[best] = 1; stack.push([i, best], [best, j]); }
+    }
+    const out = [];
+    for (let i = 0; i < pts.length; i++) if (keep[i]) out.push(pts[i]);
+    return out;
+  }
+
   function build(polylines, opts) {
     opts = opts || {};
     const minArea = opts.minArea == null ? 100 : opts.minArea;
     const t0 = Date.now();
+
+    const simp = opts.simplify == null ? 2.5 : opts.simplify;
+    if (simp > 0) polylines = polylines.map(l => rdp(l, simp));
 
     // ---- 0. 贴线吸附：边界线的顶点贴到最近的水系线段上 ----
     // 否则「边界线离河 10px」会切出一条条细缝，面就碎了
@@ -196,6 +222,7 @@
           if (cu === u && cv === v) break;
         }
         if (ring.length < 3) continue;
+        if (ring.length > 8000) continue;      // 走到上限的多半是坏环，丢掉
         ring.push([ring[0][0], ring[0][1]]);
         const ar = area(ring);
         if (Math.abs(ar) > minArea) loops.push({ ring, area: ar });

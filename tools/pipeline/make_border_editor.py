@@ -1184,7 +1184,8 @@ function fillRealmCount(r){
 function renderList(){
   const box = $('listBox');
   if (!realms.length){ box.innerHTML = '<div class="hint">还没有疆域。</div>'; return; }
-  box.innerHTML = realms.map(r => {
+  box.innerHTML = '<div class="fld" style="padding:0 0 8px"><button id="bClearClaims" style="flex:1">清空全部地块（' + realms.length + '）</button></div>' +
+    realms.map(r => {
     const nat = nations.find(n => n.id === r.nation);
     const label = nat ? (nat.state ? (nat.name + '·' + nat.state) : nat.name) : '未定';
     return '<div class="erow" data-id="' + r.id + '">' +
@@ -1193,6 +1194,16 @@ function renderList(){
       ' <span class="tag">' + (r.edges ? r.edges.length : 0) + ' 段</span>' +
       '<span class="x">✕</span></div>';
   }).join('');
+  if ($('bClearClaims')) $('bClearClaims').onclick = () => {
+    if (!confirm('清空全部地块？城邑归属会一并清空。')) return;
+    snap();
+    claims = [];
+    realms = [];
+    S.selRealm = null; S.selRealmNation = null;
+    for (const k in owner) delete owner[k];
+    scheduleSave(); saveOwnership(); renderSel(); renderList(); draw();
+    toast('已清空全部地块');
+  };
   box.querySelectorAll('.erow').forEach(row => {
     row.onclick = ev => {
       if (ev.target.classList.contains('x')) return;
@@ -1289,6 +1300,9 @@ async function dropRealm(r){
       delete owner[c.id]; n++;
     }
   }
+  // 真正的数据是 claims：按 seed 删掉对应那条
+  if (r._claim) claims = claims.filter(c => c !== r._claim);
+  else claims = claims.filter(c => !(c.seed && r.seed && c.seed[0] === r.seed[0] && c.seed[1] === r.seed[1]));
   realms = realms.filter(x => x !== r);
   if (S.selRealm === r.id) S.selRealm = null;
   draw(); renderSel(); renderList(); scheduleSave();
@@ -1336,12 +1350,8 @@ function computeFaces(){
       for (const r of S.V.rivers){ const pts = []; for (let i=1;i<r.length;i+=2) pts.push([r[i], r[i+1]]); water.push(pts); }
       for (const c of S.V.coasts){ const pts = []; for (let i=0;i<c.pts.length;i+=2) pts.push([c.pts[i], c.pts[i+1]]); water.push(pts); }
       for (const l of S.V.lakes){ const pts = []; for (let i=0;i<l.pts.length;i+=2) pts.push([l.pts[i], l.pts[i+1]]); water.push(pts); }
-      // 只保留和边界线端点靠得近的水系，否则会被河网切成几百块
-      const bp = [];
-      for (const e of edges){ bp.push(e.pts[0]); bp.push(e.pts[e.pts.length-1]); }
-      const near = line => line.some(q => bp.some(p => Math.hypot(p[0]-q[0], p[1]-q[1]) < 30));
-      const used = water.filter(near);
-      const res = window.Arrangement.build(edges.map(e => e.pts).concat(used), { minArea: 300 });
+      // 全部水系都参与：种子点如果被河围着、没有边界线，也要能成面
+      const res = window.Arrangement.build(edges.map(e => e.pts).concat(water), { minArea: 300 });
       FACES = res.faces.map((f, i) => ({
         id: 'F' + (i + 1), ring: f.ring, area: f.area,
         center: window.Arrangement.representative(f)
@@ -1368,7 +1378,7 @@ function rebuildRealms(){
     if (!f) continue;                       // 线改了，种子落在外面 → 暂时丢掉
     out.push({ id: 'q' + (out.length + 1), name: '', note: c.note || '',
                nation: c.nation || '', faction: c.faction || '',
-               ring: f.ring, area: f.area, seed: c.seed, edges: [] });
+               ring: f.ring, area: f.area, seed: c.seed, edges: [], _claim: c });
   }
   realms = out;
 }

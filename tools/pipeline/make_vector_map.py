@@ -53,6 +53,11 @@ _bp = ROOT / "data" / "map" / "borders.json"
 if _bp.exists():
     try:
         _b = json.loads(_bp.read_text(encoding="utf-8-sig"))
+        # 国界编辑器里自定义的国家（含现场新建的）也认
+        for _n in (_b.get("nations") or []):
+            if _n.get("id"):
+                nation_name.setdefault(_n["id"], _n.get("name") or _n["id"])
+                nation_color.setdefault(_n["id"], _n.get("color") or "#7a6248")
         for _r in _b.get("realms", []):
             ring = _r.get("ring") or []
             if len(ring) < 4:

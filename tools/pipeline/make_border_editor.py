@@ -164,6 +164,7 @@ const W = W_PX, H = H_PX;
 
 let edges  = (DATA.borders.edges  || []).map(e => Object.assign({}, e));
 let realms = (DATA.borders.realms || []).map(r => Object.assign({}, r));
+const PALETTE = DATA.palette || ['#c0392b','#2980b9','#27ae60','#8e44ad','#d35400'];
 let nations = (DATA.nations || []).map(n => Object.assign({}, n));
 let selRealmNation = null;   // 当前选中地块所属国家（同国一起高亮）
 const cities = DATA.cities;
@@ -883,16 +884,30 @@ function renderRealmBox(){
     if (!r){ S.selRealm = null; return renderRealmBox(); }
     box.innerHTML =
       '<div class="fld"><span>名称</span><input id="rName" value="' + esc(r.name||'') + '"></div>' +
-      '<div class="fld"><span>国家</span><select id="rNation">' +
-        '<option value="">—</option>' + nations.map(n =>
-          '<option value="' + n.id + '"' + (n.id===r.nation?' selected':'') + '>' + n.name + '</option>').join('') +
-      '</select></div>' +
+      '<div class="fld"><span>国家</span><input id="rNation" list="natList" placeholder="选或直接输入国名"' +
+        ' value="' + esc((nations.find(n => n.id === r.nation) || {}).name || '') + '"></div>' +
+      '<datalist id="natList">' + nations.map(n => '<option value="' + esc(n.name) + '">').join('') + '</datalist>' +
       '<div class="fld"><span>地方</span><input id="rFaction" value="' + esc(r.faction||'') + '" placeholder="留空 = 中央直辖"></div>' +
       '<div class="fld"><span>面积</span><span class="tag">' + Math.round(r.area||0).toLocaleString() + ' px²</span></div>' +
       '<div class="fld"><span>城邑</span><span id="rCount" class="tag">—</span></div>' +
       '<div class="fld"><span></span><button id="bApply">应用归属</button><button id="bDelRealm">删除疆域</button></div>';
     $('rName').oninput = e => { r.name = e.target.value; scheduleSave(); renderList(); };
-    $('rNation').onchange = e => { r.nation = e.target.value; scheduleSave(); draw(); renderList(); fillRealmCount(r); };
+    $('rNation').onchange = e => {
+      const txt = (e.target.value || '').trim();
+      if (!txt){ r.nation = ''; }
+      else {
+        let hit = nations.find(n => n.name === txt || n.id === txt);
+        if (!hit){
+          hit = { id: 'N' + Date.now().toString(36), name: txt,
+                  color: PALETTE[nations.length % PALETTE.length] };
+          nations.push(hit);
+          toast('已新建国家「' + txt + '」');
+        }
+        r.nation = hit.id;
+      }
+      scheduleSave(); draw(); renderList(); fillRealmCount(r);
+      renderRealmBox();
+    };
     $('rFaction').oninput = e => { r.faction = e.target.value; scheduleSave(); };
     $('bApply').onclick = () => applyRealm(r);
     $('bDelRealm').onclick = () => {
@@ -1017,7 +1032,7 @@ function scheduleSave(){ clearTimeout(saveTimer); saveTimer = setTimeout(pushSav
 async function pushSave(){
   if (saving) return; saving = true;
   try{
-    const body = JSON.stringify({version:1, canvas:[W,H], edges, realms});
+    const body = JSON.stringify({version:1, canvas:[W,H], edges, realms, nations});
     const r = await fetch('/api/borders/save', {method:'POST',
       headers:{'Content-Type':'application/json'}, body});
     if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -1107,6 +1122,7 @@ window.__BORDER_EDITOR__ = {
       const b = await r.json();
       if (b && Array.isArray(b.edges)){
         edges = b.edges; realms = b.realms || [];
+        if (Array.isArray(b.nations) && b.nations.length) nations = b.nations;
         lastSave = '已从服务端恢复';
       }
     }

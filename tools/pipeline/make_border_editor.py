@@ -1354,6 +1354,19 @@ function rebuildRealms(){
     if (!f) continue;                       // 线改了，种子落在面外 → 暂时丢掉
     byFace.set(f.id, { ring: f.ring, area: f.area, holes: f.holes || [], seed: c.seed, claim: c });
   }
+  // 同一国家认领了"大面 + 里面那个洞"时，把洞填掉，否则会看成两块
+  const claimedFaces = new Map();     // face.id -> nation
+  for (const [fid, v] of byFace) claimedFaces.set(fid, v.claim.nation);
+  for (const [fid, v] of byFace){
+    if (!v.holes || !v.holes.length) continue;
+    v.holes = v.holes.filter(h => {
+      const hf = FACES.find(x => x.ring === h);
+      if (!hf) return true;
+      const hn = claimedFaces.get(hf.id);
+      return !(hn && hn === v.claim.nation);      // 同国 → 洞填掉
+    });
+  }
+
   const out = [];
   for (const [fid, v] of byFace){
     out.push({ id: 'q' + (out.length + 1), name: '', note: v.claim.note || '',

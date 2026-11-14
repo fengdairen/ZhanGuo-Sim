@@ -499,30 +499,27 @@ function buildRealm(edgeIds){
   return {ring, area, used:sel.map(e => e.id)};
 }
 
-function segCross(p1,p2,p3,p4){
-  const d = (p2[0]-p1[0])*(p3[1]-p4[1]) - (p2[1]-p1[1])*(p3[0]-p4[0]);
-  if (Math.abs(d) < 1e-9) return false;
-  const a1 = ((p3[0]-p4[0])*(p3[1]-p1[1]) - (p3[1]-p4[1])*(p3[0]-p1[0])) / d;
-  const a2 = ((p2[0]-p1[0])*(p3[1]-p1[1]) - (p2[1]-p1[1])*(p3[0]-p1[0])) / d;
-  return a1 > 0.001 && a1 < 0.999 && a2 > 0.001 && a2 < 0.999;
-}
-function strictIn(p, ring){
+// 点是否深入多边形内部（离边界 > tol 才算）
+function insideDeep(p, ring, tol){
   if (!pointInPoly(p, ring)) return false;
   for (let i=0;i+1<ring.length;i++){
     const [x1,y1] = ring[i], [x2,y2] = ring[i+1];
     const dx = x2-x1, dy = y2-y1, L2 = dx*dx+dy*dy || 1e-9;
     let t = ((p[0]-x1)*dx + (p[1]-y1)*dy)/L2; t = Math.max(0, Math.min(1, t));
-    if (Math.hypot(x1+t*dx-p[0], y1+t*dy-p[1]) < 1.5) return false;
+    if (Math.hypot(x1+t*dx-p[0], y1+t*dy-p[1]) < tol) return false;
   }
   return true;
 }
+// 一块地的顶点有多少比例深入另一块内部
+function insideRatio(A, B, tol){
+  tol = tol || 10;
+  let hit = 0;
+  for (const p of A) if (insideDeep(p, B, tol)) hit++;
+  return hit / Math.max(1, A.length - 1);
+}
+// 只有"真的被包住"才算重叠；贴边共线不算
 function ringsOverlap(A, B){
-  for (const p of A) if (strictIn(p, B)) return true;
-  for (const p of B) if (strictIn(p, A)) return true;
-  for (let i=0;i+1<A.length;i++)
-    for (let j=0;j+1<B.length;j++)
-      if (segCross(A[i], A[i+1], B[j], B[j+1])) return true;
-  return false;
+  return insideRatio(A, B) > 0.2 || insideRatio(B, A) > 0.2;
 }
 
 function pointInPoly(p, poly){
@@ -1318,7 +1315,7 @@ window.addEventListener('resize', resize);
 
 window.__BORDER_EDITOR__ = {
   S, draw, fit, center, w2s, s2w, snapTarget, buildRealm, buildNet, pointInPoly, dijkstra, commitDraft,
-  doBuildRealm, applyRealm, dropRealm, commitLoop, ringsOverlap, strictIn, hitRealm, syncRealmsForEdge, vertexAt, polyArea, isClosedRing, undo, redo,
+  doBuildRealm, applyRealm, dropRealm, commitLoop, ringsOverlap, insideDeep, insideRatio, hitRealm, syncRealmsForEdge, vertexAt, polyArea, isClosedRing, undo, redo,
   get edges(){ return edges; }, get realms(){ return realms; }, get owner(){ return owner; },
   get cities(){ return cities; }, get nations(){ return nations; },
   setVector(V){ S.V = V; bgKey = ''; },

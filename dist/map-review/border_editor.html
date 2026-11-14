@@ -1384,10 +1384,16 @@ function rebuildRealms(){
         if (b2.ring === a2.ring) continue;
         if (window.Geom.pointInRing(b2.ring[0][0], b2.ring[0][1], a2.ring)) extra.push(b2.ring);
       }
-      if (extra.length){
-        const have = new Set((a2.holes || []).map(h => h.length + ':' + h[0][0].toFixed(1)));
-        for (const h of extra) if (!have.has(h.length + ':' + h[0][0].toFixed(1))) (a2.holes = a2.holes || []).push(h);
+      const sig = h => h.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(';');
+      const seen = new Set();
+      const uniq = [];
+      for (const h of extra){
+        const k = sig(h);
+        if (seen.has(k)) continue;
+        seen.add(k);
+        uniq.push(h);
       }
+      a2.holes = uniq;          // 直接覆盖：重复洞会让 evenodd 反转，把洞填实
     }
   }
 

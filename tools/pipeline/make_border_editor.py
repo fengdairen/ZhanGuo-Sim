@@ -580,7 +580,17 @@ function drawBg(){
   const g = bgCanvas.getContext('2d');
   g.setTransform(dpr,0,0,dpr,0,0); g.fillStyle = '#e9dbb8'; g.fillRect(0,0,vw,vh);
   g.setTransform(dpr*S.scale,0,0,dpr*S.scale,dpr*S.tx,dpr*S.ty);
-  if (S.layers.sea) for (const f of S.V.sea){ g.fillStyle = COL.sea; g.fill(pathOf(f)); }
+  if (S.layers.sea){
+    // 海面要挖掉闭合海岸线圈出来的小岛，否则海水会盖住岛（岛上没有陆地色）
+    const sp = new Path2D();
+    for (const f of S.V.sea){ const fp = pathOf(f); sp.addPath(fp); }
+    for (const c of S.V.coasts){
+      if (!c.closed) continue;
+      const cp = pathOf(c.pts); cp.closePath(); sp.addPath(cp);
+    }
+    g.fillStyle = COL.sea;
+    g.fill(sp, 'evenodd');
+  }
   if (S.layers.lake){ g.strokeStyle = COL.lakeEdge; g.lineWidth = 2.2/S.scale; g.fillStyle = COL.lake;
     for (const l of S.V.lakes){ const p = pathOf(l.pts); p.closePath(); g.fill(p); g.stroke(p); } }
   if (S.layers.coast){ g.strokeStyle = COL.coast; g.lineWidth = Math.max(1,4/S.scale); g.lineCap='round';

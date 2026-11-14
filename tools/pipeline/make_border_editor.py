@@ -859,7 +859,8 @@ cv.addEventListener('pointerdown', e => {
       else if (fac) claims[idx].faction = fac;          // 同国再点一次不要抹掉"地方"
     }
     else claims.push({ seed: [Math.round(wx*10)/10, Math.round(wy*10)/10], nation: nat, faction: fac, note: '' });
-    log('填色完成', { 认领后: claims.length, 地块: realms.length + (idx >= 0 ? 0 : 1) });
+    log('填色完成', { 认领后: claims.length, 地块: realms.length });
+    log('当前地块', realms.map(r => (r.nation || '?') + ':' + Math.round(r.area) + (r.holes && r.holes.length ? '(洞' + r.holes.length + ')' : '')).join(' '));
     rebuildRealms();
     scheduleSave(); renderSel(); renderList(); draw();
     return;

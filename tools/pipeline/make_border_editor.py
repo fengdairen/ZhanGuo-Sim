@@ -155,6 +155,7 @@ TPL = r"""<!DOCTYPE html>
     <select id="claimNation" title="填给哪个国家"></select>
     <input id="claimFaction" placeholder="地方（可空）" style="width:110px">
   </span>
+  <button id="bNuke" title="清空全部边界线、地块与城邑归属">清空</button>
   <button id="bNations">国家…</button>
   <button id="bSave">存盘</button>
 </div>
@@ -1497,6 +1498,21 @@ $('bUndo').onclick = undo;
 $('bRedo').onclick = redo;
 $('bRealm').onclick = doBuildRealm;
 $('bSave').onclick = pushSave;
+$('bNuke').onclick = async () => {
+  if (!confirm('清空全部边界线、地块与城邑归属？此操作会立刻存盘。')) return;
+  snap();
+  edges = [];
+  claims = [];
+  realms = [];
+  FACES = null; facesReady = false;
+  S.selEdge = new Set(); S.selRealm = null; S.selRealmNation = null; S.draft = null;
+  for (const k in owner) delete owner[k];
+  renderSel(); renderList(); draw();
+  const ok = await pushSave();
+  const ok2 = await saveOwnership();
+  toast('已清空全部边界线与地块' + (ok === true && ok2 === true ? '' : '（写盘失败）'));
+  computeFaces();
+};
 const LM = {lSea:'sea',lLake:'lake',lCoast:'coast',lRiver:'river',lEdge:'edge',lFill:'fill',lCity:'city',lName:'name',lFace:'face'};
 for (const [id,key] of Object.entries(LM)){
   const el = $(id); if (!el) continue;

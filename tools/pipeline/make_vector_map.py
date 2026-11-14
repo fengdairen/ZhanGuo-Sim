@@ -963,10 +963,18 @@ function showFaction(fac, nation, anchor){
   el('rName').textContent = fac;
   el('rSub').textContent = '地方势力 · 隶属' + ((anchor && anchor.nationName) || '');
   el('rRealm').textContent = group.length + ' 块' + (group.length > 1 ? '（跨地块）' : '');
-  el('rCities').textContent = cities ? (cities + ' 城') : '—';
+  // 城邑数：直接数落在这些地块里的城
+  let nCity = 0;
+  for (const c of CITIES){
+    for (const r of group){
+      if (r.ring && pointInRing(c.x, c.y, r.ring)){ nCity++; break; }
+    }
+  }
+  el('rCities').textContent = nCity + ' 城';
   el('rArea').textContent = Math.round(area).toLocaleString() + ' px²';
-  el('rEdges').textContent = (group.map(x => x.note || x.id).slice(0, 6).join('、') || '—');
-  el('rArea').textContent = el('rArea').textContent;
+  // 地方：用各块的备注，没有就写破折号（不要再出现莫名其妙的顿号）
+  const names = group.map(x => (x.note || '').trim()).filter(Boolean);
+  el('rEdges').textContent = names.length ? names.slice(0, 6).join('、') : '—';
   box.classList.add('on');
 }
 

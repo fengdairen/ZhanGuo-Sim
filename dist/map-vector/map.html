@@ -376,7 +376,7 @@ function draw(){
       }
 
       // 2) 内侧渐变：栅格遮罩（先填并集，再减去模糊后的自己 → 紧贴国界向内淡出）
-      drawInnerFade(list, color, on ? 0.20 : 0.16);
+      drawInnerFade(list, color, 0.16, key);
 
       // 3) 国界线：整组描边后擦掉内部 → 只剩合起来的轮廓，宽度恒定
       if (!off) off = document.createElement('canvas');
@@ -622,7 +622,20 @@ function pointInRing(x, y, ring){
 // 内侧渐变：栅格法
 // A = 并集填充；B = A 的模糊版；A 减去 B → 只剩贴边的一圈，且由边向内淡出
 let _fadeA = null, _fadeB = null;
-function drawInnerFade(list, color, alpha){
+// 渐变的计算结果缓存：同一个 (国家, 视角) 只算一次，之后直接贴图
+const _fadeCache = new Map();
+function fadeKeyOf(key, color){
+  return [key, color, V.scale.toFixed(4), Math.round(V.tx), Math.round(V.ty), cw, ch, dpr,
+          G.realms.length].join('|');
+}
+function drawInnerFade(list, color, alpha, cacheKey){
+  const ck = cacheKey ? fadeKeyOf(cacheKey, color) : null;
+  if (ck && _fadeCache.has(ck)){ 
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.drawImage(_fadeCache.get(ck), 0, 0);
+    ctx.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
+    return;
+  }
   const w = cv.width, h = cv.height;
   if (!w || !h) return;
   if (!_fadeA){ _fadeA = document.createElement('canvas'); _fadeB = document.createElement('canvas'); }
@@ -650,6 +663,13 @@ function drawInnerFade(list, color, alpha){
   ga.fillRect(0, 0, w, h);
   ga.globalCompositeOperation = 'source-over';
 
+  if (ck){
+    const cp = document.createElement('canvas');
+    cp.width = w; cp.height = h;
+    cp.getContext('2d').drawImage(_fadeA, 0, 0);
+    _fadeCache.set(ck, cp);
+    if (_fadeCache.size > 16){ _fadeCache.delete(_fadeCache.keys().next().value); }
+  }
   ctx.setTransform(1,0,0,1,0,0);
   ctx.drawImage(_fadeA, 0, 0);
   ctx.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);

@@ -240,6 +240,23 @@ function buildNet(extra, exclude){
   for (const l of S.V.lakes)  addLine(flatToPts(l.pts));
   // 选中的边界线不参与补全，否则补线就是那条线本身
   for (const e of edges) if (!exclude.has(e.id) && e.pts && e.pts.length > 1) addLine(e.pts);
+  // 端点互连：相邻两段边界线共享端点时，那段几何被排除，
+  // 端点之间就断开了——这里把 8px 内的端点直接接上（零权重）
+  const eps = [];
+  for (const q of extra){
+    const i = idx(q);
+    if (!eps.includes(i)) eps.push(i);
+  }
+  for (let i=0;i<eps.length;i++){
+    for (let j=i+1;j<eps.length;j++){
+      const A = nodes[eps[i]], B = nodes[eps[j]];
+      if (Math.hypot(A[0]-B[0], A[1]-B[1]) <= 8){
+        adj[eps[i]].push({to:eps[j], w:0.001});
+        adj[eps[j]].push({to:eps[i], w:0.001});
+      }
+    }
+  }
+
   NET = {nodes, adj, idx};
   return NET;
 }
@@ -316,7 +333,9 @@ function buildRealm(edgeIds){
   if (!sel.length) return {error:'没有可用的边界线'};
   const extra = [];
   for (const e of sel){ extra.push(e.pts[0]); extra.push(e.pts[e.pts.length-1]); }
-  NET = buildNet(extra, new Set(sel.map(e => e.id)));
+  // 只有"单线闭环"才把这条线排除在外（否则补线就是它自己）；
+  // 多线成环时必须保留它们的几何，否则端点落在另一条选中线中间就断开了
+  NET = buildNet(extra, sel.length === 1 ? new Set([sel[0].id]) : new Set());
 
   // 端点节点集
   const ends = [];
@@ -325,30 +344,64 @@ function buildRealm(edgeIds){
     ends.push({edge:e.id, side:0, pt:a, node:NET.idx(a)});
     ends.push({edge:e.id, side:1, pt:b, node:NET.idx(b)});
   }
-  // 端点两两最短路（不同边界线之间，或同一线两端=闭环）
-  const pairs = [];
-  for (let i=0;i<ends.length;i++){
-    for (let j=i+1;j<ends.length;j++){
+  // 端点两两最短路（不同边界线之间；同一线两端=闭环路径）
+  const n = ends.length;
+  const W = [], P = [];
+  for (let i=0;i<n;i++){ W.push(new Array(n).fill(Infinity)); P.push(new Array(n).fill(null)); }
+  for (let i=0;i<n;i++){
+    for (let j=i+1;j<n;j++){
       if (ends[i].edge === ends[j].edge && sel.length > 1) continue;
       const r = dijkstra(ends[i].node, ends[j].node);
-      if (r) pairs.push({i, j, len:r.len, pts:r.pts});
+      if (r){ W[i][j] = W[j][i] = r.len; P[i][j] = r.pts; P[j][i] = r.pts.slice().reverse(); }
     }
   }
-  pairs.sort((a,b) => a.len - b.len);
 
-  // 贪心匹配：每个端点只用一次
-  const used = new Array(ends.length).fill(false);
-  const link = new Array(ends.length).fill(null);
-  for (const p of pairs){
-    if (used[p.i] || used[p.j]) continue;
-    used[p.i] = used[p.j] = true;
-    link[p.i] = {other:p.j, pts:p.pts};
-    link[p.j] = {other:p.i, pts:p.pts.slice().reverse()};
+  // 最小权完美匹配：贪心会把端点配错、留下配不上的，改用位掩码 DP
+  const link = new Array(n).fill(null);
+  if (n <= 18){
+    const memo = new Map(), pick = new Map();
+    const solve = (mask) => {
+      if (mask === (1 << n) - 1) return 0;
+      if (memo.has(mask)) return memo.get(mask);
+      let i = 0; while (mask & (1 << i)) i++;
+      let best = Infinity, bj = -1;
+      for (let j = i + 1; j < n; j++){
+        if (mask & (1 << j)) continue;
+        if (!isFinite(W[i][j])) continue;
+        const sub = solve(mask | (1 << i) | (1 << j));
+        if (sub + W[i][j] < best){ best = sub + W[i][j]; bj = j; }
+      }
+      memo.set(mask, best); pick.set(mask, bj);
+      return best;
+    };
+    const total = solve(0);
+    if (!isFinite(total)) {
+      S.dbg = { ends: n, pairs: 0 };
+      return {error:'端点之间找不到通路（附近没有水系，或边界线没接上）'};
+    }
+    let mask = 0;
+    while (mask !== (1 << n) - 1){
+      let i = 0; while (mask & (1 << i)) i++;
+      const j = pick.get(mask);
+      link[i] = { other:j, pts:P[i][j] };
+      link[j] = { other:i, pts:P[j][i] };
+      mask |= (1 << i) | (1 << j);
+    }
+  }else{
+    // 端点太多：退回贪心
+    const order = [];
+    for (let i=0;i<n;i++) for (let j=i+1;j<n;j++)
+      if (isFinite(W[i][j])) order.push({i, j, len:W[i][j]});
+    order.sort((a,b) => a.len - b.len);
+    for (const p2 of order){
+      if (link[p2.i] || link[p2.j]) continue;
+      link[p2.i] = { other:p2.j, pts:P[p2.i][p2.j] };
+      link[p2.j] = { other:p2.i, pts:P[p2.j][p2.i] };
+    }
   }
-  S.dbg = { ends: ends.map(e => ({edge:e.edge, side:e.side, node:e.node})), pairs: pairs.length,
-            linked: link.filter(Boolean).length, bestLen: pairs[0] && pairs[0].len };
-  const lonely = ends.filter((e,i) => !used[i]);
-  if (lonely.length) return {error:'有 ' + lonely.length + ' 个端点无法与任何线相连（附近没有水系？）'};
+  const lonely = link.filter(x => !x).length;
+  S.dbg = { ends:n, linked: link.filter(Boolean).length, lonely };
+  if (lonely) return {error:'有 ' + lonely + ' 个端点接不上（附近没有水系，或相邻边界线没接上）'};
 
   // 沿环走：边 → 补线 → 边 … → 回到起点
   const byId = {}; for (const e of sel) byId[e.id] = e;
@@ -1019,15 +1072,14 @@ function doBuildRealm(){
       area = Math.abs(area)/2;
       if (area < 500){ toast('这个环太小（' + Math.round(area) + ' px²）'); return; }
       const clash0 = realms.filter(x => x.ring && x.ring.length > 2 && ringsOverlap(ring, x.ring));
-      if (clash0.length){
-        toast('与已有地块 ' + clash0.map(x => x.id).join('、') + ' 重叠，请调整边界线');
-        return;
-      }
+      const absorbed0 = clash0.map(x => x.id);
+      if (clash0.length) realms = realms.filter(x => !clash0.includes(x));
       snap();
       const id = nextRealmId();
       realms.push({ id, name:'', note:'', nation:'', faction:'', edges:[e.id], ring, area });
       S.selRealm = id;
-      toast('闭合边界线已转为疆域：' + Math.round(area).toLocaleString() + ' px²');
+      toast('闭合边界线已转为地块：' + Math.round(area).toLocaleString() + ' px²' +
+            (absorbed0.length ? ('；吸收 ' + absorbed0.join('、')) : ''));
       scheduleSave(); renderSel(); renderList(); draw();
       return;
     }
@@ -1036,18 +1088,20 @@ function doBuildRealm(){
   const r = buildRealm(ids);
   if (r.error){ toast(r.error); return; }
 
-  // 与已有地块相交 → 拒绝，避免一块地重复归属
+  // 与已有地块相交 → 吸收：删掉它们，由新地块接管这片区域
   const clash = realms.filter(x => x.ring && x.ring.length > 2 && ringsOverlap(r.ring, x.ring));
+  let absorbed = [];
   if (clash.length){
-    toast('与已有地块 ' + clash.map(x => x.id).join('、') + ' 重叠，请调整边界线');
-    return;
+    absorbed = clash.map(x => x.id);
+    realms = realms.filter(x => !clash.includes(x));
   }
   snap();
   const id = nextRealmId();
   const realm = { id, name:'新疆域', nation:'', edges:r.used, ring:r.ring, area:r.area };
   realms.push(realm);
   S.selRealm = id;
-  toast('疆域已生成：面积 ' + Math.round(r.area).toLocaleString() + ' px²');
+  toast('地块 ' + id + ' 已生成：' + Math.round(r.area).toLocaleString() + ' px²' +
+        (absorbed.length ? ('；吸收 ' + absorbed.join('、')) : ''));
   scheduleSave(); renderSel(); renderList(); draw();
 }
 
@@ -1064,10 +1118,10 @@ async function applyRealm(r){
   if (!r.nation){ toast('先指定国家'); return; }
   snap();
   let n = 0, skipped = 0;
+  const others = realms.filter(x => x !== r && x.nation && x.nation !== r.nation && x.ring);
   for (const c of cities){
     if (!pointInPoly([c.x, c.y], r.ring)) continue;
-    const cur = owner[c.id];
-    if (cur && cur.n && cur.n !== r.nation){ skipped++; continue; }   // 已属他国，不静默覆盖
+    if (others.some(x => pointInPoly([c.x, c.y], x.ring))){ skipped++; continue; }  // 真在别国地块里才跳过
     owner[c.id] = { n: r.nation, f: r.faction || '' }; n++;
   }
   const nm = (nations.find(x => x.id === r.nation) || {}).name || r.nation;

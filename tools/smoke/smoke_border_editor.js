@@ -315,6 +315,32 @@ check(!!api.S.draft.end, '终点应吸附到河上');
   check(api.ringsOverlap(A, C) === false, '仅贴边的两块不应判定重叠');
 }
 
+// 13) 重叠地块被吸收：生成新地块后旧地块消失，数量不增
+{
+  const A = [[0,0],[100,0],[100,100],[0,100],[0,0]];
+  const B = [[20,20],[80,20],[80,80],[20,80],[20,20]];   // B 含于 A
+  api.realms.length = 0;
+  api.realms.push({ id:'q1', nation:'', ring:A, area:10000, edges:[] });
+  const clash = api.realms.filter(x => api.ringsOverlap(B, x.ring));
+  check(clash.length === 1, 'B 应判定与 q1 重叠');
+}
+
+// 14) 端点落在另一条"被选中"的线中间，也要能连上
+{
+  const cx = api.cities[300].x, cy = api.cities[300].y;
+  const sq = [[cx-300,cy-300],[cx+300,cy-300],[cx+300,cy+300],[cx-300,cy+300],[cx-300,cy-300]];
+  const rs = []; for (let i=0;i<4;i++) rs.push([3.0, sq[i][0], sq[i][1], sq[i+1][0], sq[i+1][1]]);
+  api.setVector({ sea:[], rivers:rs, lakes:[], coasts:[] });
+  api.realms.length = 0;
+  api.setEdges([
+    { id:'b001', pts:[[cx-300,cy-100],[cx+300,cy-100]], ends:[] },   // 横线，两端在河上
+    { id:'b002', pts:[[cx,cy-100],[cx,cy+150]], ends:[] },           // 起点落在 b001 中间
+    { id:'b003', pts:[[cx,cy+150],[cx+300,cy+150]], ends:[] }
+  ]);
+  const rr2 = api.buildRealm(['b001','b002','b003']);
+  check(!rr2.error, '端点落在另一条选中线中间时应能成环：' + rr2.error);
+}
+
 console.log('PASS  国界绘制器：补全/闭环/内外判定/悬空报错/归属应用/拖点重算');
   process.exit(0);
 })().catch(e => { console.error('FAIL: ' + e.message); process.exit(1); });

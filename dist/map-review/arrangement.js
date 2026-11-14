@@ -71,7 +71,7 @@
     if (simp > 0) polylines = polylines.map(l => rdp(l, simp));
 
     // ---- -1. 端点接续：端点若离别的线很近却没碰上，直接投影过去 ----
-    const endTol = opts.snapEnds == null ? 30 : opts.snapEnds;
+    const endTol = opts.snapEnds == null ? 3 : opts.snapEnds;   // 只补亚像素级误差，不是补数据缺口
     if (endTol > 0){
       const allSegs = [];
       polylines.forEach((line, li) => {

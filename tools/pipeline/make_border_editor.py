@@ -1417,8 +1417,8 @@ function rebuildRealms(){
   for (const c of claims){
     // 优先用认领时记下的面 id；面重算过（id 变了）再退回按种子点定位
     let f = c.face ? byId.get(c.face) : null;
-    if (!f || !window.Geom.pointInRing(c.seed[0], c.seed[1], f.ring)) f = faceAt(c.seed[0], c.seed[1]);
-    if (!f) continue;                       // 线改了，种子落在面外 → 暂时丢掉
+    if (!f) f = faceAt(c.seed[0], c.seed[1]);
+    if (!f){ log('认领无法归位', { face: c.face || null, seed: c.seed }); continue; }
     byFace.set(f.id, { ring: f.ring, area: f.area, holes: f.holes || [], seed: c.seed, claim: c });
   }
   // 同一国家认领了"大面 + 里面那个洞"时，把洞填掉，否则会看成两块

@@ -257,6 +257,14 @@
       }
     }
 
+    // ---- 4.5 连通分量（每个分量都有自己的"无界面"，必须各丢一圈） ----
+    const par = new Array(nodes.length).fill(0).map((_, i) => i);
+    const find = (x) => { while (par[x] !== x){ par[x] = par[par[x]]; x = par[x]; } return x; };
+    for (const [a2, b2] of edges.values()){
+      const ra = find(a2), rb = find(b2);
+      if (ra !== rb) par[ra] = rb;
+    }
+
     // ---- 5. 半边与面 ----
     const out = nodes.map(() => []);
     for (const [id, [a, b]] of edges) {
@@ -291,20 +299,49 @@
         if (ring.length > 8000) continue;      // 走到上限的多半是坏环，丢掉
         ring.push([ring[0][0], ring[0][1]]);
         const ar = area(ring);
-        if (Math.abs(ar) > minArea) loops.push({ ring, area: ar });
+        if (Math.abs(ar) > minArea) loops.push({ ring, area: ar, comp: find(u) });
       }
     }
 
     // 走向不可靠：顺时针画的闭环会让"内部"和"外部"符号反过来。
     // 但渲染和点判定只看形状不看走向，所以只丢掉**面积最大的那一圈**（无界面），其余全是面。
-    if (loops.length){
-      let big = 0;
-      for (let i = 1; i < loops.length; i++) if (Math.abs(loops[i].area) > Math.abs(loops[big].area)) big = i;
+    // 孤立闭环会走出两个"同样形状"的环（一正一反），去重
+    {
+      const seen = new Set(), uniq = [];
+      for (const l of loops){
+        const r = l.ring;
+        if (r.length){
+          const k = r.length + '|' + Math.round(Math.abs(l.area)) + '|' +
+                    Math.round(Math.min(...r.map(q => q[0]))) + ',' + Math.round(Math.min(...r.map(q => q[1])));
+          if (seen.has(k)) continue;
+          seen.add(k);
+        }
+        uniq.push(l);
+      }
+      loops.length = 0;
+      loops.push(...uniq);
+    }
+
+    {
+      // 定理：连通平面图里，有界面走向一致，无界面相反，且无界面面积最大。
+      // 按分量各判一次；分量只有一个环时（孤立闭环的内部）当有界面。
+      const byComp = new Map();
+      loops.forEach((l, i) => {
+        if (!byComp.has(l.comp)) byComp.set(l.comp, []);
+        byComp.get(l.comp).push(i);
+      });
+      const outerIdx = new Set();
+      for (const idxs of byComp.values()){
+        if (idxs.length < 2) continue;
+        let big = idxs[0];
+        for (const i of idxs) if (Math.abs(loops[i].area) > Math.abs(loops[big].area)) big = i;
+        outerIdx.add(big);
+      }
       loops.forEach((l, i) => {
         faces.push({
           ring: l.ring,
           area: Math.abs(l.area),
-          outer: i === big
+          outer: outerIdx.has(i)
         });
       });
     }

@@ -55,6 +55,9 @@ def main():
                .replace("W_PX", str(W)).replace("H_PX", str(H)))
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(html, encoding="utf-8")
+    import shutil
+    shutil.copy2(ROOT / "tools" / "pipeline" / "arrangement.js",
+                 OUT.parent / "arrangement.js")
     print(f"城邑 {len(cities)} · 国家 {len(nations)} · 边界 {len(state.get('edges', []))} "
           f"· 疆域 {len(state.get('realms', []))} → {OUT} {round(OUT.stat().st_size/1024)} KB")
 
@@ -156,6 +159,7 @@ TPL = r"""<!DOCTYPE html>
   <label><input type="checkbox" id="lRiver" checked>河网</label>
   <label><input type="checkbox" id="lEdge" checked>边界线</label>
   <label><input type="checkbox" id="lFill" checked>疆域填充</label>
+  <label><input type="checkbox" id="lFace">面（平面划分）</label>
   <label><input type="checkbox" id="lCity" checked>城邑</label>
   <label><input type="checkbox" id="lName" checked>城名</label>
 </div>
@@ -186,6 +190,7 @@ TPL = r"""<!DOCTYPE html>
 </div>
 <div id="toast"></div>
 
+<script src="arrangement.js"></script>
 <script>
 const DATA = __DATA__;
 const W = W_PX, H = H_PX;
@@ -203,7 +208,7 @@ for (const k in DATA.owner) owner[k] = { n: DATA.owner[k], f: '' };
 
 const S = {
   mode:'sel', selEdge:new Set(), selRealm:null,
-  layers:{sea:1,lake:1,coast:1,river:1,edge:1,fill:1,city:1,name:1},
+  layers:{sea:1,lake:1,coast:1,river:1,edge:1,fill:1,city:1,name:1,face:0},
   V:{sea:[],rivers:[],lakes:[],coasts:[]},
   scale:0.15, tx:0, ty:0, drag:null, box:null, cursor:null,
   draft:null, drawTarget:null
@@ -590,6 +595,21 @@ function draw(){
     }
   }
 
+  // 面
+  if (S.layers.face && FACES){
+    ctx.setTransform(dpr*S.scale,0,0,dpr*S.scale,dpr*S.tx,dpr*S.ty);
+    for (const f of FACES){
+      const on = selFace && selFace.id === f.id;
+      const p = pathOf(f.ring); p.closePath();
+      ctx.fillStyle = on ? 'rgba(211,84,0,.18)' : 'rgba(45,93,128,.05)';
+      ctx.fill(p);
+      ctx.strokeStyle = on ? 'rgba(211,84,0,.9)' : 'rgba(45,93,128,.28)';
+      ctx.lineWidth = (on ? 2.6 : 1.0) / S.scale;
+      ctx.stroke(p);
+    }
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
   // 边界线
   ctx.setTransform(dpr,0,0,dpr,0,0);
   if (S.layers.edge){
@@ -841,6 +861,15 @@ cv.addEventListener('pointerdown', e => {
     S.selRealm = null;
     renderSel(); draw(); return;
   }
+  if (S.layers.face && FACES){
+    const f = faceAt(wx, wy);
+    if (f){
+      selFace = f;
+      const nCity = cities.filter(c => window.Arrangement.contains(f, c.x, c.y)).length;
+      toast(f.id + ' · ' + Math.round(f.area).toLocaleString() + ' px² · ' + nCity + ' 城');
+      draw(); renderList(); return;
+    }
+  }
   const rp = hitRealm(wx, wy);
   if (rp){
     S.selEdge = new Set(rp.edges || []);
@@ -913,7 +942,7 @@ cv.addEventListener('pointerup', () => {
       e.ends[k] = {kind:d.snap.kind, id:d.snap.id, idx:d.snap.idx,
                    x:e.pts[d.idx][0], y:e.pts[d.idx][1], ok:true};
     }
-    if (d.moved) syncRealmsForEdge(e.id);
+    if (d.moved){ FACES = null; syncRealmsForEdge(e.id); }
     else draw();
     return;
   }
@@ -1032,7 +1061,7 @@ function commitLoop(){
   snap();
   const id = nextEdgeId();
   edges.push({ id, closed:true, pts:ring, ends:[] });
-  S.draft = null;
+  S.draft = null; FACES = null;
   scheduleSave(); renderSel(); draw();
   toast('闭环边界线已生成：' + Math.round(area).toLocaleString() + ' px²');
 }
@@ -1262,6 +1291,50 @@ function applyState(s){ const o = JSON.parse(s); edges = o.edges; realms = o.rea
 function undo(){ if(!hist.length) return; fut.push(JSON.stringify({edges,realms})); applyState(hist.pop()); }
 function redo(){ if(!fut.length) return; hist.push(JSON.stringify({edges,realms})); applyState(fut.pop()); }
 
+/* ================= 面（平面划分） ================= */
+let FACES = null, faceBusy = false, selFace = null;
+function computeFaces(){
+  if (faceBusy) return;
+  faceBusy = true;
+  toast('正在计算面…');
+  setTimeout(() => {
+    try{
+      const water = [];
+      for (const r of S.V.rivers){ const pts = []; for (let i=1;i<r.length;i+=2) pts.push([r[i], r[i+1]]); water.push(pts); }
+      for (const c of S.V.coasts){ const pts = []; for (let i=0;i<c.pts.length;i+=2) pts.push([c.pts[i], c.pts[i+1]]); water.push(pts); }
+      for (const l of S.V.lakes){ const pts = []; for (let i=0;i<l.pts.length;i+=2) pts.push([l.pts[i], l.pts[i+1]]); water.push(pts); }
+      // 只保留和边界线端点靠得近的水系，否则会被河网切成几百块
+      const bp = [];
+      for (const e of edges){ bp.push(e.pts[0]); bp.push(e.pts[e.pts.length-1]); }
+      const near = line => line.some(q => bp.some(p => Math.hypot(p[0]-q[0], p[1]-q[1]) < 30));
+      const used = water.filter(near);
+      const res = window.Arrangement.build(edges.map(e => e.pts).concat(used), { minArea: 300 });
+      FACES = res.faces.map((f, i) => ({
+        id: 'F' + (i + 1), ring: f.ring, area: f.area,
+        center: window.Arrangement.representative(f)
+      }));
+      FACES.sort((a2, b2) => b2.area - a2.area);
+      FACES.forEach((f, i) => f.id = 'F' + (i + 1));
+      toast('面：' + FACES.length + ' 个（' + res.stats.ms + 'ms）');
+      draw(); renderList();
+    }catch(e){
+      toast('面计算失败：' + e.message);
+    }finally{
+      faceBusy = false;
+    }
+  }, 30);
+}
+function faceAt(wx, wy){
+  if (!FACES) return null;
+  let best = null;
+  for (const f of FACES){
+    if (window.Arrangement.contains(f, wx, wy)){
+      if (!best || f.area < best.area) best = f;
+    }
+  }
+  return best;
+}
+
 /* ================= 国家管理 ================= */
 function renderMgr(){
   const box = $('mgrNations');
@@ -1330,11 +1403,16 @@ $('bUndo').onclick = undo;
 $('bRedo').onclick = redo;
 $('bRealm').onclick = doBuildRealm;
 $('bSave').onclick = pushSave;
-const LM = {lSea:'sea',lLake:'lake',lCoast:'coast',lRiver:'river',lEdge:'edge',lFill:'fill',lCity:'city',lName:'name'};
+const LM = {lSea:'sea',lLake:'lake',lCoast:'coast',lRiver:'river',lEdge:'edge',lFill:'fill',lCity:'city',lName:'name',lFace:'face'};
 for (const [id,key] of Object.entries(LM)){
   const el = $(id); if (!el) continue;
   el.checked = !!S.layers[key];
-  el.onchange = () => { S.layers[key] = el.checked; bgKey=''; draw(); };
+  el.onchange = () => {
+    S.layers[key] = el.checked;
+    bgKey = '';
+    if (key === 'face' && el.checked && !FACES) computeFaces();
+    draw();
+  };
 }
 $('q').addEventListener('keydown', e => {
   if (e.key === 'Enter'){
@@ -1354,6 +1432,7 @@ window.__BORDER_EDITOR__ = {
   setVector(V){ S.V = V; bgKey = ''; },
   setEdges(list){ edges = list; },
   repairEdgeIds, nextEdgeId, repairRealmIds, nextRealmId, resolveClash, inPatch, patchPath,
+  computeFaces, faceAt, get FACES(){ return FACES; },
   snap(){ hist.push(JSON.stringify({edges, realms})); fut.length = 0; }
 };
 

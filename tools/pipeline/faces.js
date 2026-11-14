@@ -46,7 +46,7 @@ function main() {
     const f = faces.find(fc => !fc.outer && A.contains(fc, c.seed[0], c.seed[1]));
     if (!f) continue;
     out.push({ nation: c.nation || '', faction: c.faction || '', note: c.note || '',
-               area: Math.round(f.area), ring: f.ring });
+               area: Math.round(f.area), ring: f.ring, holes: f.holes || [] });
   }
 
   const dest = path.join(ROOT, 'data', 'map', 'faces.json');

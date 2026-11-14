@@ -16,6 +16,15 @@
 
   const EPS = 1e-9;
 
+  function pointInRing(x, y, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+      if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / ((yj - yi) || 1e-9) + xi)) inside = !inside;
+    }
+    return inside;
+  }
+
   function area(ring) {
     let a = 0;
     for (let i = 0; i + 1 < ring.length; i++) {
@@ -346,6 +355,21 @@
       });
     }
 
+    // 落在某个面内部的其它面 = 洞（孤立的闭环不会和大网连成一个环，
+    // 必须在包含关系上把内层减掉，否则"大面"会把人吞进去）
+    {
+      const inner = faces.filter(f => !f.outer).sort((x, y) => y.area - x.area);
+      for (const f of inner){
+        f.holes = [];
+        for (const g of inner){
+          if (g === f) continue;
+          if (g.area >= f.area) continue;
+          const pt = g.ring[0];
+          if (pointInRing(pt[0], pt[1], f.ring)) f.holes.push(g.ring);
+        }
+      }
+    }
+
     return {
       faces,
       stats: {
@@ -358,6 +382,11 @@
 
   // 点是否在面内（含边界）
   function contains(face, x, y) {
+    if (face.holes && face.holes.length){
+      for (const h of face.holes){
+        if (pointInRing(x, y, h)) return false;
+      }
+    }
     const ring = face.ring;
     let inside = false;
     for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {

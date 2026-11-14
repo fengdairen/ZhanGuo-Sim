@@ -611,8 +611,9 @@ function draw(){
     for (const f of FACES){
       const on = selFace && selFace.id === f.id;
       const p = pathOf(f.ring); p.closePath();
+      if (f.holes) for (const h of f.holes){ const hp = pathOf(h); hp.closePath(); p.addPath(hp); }
       ctx.fillStyle = on ? 'rgba(211,84,0,.18)' : 'rgba(45,93,128,.05)';
-      ctx.fill(p);
+      ctx.fill(p, 'evenodd');
       ctx.strokeStyle = on ? 'rgba(211,84,0,.9)' : 'rgba(45,93,128,.28)';
       ctx.lineWidth = (on ? 2.6 : 1.0) / S.scale;
       ctx.stroke(p);
@@ -1351,13 +1352,13 @@ function rebuildRealms(){
   for (const c of claims){
     const f = faceAt(c.seed[0], c.seed[1]);
     if (!f) continue;                       // 线改了，种子落在面外 → 暂时丢掉
-    byFace.set(f.id, { ring: f.ring, area: f.area, seed: c.seed, claim: c });
+    byFace.set(f.id, { ring: f.ring, area: f.area, holes: f.holes || [], seed: c.seed, claim: c });
   }
   const out = [];
   for (const [fid, v] of byFace){
     out.push({ id: 'q' + (out.length + 1), name: '', note: v.claim.note || '',
                nation: v.claim.nation || '', faction: v.claim.faction || '',
-               ring: v.ring, area: v.area, seed: v.seed, edges: [], _claim: v.claim });
+               ring: v.ring, area: v.area, holes: v.holes, seed: v.seed, edges: [], _claim: v.claim });
   }
   realms = out;
 }
@@ -1375,7 +1376,7 @@ function computeFaces(){
       for (const l of S.V.lakes){ const pts = []; for (let i=0;i<l.pts.length;i+=2) pts.push([l.pts[i], l.pts[i+1]]); water.push(pts); }
       const res = window.Arrangement.build(edges.map(e => e.pts).concat(water), { minArea: 300 });
       FACES = res.faces.map((f, i) => ({ id: 'F' + (i + 1), ring: f.ring, area: f.area,
-                                         outer: !!f.outer,
+                                         outer: !!f.outer, holes: f.holes || [],
                                          center: window.Arrangement.representative(f) }));
       FACES.sort((a2, b2) => b2.area - a2.area);
       FACES.forEach((f, i) => f.id = 'F' + (i + 1));

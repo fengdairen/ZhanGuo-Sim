@@ -67,7 +67,7 @@ if _fc.exists():
                 "nationName": nation_name.get(_f.get("nation"), ""),
                 "nationState": nation_state.get(_f.get("nation"), ""),
                 "faction": _f.get("faction") or "",
-                "holes": [], "cities": 0, "edges": 0, "pts": flat,
+                "holes": [ [round(v,1) for q in h for v in q] for h in (_f.get("holes") or []) ], "cities": 0, "edges": 0, "pts": flat,
             })
     except Exception as _e:
         print("faces.json 读取失败：", _e)

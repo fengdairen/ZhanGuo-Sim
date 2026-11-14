@@ -140,6 +140,7 @@ let edges  = (DATA.borders.edges  || []).map(e => Object.assign({}, e));
 let realms = (DATA.borders.realms || []).map(r => Object.assign({}, r));
 let claims = (DATA.borders.claims || []).map(c => Object.assign({}, c));   // {seed,nation,faction,note}
 let facesReady = false;
+let faceBusy = false;
 const PALETTE = DATA.palette || ['#c0392b','#2980b9','#27ae60','#8e44ad','#d35400'];
 let nations = (DATA.nations || []).map(n => ({
   id: n.id, name: n.name || n.id, state: n.state || '', color: n.color || '#7a6248'
@@ -1275,43 +1276,14 @@ function undo(){ if(!hist.length) return; fut.push(JSON.stringify({edges,realms}
 function redo(){ if(!fut.length) return; hist.push(JSON.stringify({edges,realms})); applyState(fut.pop()); }
 
 /* ================= 面（平面划分） ================= */
-let FACES = null, faceBusy = false, selFace = null;
-function computeFaces(){
-  if (faceBusy) return;
-  faceBusy = true;
-  toast('正在计算面…');
-  setTimeout(() => {
-    try{
-      const water = [];
-      for (const r of S.V.rivers){ const pts = []; for (let i=1;i<r.length;i+=2) pts.push([r[i], r[i+1]]); water.push(pts); }
-      for (const c of S.V.coasts){ const pts = []; for (let i=0;i<c.pts.length;i+=2) pts.push([c.pts[i], c.pts[i+1]]); water.push(pts); }
-      for (const l of S.V.lakes){ const pts = []; for (let i=0;i<l.pts.length;i+=2) pts.push([l.pts[i], l.pts[i+1]]); water.push(pts); }
-      // 全部水系都参与：种子点如果被河围着、没有边界线，也要能成面
-      const res = window.Arrangement.build(edges.map(e => e.pts).concat(water), { minArea: 300 });
-      FACES = res.faces.map((f, i) => ({
-        id: 'F' + (i + 1), ring: f.ring, area: f.area,
-        center: window.Arrangement.representative(f)
-      }));
-      FACES.sort((a2, b2) => b2.area - a2.area);
-      FACES.forEach((f, i) => f.id = 'F' + (i + 1));
-      facesReady = true;
-      rebuildRealms();
-      toast('面：' + FACES.length + ' 个（' + res.stats.ms + 'ms）');
-      draw(); renderSel(); renderList();
-    }catch(e){
-      toast('面计算失败：' + e.message);
-    }finally{
-      faceBusy = false;
-    }
-  }, 30);
-}
+let FACES = null, selFace = null;
 // 用 claims 的种子点找回面，重建 realms（渲染与面板沿用原来的代码）
 function rebuildRealms(){
   if (!facesReady || !FACES) return;
   const out = [];
   for (const c of claims){
     const f = faceAt(c.seed[0], c.seed[1]);
-    if (!f) continue;                       // 线改了，种子落在外面 → 暂时丢掉
+    if (!f) continue;                       // 线改了，种子落在面外 → 暂时丢掉
     out.push({ id: 'q' + (out.length + 1), name: '', note: c.note || '',
                nation: c.nation || '', faction: c.faction || '',
                ring: f.ring, area: f.area, seed: c.seed, edges: [], _claim: c });
@@ -1319,30 +1291,34 @@ function rebuildRealms(){
   realms = out;
 }
 
-// 多边形内部代表点（重心不在内部时用边的中点朝内挪）
-function representative(ring){
-  if (!ring || ring.length < 3) return null;
-  let a = 0, cx = 0, cy = 0;
-  for (let i = 0; i + 1 < ring.length; i++){
-    const cr = ring[i][0]*ring[i+1][1] - ring[i+1][0]*ring[i][1];
-    a += cr; cx += (ring[i][0]+ring[i+1][0])*cr; cy += (ring[i][1]+ring[i+1][1])*cr;
-  }
-  a /= 2;
-  if (Math.abs(a) > 1e-6){
-    const c = [cx/(6*a), cy/(6*a)];
-    if (pointInPoly(c, ring)) return c;
-  }
-  for (let i = 0; i + 1 < ring.length; i++){
-    const p = ring[i], q = ring[i+1];
-    const mx = (p[0]+q[0])/2, my = (p[1]+q[1])/2;
-    const dx = q[1]-p[1], dy = -(q[0]-p[0]);
-    const L = Math.hypot(dx, dy) || 1;
-    for (const d of [2,5,10,20]){
-      const x = mx + dx/L*d, y = my + dy/L*d;
-      if (pointInPoly([x,y], ring)) return [x,y];
+function computeFaces(){
+  if (faceBusy) return;
+  faceBusy = true;
+  toast('正在计算面…');
+  setTimeout(() => {
+    const t0 = Date.now();
+    try{
+      const water = [];
+      for (const r of S.V.rivers){ const pts = []; for (let i=1;i<r.length;i+=2) pts.push([r[i], r[i+1]]); water.push(pts); }
+      for (const c of S.V.coasts){ const pts = []; for (let i=0;i<c.pts.length;i+=2) pts.push([c.pts[i], c.pts[i+1]]); water.push(pts); }
+      for (const l of S.V.lakes){ const pts = []; for (let i=0;i<l.pts.length;i+=2) pts.push([l.pts[i], l.pts[i+1]]); water.push(pts); }
+      const res = window.Arrangement.build(edges.map(e => e.pts).concat(water), { minArea: 300, snap: 3 });
+      FACES = res.faces.map((f, i) => ({ id: 'F' + (i + 1), ring: f.ring, area: f.area,
+                                         center: window.Arrangement.representative(f) }));
+      FACES.sort((a2, b2) => b2.area - a2.area);
+      FACES.forEach((f, i) => f.id = 'F' + (i + 1));
+      facesReady = true;
+      rebuildRealms();
+      lastSave = '面 ' + FACES.length + ' / 认领 ' + claims.length + ' / 地块 ' + realms.length + ' (' + (Date.now()-t0) + 'ms)';
+      toast('面：' + FACES.length + ' 个（' + (Date.now() - t0) + 'ms）');
+      draw(); renderSel(); renderList();
+    }catch(e){
+      lastSave = '面失败：' + e.message;
+      toast('面计算失败：' + e.message);
+    }finally{
+      faceBusy = false;
     }
-  }
-  return ring[0];
+  }, 30);
 }
 
 function faceAt(wx, wy){
@@ -1507,6 +1483,7 @@ window.__BORDER_EDITOR__ = {
     }
   }catch(e){}
   renderSel(); renderList(); draw();
+  computeFaces();          // 启动即算面，claims 才能落回地块
 })();
 </script>
 </body>

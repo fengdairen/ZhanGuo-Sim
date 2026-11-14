@@ -120,13 +120,18 @@ const nat = api.nations[0];
 // 用一个真实的城邑造一个 100x100 的方框
 const c0 = api.cities[10];
 const box = [[c0.x-50,c0.y-50],[c0.x+50,c0.y-50],[c0.x+50,c0.y+50],[c0.x-50,c0.y+50],[c0.x-50,c0.y-50]];
-api.realms.push({ id:'q1', name:'测试', nation:nat.id, edges:['b001','b002'], ring:box, area:10000 });
-const before = Object.keys(api.owner).length;
-api.applyRealm(api.realms[0]);
-check((api.owner[c0.id]||{}).n === nat.id, '疆域内城邑没有改归属：' + JSON.stringify(api.owner[c0.id]));
-const inside = api.cities.filter(c => api.pointInPoly([c.x,c.y], box));
-check(inside.every(c => (api.owner[c.id]||{}).n === nat.id), '方框内还有城邑没改归属');
-console.log('  方框内城邑', inside.length, '个 →', nat.name, '（原有归属', before, '个）');
+const R1 = { id:'q1', name:'测试', nation:nat.id, edges:['b001','b002'], ring:box, area:10000 };
+api.realms.push(R1);
+
+// 归属是异步写盘的，放进 async 块
+(async () => {
+  const before = Object.keys(api.owner).length;
+  await api.applyRealm(R1);
+  check((api.owner[c0.id]||{}).n === nat.id, '疆域内城邑没有改归属：' + JSON.stringify(api.owner[c0.id]));
+  const inside = api.cities.filter(c => api.pointInPoly([c.x,c.y], box));
+  check(inside.every(c => (api.owner[c.id]||{}).n === nat.id), '方框内还有城邑没改归属');
+  console.log('  方框内城邑', inside.length, '个 →', nat.name, '（原有归属', before, '个）');
+})();
 
 // ---- 6) 画线是"一次次点"，不是跟着鼠标记点 ----
 api.setVector({ sea:[], rivers, lakes:[], coasts:[] });
@@ -147,7 +152,7 @@ check(!!api.S.draft.end, '终点应吸附到河上');
 // 7) 拖顶点 → 疆域重算 → 归属跟随
 (async () => {
   // 围绕一个真实城邑造水系方框，保证带子里有城
-  const c0 = api.cities[10];
+  const c0 = api.cities[200];
   const cx = c0.x, cy = c0.y;
   const q = [[cx-300,cy-300],[cx+300,cy-300],[cx+300,cy+300],[cx-300,cy+300],[cx-300,cy-300]];
   const rs = [];

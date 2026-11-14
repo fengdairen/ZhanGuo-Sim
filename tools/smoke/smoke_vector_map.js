@@ -48,6 +48,7 @@ function mkEl(id) {
 const els = {};
 global.document = {
   getElementById(id) { return els[id] || (els[id] = mkEl(id)); },
+  createElement() { return mkEl('__off'); },     // 离屏画布桩
   addEventListener() {}
 };
 global.window = {

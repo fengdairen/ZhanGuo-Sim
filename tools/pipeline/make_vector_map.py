@@ -76,6 +76,7 @@ if _bp.exists():
                 "color": nation_color.get(_r.get("nation"), "#7a6248"),
                 "nation": _r.get("nation") or "",
                 "nationName": nation_name.get(_r.get("nation"), ""),
+                "faction": _r.get("faction") or "",
                 "cities": _cnt,
                 "edges": len(_r.get("edges") or []),
                 "pts": flat,
@@ -209,7 +210,7 @@ HTML = r"""<!doctype html>
   <div class="rr" id="rSub"></div>
   <div class="rl"><span>疆域</span><b id="rRealm">—</b></div>
   <div class="rl"><span>城邑</span><b id="rCities">—</b></div>
-  <div class="rl"><span>边界</span><b id="rEdges">—</b></div>
+  <div class="rl"><span>地方</span><b id="rEdges">—</b></div>
   <div class="rl"><span>面积</span><b id="rArea">—</b></div>
   <div class="rx" id="rClose">关闭</div>
 </div>
@@ -318,7 +319,8 @@ G.realms = (DATA.realms || []).map(r => {
   const c = Math.abs(a) > 1 ? [cx/(6*a), cy/(6*a)] : [
     ring.reduce((s,p)=>s+p[0],0)/ring.length, ring.reduce((s,p)=>s+p[1],0)/ring.length];
   return { name:r.name, color:r.color, nationName:r.nationName || '',
-           nation:r.nation || '', cities:r.cities|0, edges:r.edges|0,
+           nation:r.nation || '', faction:r.faction || '',
+           cities:r.cities|0, edges:r.edges|0,
            path:pathOf(r.pts, true), area:Math.abs(a), center:c, bb, ring };
 });
 for (const c of (DATA.coastDrawn || [])){
@@ -415,29 +417,53 @@ function draw(){
 
   ctx.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
 
-  // ---- 国界疆域 ----
+  // ---- 疆域地块：同国相邻地块不画内部界线 ----
   if (G.realms.length){
+    const byNation = new Map();
     for (const r of G.realms){
-      // 面：极淡底色
-      const on = (selRealm === r);
-      ctx.fillStyle = rgba(r.color, on ? 0.20 : 0.10);
-      ctx.fill(r.path);
-      // 内侧渐变：多层递减描边 + 裁剪到面内
-      ctx.save();
-      ctx.clip(r.path);
-      const N = 8, W = 24 / V.scale;      // 渐变带宽度按屏幕像素算
-      for (let i = N; i >= 1; i--){
-        ctx.strokeStyle = rgba(r.color, 0.085);
-        ctx.lineWidth = (W * 2) * (i / N);
-        ctx.stroke(r.path);
+      const key = r.nation || ('_' + r.id);
+      if (!byNation.has(key)) byNation.set(key, []);
+      byNation.get(key).push(r);
+    }
+    for (const [key, list] of byNation){
+      const on = list.some(r => selNation && selNation === key);
+      const color = list[0].color;
+      // 1) 面 + 内侧渐变
+      for (const r of list){
+        ctx.fillStyle = rgba(color, on ? 0.22 : 0.10);
+        ctx.fill(r.path);
+        ctx.save();
+        ctx.clip(r.path);
+        const N = 8, W = 24 / V.scale;
+        for (let i = N; i >= 1; i--){
+          ctx.strokeStyle = rgba(color, 0.085);
+          ctx.lineWidth = (W * 2) * (i / N);
+          ctx.stroke(r.path);
+        }
+        ctx.restore();
       }
-      ctx.restore();
-      // 边界：整圈一次描边，宽度统一
-      ctx.strokeStyle = rgba(shade(r.color, on ? 0.55 : 0.45), on ? 1 : 0.95);
-      ctx.lineWidth = (on ? 4.2 : 2.6) / V.scale;      // 整圈一次描边，宽度恒定，不会一节粗一节细
-      ctx.stroke(r.path);
+      // 2) 只留外轮廓：先整组描边，再把地块内部擦掉
+      if (!off) off = document.createElement('canvas');
+      if (off.width !== cv.width || off.height !== cv.height){
+        off.width = cv.width; off.height = cv.height;
+      }
+      const g = off.getContext('2d');
+      g.setTransform(1,0,0,1,0,0);
+      g.clearRect(0,0,off.width,off.height);
+      g.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
+      g.lineJoin = 'round'; g.lineCap = 'round';
+      g.strokeStyle = rgba(shade(color, on ? 0.55 : 0.45), on ? 1 : 0.95);
+      g.lineWidth = (on ? 8.4 : 5.2) / V.scale;
+      for (const r of list) g.stroke(r.path);
+      g.globalCompositeOperation = 'destination-out';
+      for (const r of list) g.fill(r.path);
+      g.globalCompositeOperation = 'source-over';
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.drawImage(off, 0, 0);
+      ctx.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
     }
   }
+
 
   if (L.sea){
     ctx.fillStyle = COL.sea; ctx.fill(G.sea, 'evenodd');
@@ -646,6 +672,8 @@ function drawLabels(L){
 
 // ---- 疆域点选 ----
 let selRealm = null;
+let selNation = null;
+let off = null;
 function pointInRing(x, y, ring){
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++){
@@ -664,15 +692,20 @@ function realmAt(x, y){
 function showRealm(r){
   const box = el('rinfo');
   if (!r){ box.classList.remove('on'); return; }
-  el('rName').textContent = r.nationName || r.name || '疆域';
-  el('rSub').textContent = r.nationName ? ('疆域 · ' + (r.name || '未命名')) : '未指定国家';
-  el('rRealm').textContent = r.name || '—';
-  el('rCities').textContent = r.cities ? (r.cities + ' 城') : '—';
-  el('rEdges').textContent = r.edges ? (r.edges + ' 段') : '—';
-  el('rArea').textContent = Math.round(r.area).toLocaleString() + ' px²';
+  const key = r.nation || ('_' + r.id);
+  const group = G.realms.filter(x => (x.nation || ('_' + x.id)) === key);
+  const cities = group.reduce((s, x) => s + (x.cities || 0), 0);
+  const area = group.reduce((s, x) => s + (x.area || 0), 0);
+  const facs = [...new Set(group.map(x => x.faction).filter(Boolean))];
+  el('rName').textContent = r.nationName || r.name || '地块';
+  el('rSub').textContent = r.nationName ? '疆域' : '未指定国家';
+  el('rRealm').textContent = group.length + ' 块' + (group.length > 1 ? '（含飞地）' : '');
+  el('rCities').textContent = cities ? (cities + ' 城') : '—';
+  el('rEdges').textContent = facs.length ? facs.join('、') : '中央直辖';
+  el('rArea').textContent = Math.round(area).toLocaleString() + ' px²';
   box.classList.add('on');
 }
-el('rClose').onclick = () => { selRealm = null; showRealm(null); draw(); };
+el('rClose').onclick = () => { selRealm = null; selNation = null; showRealm(null); draw(); };
 
 let dragging = false, last = null;
 cv.addEventListener('pointerdown', e => {
@@ -689,6 +722,7 @@ cv.addEventListener('pointerup', e => {
   const hit = realmAt(wx, wy);
   if (!wasDrag){
     selRealm = hit;
+    selNation = hit ? (hit.nation || ('_' + hit.id)) : null;
     showRealm(hit);
     draw();
   }

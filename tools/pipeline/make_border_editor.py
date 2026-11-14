@@ -165,6 +165,7 @@ const W = W_PX, H = H_PX;
 let edges  = (DATA.borders.edges  || []).map(e => Object.assign({}, e));
 let realms = (DATA.borders.realms || []).map(r => Object.assign({}, r));
 let nations = (DATA.nations || []).map(n => Object.assign({}, n));
+let selRealmNation = null;   // 当前选中地块所属国家（同国一起高亮）
 const cities = DATA.cities;
 let owner = {};
 for (const k in DATA.owner) owner[k] = { n: DATA.owner[k], f: '' };
@@ -458,7 +459,8 @@ function draw(){
       if (!r.ring || r.ring.length < 3) continue;
       const nat = nations.find(n => n.id === r.nation);
       const p = pathOf(r.ring); p.closePath();
-      ctx.fillStyle = (nat ? nat.color : '#7a6248') + '2e';
+      const sameNation = r.nation && selRealmNation && r.nation === selRealmNation;
+      ctx.fillStyle = (nat ? nat.color : '#7a6248') + (sameNation ? '3d' : '2e');
       ctx.fill(p);
       ctx.strokeStyle = (nat ? nat.color : '#7a6248'); ctx.lineWidth = 2.5/S.scale; ctx.stroke(p);
     }
@@ -878,11 +880,13 @@ function renderRealmBox(){
         '<option value="">—</option>' + nations.map(n =>
           '<option value="' + n.id + '"' + (n.id===r.nation?' selected':'') + '>' + n.name + '</option>').join('') +
       '</select></div>' +
+      '<div class="fld"><span>地方</span><input id="rFaction" value="' + esc(r.faction||'') + '" placeholder="留空 = 中央直辖"></div>' +
       '<div class="fld"><span>面积</span><span class="tag">' + Math.round(r.area||0).toLocaleString() + ' px²</span></div>' +
       '<div class="fld"><span>城邑</span><span id="rCount" class="tag">—</span></div>' +
       '<div class="fld"><span></span><button id="bApply">应用归属</button><button id="bDelRealm">删除疆域</button></div>';
     $('rName').oninput = e => { r.name = e.target.value; scheduleSave(); renderList(); };
     $('rNation').onchange = e => { r.nation = e.target.value; scheduleSave(); draw(); renderList(); fillRealmCount(r); };
+    $('rFaction').oninput = e => { r.faction = e.target.value; scheduleSave(); };
     $('bApply').onclick = () => applyRealm(r);
     $('bDelRealm').onclick = () => {
       if (!confirm('删除疆域？里面的城邑会变回无归属。')) return;
@@ -974,7 +978,7 @@ async function applyRealm(r){
   snap();
   let n = 0;
   for (const c of cities){
-    if (pointInPoly([c.x, c.y], r.ring)){ owner[c.id] = { n: r.nation, f: '' }; n++; }
+    if (pointInPoly([c.x, c.y], r.ring)){ owner[c.id] = { n: r.nation, f: r.faction || '' }; n++; }
   }
   const nm = (nations.find(x => x.id === r.nation) || {}).name || r.nation;
   draw();

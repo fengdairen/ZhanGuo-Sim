@@ -829,14 +829,20 @@ function showRealm(r){
 el('rClose').onclick = () => { selRealm = null; selNation = null; selFaction = null; selFactionNation = null; showRealm(null); draw(); };
 
 let dragging = false, last = null;
+let downPt = null, moved = false, panBtn = 0;
+cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('pointerdown', e => {
-  dragging = true; last = [e.clientX, e.clientY];
+  if (e.button !== 0){ e.preventDefault(); }
+  dragging = true; moved = false; panBtn = e.button;
+  downPt = [e.clientX, e.clientY]; last = [e.clientX, e.clientY];
   cv.classList.add('drag');
   try { cv.setPointerCapture(e.pointerId); } catch(_){}
 });
 cv.addEventListener('pointerup', e => {
-  const wasDrag = dragging && last && (Math.abs(e.clientX - last[0]) + Math.abs(e.clientY - last[1]) > 0);
-  dragging = false; cv.classList.remove('drag');
+  // 用"按下点到现在"的距离判断，而不是和上一次移动点比（那样永远接近 0）
+  const dist = downPt ? Math.hypot(e.clientX - downPt[0], e.clientY - downPt[1]) : 0;
+  const wasDrag = moved || dist > 4 || panBtn !== 0;
+  dragging = false; cv.classList.remove('drag'); downPt = null; moved = false;
   const r0 = cv.getBoundingClientRect();
   const mx = e.clientX - r0.left, my = e.clientY - r0.top;
   const [wx, wy] = [ (mx - V.tx)/V.scale, (my - V.ty)/V.scale ];
@@ -862,6 +868,7 @@ cv.addEventListener('pointerleave', () => { tip.style.opacity = 0; hoverCity = n
 
 cv.addEventListener('pointermove', e => {
   if (dragging && last){
+    if (downPt && Math.hypot(e.clientX - downPt[0], e.clientY - downPt[1]) > 4) moved = true;
     V.tx += e.clientX - last[0]; V.ty += e.clientY - last[1];
     last = [e.clientX, e.clientY];
     draw(); return;

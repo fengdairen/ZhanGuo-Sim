@@ -604,9 +604,12 @@ function draw(){
       const nat = nations.find(n => n.id === r.nation);
       const p = patchPath(r);
       const sameNation = r.nation && selRealmNation && r.nation === selRealmNation;
-      ctx.fillStyle = (nat ? nat.color : '#7a6248') + (sameNation ? '3d' : '2e');
+      // 填充色只由国家决定，选中不再改透明度（否则同国不同块会比出深浅）
+      ctx.fillStyle = (nat ? nat.color : '#7a6248') + '2e';
       ctx.fill(p, 'evenodd');
-      ctx.strokeStyle = (nat ? nat.color : '#7a6248'); ctx.lineWidth = 2.5/S.scale; ctx.stroke(p);
+      ctx.strokeStyle = (nat ? nat.color : '#7a6248');
+      ctx.lineWidth = (sameNation ? 4.5 : 2.5) / S.scale;
+      ctx.stroke(p);
     }
   }
 

@@ -849,6 +849,26 @@ window.addEventListener('keydown', e => {
 });
 
 /* ================= 草稿 ================= */
+// 地块编号：同样取最大号 + 1
+function nextRealmId(){
+  let max = 0;
+  for (const r of realms){
+    const m = /^q(\d+)$/.exec(r.id || '');
+    if (m) max = Math.max(max, +m[1]);
+  }
+  return 'q' + (max + 1);
+}
+function repairRealmIds(){
+  const seen = new Set();
+  let n = 0;
+  for (const r of realms){
+    if (!seen.has(r.id)){ seen.add(r.id); continue; }
+    r.id = nextRealmId(); seen.add(r.id); n++;
+    if (S.selRealm === r.id) S.selRealm = r.id;
+  }
+  return n;
+}
+
 // 编号：取现有最大数字后缀 + 1，删过线也不会撞号
 // 修复历史数据里的重复编号（同 id 的第二条起重新编号）
 function repairEdgeIds(){
@@ -946,7 +966,8 @@ function renderRealmBox(){
     const r = realms.find(x => x.id === S.selRealm);
     if (!r){ S.selRealm = null; return renderRealmBox(); }
     box.innerHTML =
-      '<div class="fld"><span>名称</span><input id="rName" value="' + esc(r.name||'') + '"></div>' +
+      '<div class="fld"><span>编号</span><span class="tag">' + r.id + '</span></div>' +
+      '<div class="fld"><span>备注</span><input id="rNote" value="' + esc(r.note||'') + '" placeholder="写点只有你看得懂的说明"></div>' +
       '<div class="fld"><span>国家</span><input id="rNation" list="natList" placeholder="选或直接输入国名"' +
         ' value="' + esc((nations.find(n => n.id === r.nation) || {}).name || '') + '"></div>' +
       '<datalist id="natList">' + nations.map(n =>
@@ -955,7 +976,7 @@ function renderRealmBox(){
       '<div class="fld"><span>面积</span><span class="tag">' + Math.round(r.area||0).toLocaleString() + ' px²</span></div>' +
       '<div class="fld"><span>城邑</span><span id="rCount" class="tag">—</span></div>' +
       '<div class="fld"><span></span><button id="bApply">应用归属</button><button id="bDelRealm">删除疆域</button></div>';
-    $('rName').oninput = e => { r.name = e.target.value; scheduleSave(); renderList(); };
+    $('rNote').oninput = e => { r.note = e.target.value; scheduleSave(); renderList(); };
     $('rNation').onchange = e => {
       const txt = (e.target.value || '').trim();
       if (!txt){ r.nation = ''; }
@@ -997,7 +1018,8 @@ function renderList(){
     const nat = nations.find(n => n.id === r.nation);
     const label = nat ? (nat.state ? (nat.name + '·' + nat.state) : nat.name) : '未定';
     return '<div class="erow" data-id="' + r.id + '">' +
-      '<span class="tag">' + label + '</span> ' + (r.name || r.id) +
+      '<span class="tag">' + r.id + '</span> <span class="tag">' + label + '</span> ' +
+      (r.note ? esc(r.note) : '') +
       ' <span class="tag">' + (r.edges ? r.edges.length : 0) + ' 段</span>' +
       '<span class="x">✕</span></div>';
   }).join('');
@@ -1032,7 +1054,7 @@ function doBuildRealm(){
       area = Math.abs(area)/2;
       if (area < 500){ toast('这个环太小（' + Math.round(area) + ' px²）'); return; }
       snap();
-      const id = 'q' + (realms.length + 1);
+      const id = nextRealmId();
       realms.push({ id, name:'新疆域', nation:'', edges:[e.id], ring, area });
       S.selRealm = id;
       toast('闭合边界线已转为疆域：' + Math.round(area).toLocaleString() + ' px²');
@@ -1044,7 +1066,7 @@ function doBuildRealm(){
   const r = buildRealm(ids);
   if (r.error){ toast(r.error); return; }
   snap();
-  const id = 'q' + (realms.length + 1);
+  const id = nextRealmId();
   const realm = { id, name:'新疆域', nation:'', edges:r.used, ring:r.ring, area:r.area };
   realms.push(realm);
   S.selRealm = id;
@@ -1205,7 +1227,7 @@ window.__BORDER_EDITOR__ = {
   get cities(){ return cities; }, get nations(){ return nations; },
   setVector(V){ S.V = V; bgKey = ''; },
   setEdges(list){ edges = list; },
-  repairEdgeIds, nextEdgeId,
+  repairEdgeIds, nextEdgeId, repairRealmIds, nextRealmId,
   snap(){ hist.push(JSON.stringify({edges, realms})); fut.length = 0; }
 };
 
@@ -1232,6 +1254,8 @@ window.__BORDER_EDITOR__ = {
         const nFix = repairEdgeIds();
         if (nFix) toast('修复了 ' + nFix + ' 处重复编号');
         realms = b.realms || [];
+        const nR = repairRealmIds();
+        if (nR) toast('修复了 ' + nR + ' 处重复地块编号');
         if (Array.isArray(b.nations) && b.nations.length) nations = b.nations;
         lastSave = '已从服务端恢复';
       }

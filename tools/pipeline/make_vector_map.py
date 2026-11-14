@@ -1007,6 +1007,7 @@ cv.addEventListener('pointerup', e => {
     if (hit && hit.faction && sameNation && selFaction !== hit.faction){
       selFaction = hit.faction; selFactionNation = hit.nation;
       showFaction(hit.faction, hit.nation, hit);
+      requestAnimationFrame(() => draw());     // 面板更新后强制再刷一帧
     } else {
       selFaction = null; selFactionNation = null;
       selRealm = hit;
@@ -1014,6 +1015,7 @@ cv.addEventListener('pointerup', e => {
       showRealm(hit);
     }
     draw();
+    requestAnimationFrame(() => draw());
   }
   last = null;
 });

@@ -295,16 +295,17 @@
       }
     }
 
-    // 有界面的环面积符号一致，外侧那个（包围全图的）符号相反 → 按多数决定保留哪一侧
-    const pos = loops.filter(l => l.area > 0).length;
-    const neg = loops.length - pos;
-    const keepSign = pos >= neg ? 1 : -1;
-    for (const l of loops){
-      const inner = Math.sign(l.area) === keepSign;
-      faces.push({
-        ring: inner ? (keepSign > 0 ? l.ring : l.ring.slice().reverse()) : l.ring,
-        area: Math.abs(l.area),
-        outer: !inner
+    // 走向不可靠：顺时针画的闭环会让"内部"和"外部"符号反过来。
+    // 但渲染和点判定只看形状不看走向，所以只丢掉**面积最大的那一圈**（无界面），其余全是面。
+    if (loops.length){
+      let big = 0;
+      for (let i = 1; i < loops.length; i++) if (Math.abs(loops[i].area) > Math.abs(loops[big].area)) big = i;
+      loops.forEach((l, i) => {
+        faces.push({
+          ring: l.ring,
+          area: Math.abs(l.area),
+          outer: i === big
+        });
       });
     }
 

@@ -542,7 +542,7 @@ function draw(){
       const sameNation = r.nation && selRealmNation && r.nation === selRealmNation;
       // 填充色只由国家决定，选中不再改透明度（否则同国不同块会比出深浅）
       ctx.fillStyle = (nat ? nat.color : '#7a6248') + '2e';
-      ctx.fill(p, 'evenodd');
+      fillPatch(r, ctx.fillStyle);
       ctx.strokeStyle = (nat ? nat.color : '#7a6248');
       ctx.lineWidth = (sameNation ? 4.5 : 2.5) / S.scale;
       ctx.stroke(p);
@@ -735,6 +735,34 @@ function patchPath(r){
   }
   return p;
 }
+// 带洞的面：离屏先填外环，再用 destination-out 擦掉洞。
+// 不用 evenodd —— 洞一旦重叠/共边，奇偶翻转会把洞填实，同一块地出现两种深浅。
+let _pcv = null, _pct = null;
+function fillPatch(r, style){
+  const w = cv.width, h = cv.height;
+  if (!_pcv){ _pcv = document.createElement('canvas'); _pct = _pcv.getContext('2d'); }
+  if (_pcv.width !== w || _pcv.height !== h){ _pcv.width = w; _pcv.height = h; }
+  _pct.setTransform(1,0,0,1,0,0);
+  _pct.clearRect(0, 0, w, h);
+  _pct.setTransform(dpr*S.scale,0,0,dpr*S.scale,dpr*S.tx,dpr*S.ty);
+  _pct.fillStyle = style;
+  const op = pathOf(r.ring); op.closePath();
+  _pct.fill(op);
+  const holes = r.holes || [];
+  if (holes.length){
+    _pct.globalCompositeOperation = 'destination-out';
+    _pct.fillStyle = '#000';
+    for (const hh of holes){
+      const hp = pathOf(hh); hp.closePath();
+      _pct.fill(hp);
+    }
+    _pct.globalCompositeOperation = 'source-over';
+  }
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.drawImage(_pcv, 0, 0);
+  ctx.setTransform(dpr*S.scale,0,0,dpr*S.scale,dpr*S.tx,dpr*S.ty);
+}
+
 function inPatch(wx, wy, r){
   if (!r.ring || !pointInPoly([wx, wy], r.ring)) return false;
   for (const h of (r.holes || [])) if (pointInPoly([wx, wy], h)) return false;

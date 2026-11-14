@@ -296,13 +296,13 @@ function pathOf(poly, close){
   return p;
 }
 
-function shade(hex, k){          // 混入墨色，让国界线与河网区分开
+function shade(hex, k){          // 混入墨色，让国界线与河网区分开（返回 hex）
   const h = hex.replace('#','');
   const n = parseInt(h.length === 3 ? h.split('').map(c=>c+c).join('') : h, 16);
   const r = Math.round(((n>>16)&255) * (1-k) + 58 * k);
   const g = Math.round(((n>>8)&255) * (1-k) + 40 * k);
   const b2 = Math.round((n&255) * (1-k) + 28 * k);
-  return 'rgb(' + r + ',' + g + ',' + b2 + ')';
+  return '#' + [r,g,b2].map(v => v.toString(16).padStart(2,'0')).join('');
 }
 function rgba(hex, a){
   const h = hex.replace('#','');
@@ -439,7 +439,7 @@ function draw(){
 
   ctx.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
 
-  // ---- 疆域地块：同国相邻地块不画内部界线 ----
+  // ---- 疆域地块：并集轮廓 + 内侧渐变 ----
   if (G.realms.length){
     const byNation = new Map();
     for (const r of G.realms){
@@ -450,31 +450,34 @@ function draw(){
     for (const [key, list] of byNation){
       const on = list.some(r => selNation && selNation === key);
       const color = list[0].color;
-      // 1) 面 + 内侧渐变
+
+      // 1) 面
       for (const r of list){
-        ctx.fillStyle = rgba(color, on ? 0.22 : 0.10);
+        ctx.fillStyle = rgba(color, on ? 0.20 : 0.075);
         ctx.fill(r.path, 'evenodd');
       }
-      // 2) 只留外轮廓：先整组描边，再把地块内部擦掉
-      if (!off) off = document.createElement('canvas');
-      if (off.width !== cv.width || off.height !== cv.height){
-        off.width = cv.width; off.height = cv.height;
+
+      // 2) 并集轮廓（同国相邻地块的共享边被剔除）
+      const rings = unionRings(list.map(r => r.ring));
+      if (!rings.length) continue;
+      const uniPath = new Path2D();
+      for (const ring of rings) uniPath.addPath(pathOfPairs(ring, true));
+
+      // 3) 内侧渐变：裁到本国范围内，沿国界线由深到浅叠涂
+      ctx.save();
+      ctx.clip(uniPath, 'nonzero');
+      const NB = 6, BW = 17 / V.scale;
+      for (let i = NB; i >= 1; i--){
+        ctx.strokeStyle = rgba(color, on ? 0.075 : 0.055);
+        ctx.lineWidth = (BW * 2) * (i / NB);
+        ctx.stroke(uniPath);
       }
-      const g = off.getContext('2d');
-      g.setTransform(1,0,0,1,0,0);
-      g.clearRect(0,0,off.width,off.height);
-      g.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
-      g.lineJoin = 'round'; g.lineCap = 'round';
-      // 国界线
-      g.strokeStyle = rgba(shade(color, on ? 0.55 : 0.45), on ? 1 : 0.95);
-      g.lineWidth = (on ? 8.4 : 5.2) / V.scale;
-      for (const r of list) g.stroke(r.path);
-      g.globalCompositeOperation = 'destination-out';
-      for (const r of list) g.fill(r.path, 'evenodd');
-      g.globalCompositeOperation = 'source-over';
-      ctx.setTransform(1,0,0,1,0,0);
-      ctx.drawImage(off, 0, 0);
-      ctx.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
+      ctx.restore();
+
+      // 4) 国界线：整圈一次描边，宽度恒定
+      ctx.strokeStyle = rgba(shade(color, on ? 0.55 : 0.45), on ? 1 : 0.95);
+      ctx.lineWidth = (on ? 4.6 : 3.0) / V.scale;
+      ctx.stroke(uniPath);
     }
   }
 
@@ -696,6 +699,60 @@ function pointInRing(x, y, ring){
   }
   return inside;
 }
+// 同国多块地的并集轮廓：共享边成对出现，剔除后剩下的连成闭环
+let _unionCache = new Map();
+function unionRings(rings){
+  if (!rings || !rings.length) return [];
+  const ck = rings.map(r => r.length + ':' + (r[0] ? r[0][0].toFixed(1) + ',' + r[0][1].toFixed(1) : '')).join('|');
+  if (_unionCache.has(ck)) return _unionCache.get(ck);
+
+  const key = p => p[0].toFixed(1) + ',' + p[1].toFixed(1);
+  const cnt = new Map(), segs = [];
+  for (const ring of rings){
+    for (let i = 0; i + 1 < ring.length; i++){
+      const a = ring[i], b = ring[i+1];
+      const ka = key(a), kb = key(b);
+      if (ka === kb) continue;
+      const k = ka < kb ? ka + '|' + kb : kb + '|' + ka;
+      cnt.set(k, (cnt.get(k) || 0) + 1);
+      segs.push({ a, b, k });
+    }
+  }
+  const boundary = segs.filter(sg => cnt.get(sg.k) === 1);
+  const starts = new Map();
+  boundary.forEach((sg, i) => {
+    const k = key(sg.a);
+    if (!starts.has(k)) starts.set(k, []);
+    starts.get(k).push(i);
+  });
+  const used = new Array(boundary.length).fill(false);
+  const out = [];
+  for (let i = 0; i < boundary.length; i++){
+    if (used[i]) continue;
+    const loop = [];
+    let cur = i;
+    while (cur !== null && !used[cur]){
+      used[cur] = true;
+      loop.push(boundary[cur].a);
+      const nk = key(boundary[cur].b);
+      const cand = (starts.get(nk) || []).find(j => !used[j]);
+      cur = cand === undefined ? null : cand;
+    }
+    if (loop.length >= 3) out.push(loop);
+  }
+  _unionCache.set(ck, out);
+  return out;
+}
+
+function pathOfPairs(pairs, close){
+  const p = new Path2D();
+  if (!pairs.length) return p;
+  p.moveTo(pairs[0][0], pairs[0][1]);
+  for (let i=1;i<pairs.length;i++) p.lineTo(pairs[i][0], pairs[i][1]);
+  if (close) p.closePath();
+  return p;
+}
+
 function realmAt(x, y){
   let best = null;
   for (const r of G.realms){

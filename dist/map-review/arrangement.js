@@ -70,6 +70,49 @@
     const simp = opts.simplify == null ? 1.0 : opts.simplify;   // 不能大：会把河口/汇流点拉离原位，面就漏
     if (simp > 0) polylines = polylines.map(l => rdp(l, simp));
 
+    // ---- -1. 端点接续：端点若离别的线很近却没碰上，直接投影过去 ----
+    const endTol = opts.snapEnds == null ? 30 : opts.snapEnds;
+    if (endTol > 0){
+      const allSegs = [];
+      polylines.forEach((line, li) => {
+        for (let i = 0; i + 1 < line.length; i++) allSegs.push([line[i], line[i + 1], li]);
+      });
+      const CELL1 = 80, g1 = new Map();
+      for (const sg of allSegs){
+        const x0 = Math.floor(Math.min(sg[0][0], sg[1][0]) / CELL1), x1 = Math.floor(Math.max(sg[0][0], sg[1][0]) / CELL1);
+        const y0 = Math.floor(Math.min(sg[0][1], sg[1][1]) / CELL1), y1 = Math.floor(Math.max(sg[0][1], sg[1][1]) / CELL1);
+        for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++){
+          const k = x + ',' + y;
+          if (!g1.has(k)) g1.set(k, []);
+          g1.get(k).push(sg);
+        }
+      }
+      polylines = polylines.map((line, li) => {
+        const fix = (pt) => {
+          let best = null, bd = endTol;
+          const cx = Math.floor(pt[0] / CELL1), cy = Math.floor(pt[1] / CELL1);
+          for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++){
+            const arr = g1.get((cx + dx) + ',' + (cy + dy));
+            if (!arr) continue;
+            for (const [a2, b2, owner] of arr){
+              if (owner === li) continue;
+              const vx = b2[0] - a2[0], vy = b2[1] - a2[1];
+              const L2 = vx * vx + vy * vy || 1e-9;
+              let t = ((pt[0] - a2[0]) * vx + (pt[1] - a2[1]) * vy) / L2;
+              t = Math.max(0, Math.min(1, t));
+              const px = a2[0] + t * vx, py = a2[1] + t * vy;
+              const d = Math.hypot(px - pt[0], py - pt[1]);
+              if (d < bd){ bd = d; best = [px, py]; }
+            }
+          }
+          return best || pt;
+        };
+        const out2 = line.slice();
+        if (out2.length) { out2[0] = fix(out2[0]); out2[out2.length - 1] = fix(out2[out2.length - 1]); }
+        return out2;
+      });
+    }
+
     // ---- 0. 贴线吸附：边界线的顶点贴到最近的水系线段上 ----
     // 否则「边界线离河 10px」会切出一条条细缝，面就碎了
     if (opts.snapTo && opts.snapTo.length){

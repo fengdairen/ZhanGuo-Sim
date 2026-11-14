@@ -849,6 +849,27 @@ window.addEventListener('keydown', e => {
 });
 
 /* ================= 草稿 ================= */
+// 编号：取现有最大数字后缀 + 1，删过线也不会撞号
+// 修复历史数据里的重复编号（同 id 的第二条起重新编号）
+function repairEdgeIds(){
+  const seen = new Set();
+  let n = 0;
+  for (const e of edges){
+    if (!seen.has(e.id)){ seen.add(e.id); continue; }
+    e.id = nextEdgeId(); seen.add(e.id); n++;
+  }
+  return n;
+}
+
+function nextEdgeId(){
+  let max = 0;
+  for (const e of edges){
+    const m = /^b(\d+)$/.exec(e.id || '');
+    if (m) max = Math.max(max, +m[1]);
+  }
+  return 'b' + String(max + 1).padStart(3, '0');
+}
+
 function commitDraft(){
   const d = S.draft;
   if (!d || d.pts.length < 2){ toast('至少要两个点'); return; }
@@ -856,7 +877,7 @@ function commitDraft(){
   if (!d.end){ toast('终点必须吸附到海岸线 / 河流 / 湖泊 / 其他边界线上'); return; }
   if (d.pts.length < 2) return;
   snap();
-  const id = 'b' + String(edges.length + 1).padStart(3,'0');
+  const id = nextEdgeId();
   edges.push({ id, pts:d.pts.map(p => [Math.round(p[0]*10)/10, Math.round(p[1]*10)/10]),
                ends:[{kind:d.start.kind, id:d.start.id, idx:d.start.idx, x:d.start.x, y:d.start.y, ok:true},
                      {kind:d.end.kind, id:d.end.id, idx:d.end.idx, x:d.end.x, y:d.end.y, ok:true}] });
@@ -876,7 +897,7 @@ function commitLoop(){
   const area = polyArea(ring);
   if (area < 500){ toast('这个环太小（' + Math.round(area) + ' px²）'); return; }
   snap();
-  const id = 'b' + String(edges.length + 1).padStart(3,'0');
+  const id = nextEdgeId();
   edges.push({ id, closed:true, pts:ring, ends:[] });
   S.draft = null;
   scheduleSave(); renderSel(); draw();
@@ -899,7 +920,8 @@ function renderSel(){
     const a = e.ends ? e.ends[0] : null, b = e.ends ? e.ends[1] : null;
     const lab = x => x ? (x.kind === 'river' ? '河' : x.kind === 'coast' ? '岸' : x.kind === 'lake' ? '湖' : '界') : '—';
     return '<div class="erow" data-id="' + id + '"><span class="tag">' + id + '</span>' +
-      '长 ' + Math.round(polyLen(e.pts)) + 'px · ' + (e.closed ? '闭环' : ('两端 ' + lab(a) + '/' + lab(b))) +
+      '长 ' + Math.round(polyLen(e.pts)) + 'px · ' + e.pts.length + ' 点 · ' +
+      (e.closed ? '闭环' : ('两端 ' + lab(a) + '/' + lab(b))) +
       '<span class="x">✕</span></div>';
   }).join('') +
   '<div class="fld"><button id="bDelEdge" style="flex:1">删除选中的 ' + ids.length + ' 条边界线</button></div>';
@@ -1183,6 +1205,7 @@ window.__BORDER_EDITOR__ = {
   get cities(){ return cities; }, get nations(){ return nations; },
   setVector(V){ S.V = V; bgKey = ''; },
   setEdges(list){ edges = list; },
+  repairEdgeIds, nextEdgeId,
   snap(){ hist.push(JSON.stringify({edges, realms})); fut.length = 0; }
 };
 
@@ -1205,7 +1228,10 @@ window.__BORDER_EDITOR__ = {
     if (r.ok){
       const b = await r.json();
       if (b && Array.isArray(b.edges)){
-        edges = b.edges; realms = b.realms || [];
+        edges = b.edges || [];
+        const nFix = repairEdgeIds();
+        if (nFix) toast('修复了 ' + nFix + ' 处重复编号');
+        realms = b.realms || [];
         if (Array.isArray(b.nations) && b.nations.length) nations = b.nations;
         lastSave = '已从服务端恢复';
       }

@@ -290,6 +290,20 @@ check(!!api.S.draft.end, '终点应吸附到河上');
   check(api.S.selEdge.size === 1, '普通框选应重置为 1，实际 ' + [...api.S.selEdge]);
 }
 
+// 11) 编号唯一：撞号会被修复，新编号取最大值+1
+{
+  api.setEdges([
+    { id:'b001', pts:[[0,0],[10,0]], ends:[] },
+    { id:'b001', pts:[[0,10],[10,10]], ends:[] },
+    { id:'b007', pts:[[0,20],[10,20]], ends:[] }
+  ]);
+  const fixed = api.repairEdgeIds();
+  check(fixed === 1, '应修复 1 处重复，实际 ' + fixed);
+  const ids = api.edges.map(e => e.id);
+  check(new Set(ids).size === ids.length, '仍有重复：' + ids.join(','));
+  check(api.nextEdgeId() === 'b009', '修复后重新编号占掉 b008，下一个应为 b009，实际 ' + api.nextEdgeId());
+}
+
 console.log('PASS  国界绘制器：补全/闭环/内外判定/悬空报错/归属应用/拖点重算');
   process.exit(0);
 })().catch(e => { console.error('FAIL: ' + e.message); process.exit(1); });

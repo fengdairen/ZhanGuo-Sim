@@ -97,5 +97,24 @@
    "color": "#e67e22"
   }
  ],
- "claims": []
+ "claims": [
+  {
+   "seed": [
+    5829.2,
+    2951.4
+   ],
+   "nation": "qi",
+   "faction": "",
+   "note": ""
+  },
+  {
+   "seed": [
+    5770.2,
+    2870.6
+   ],
+   "nation": "qi",
+   "faction": "",
+   "note": ""
+  }
+ ]
 }

@@ -56,8 +56,8 @@ def main():
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(html, encoding="utf-8")
     import shutil
-    shutil.copy2(ROOT / "tools" / "pipeline" / "arrangement.js",
-                 OUT.parent / "arrangement.js")
+    shutil.copy2(ROOT / "tools" / "pipeline" / "geom.js",
+                 OUT.parent / "geom.js")
     shutil.copy2(ROOT / "tools" / "pipeline" / "face_worker.js",
                  OUT.parent / "face_worker.js")
     print(f"城邑 {len(cities)} · 国家 {len(nations)} · 边界 {len(state.get('edges', []))} "
@@ -198,7 +198,7 @@ TPL = r"""<!DOCTYPE html>
 </div>
 <div id="toast"></div>
 
-<script src="arrangement.js"></script>
+<script src="geom.js"></script>
 <script>
 const DATA = __DATA__;
 const W = W_PX, H = H_PX;
@@ -1388,10 +1388,10 @@ function computeFaces(){
       for (const r of S.V.rivers){ const pts = []; for (let i=1;i<r.length;i+=2) pts.push([r[i], r[i+1]]); water.push(pts); }
       for (const c of S.V.coasts){ const pts = []; for (let i=0;i<c.pts.length;i+=2) pts.push([c.pts[i], c.pts[i+1]]); water.push(pts); }
       for (const l of S.V.lakes){ const pts = []; for (let i=0;i<l.pts.length;i+=2) pts.push([l.pts[i], l.pts[i+1]]); water.push(pts); }
-      const res = window.Arrangement.build(edges.map(e => e.pts).concat(water), { minArea: 300 });
+      const res = window.Geom.build(edges.map(e => e.pts).concat(water), { minArea: 300 });
       FACES = res.faces.map((f, i) => ({ id: 'F' + (i + 1), ring: f.ring, area: f.area,
                                          outer: !!f.outer, holes: f.holes || [],
-                                         center: window.Arrangement.representative(f) }));
+                                         center: window.Geom.representative(f) }));
       FACES.sort((a2, b2) => b2.area - a2.area);
       FACES.forEach((f, i) => f.id = 'F' + (i + 1));
       facesReady = true;
@@ -1410,13 +1410,7 @@ function computeFaces(){
 
 function faceAt(wx, wy){
   if (!FACES) return null;
-  let best = null;
-  for (const f of FACES){
-    if (window.Arrangement.contains(f, wx, wy)){
-      if (!best || f.area < best.area) best = f;
-    }
-  }
-  return best;
+  return window.Geom.locate(FACES, wx, wy);
 }
 
 /* ================= 国家管理 ================= */

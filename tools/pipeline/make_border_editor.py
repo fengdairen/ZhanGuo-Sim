@@ -833,7 +833,13 @@ cv.addEventListener('pointerdown', e => {
   if (S.mode === 'claim'){
     if (!FACES){ toast('正在算面，稍等…'); computeFaces(); return; }
     const f = faceAt(wx, wy);
-    if (!f){ toast('这里没有面'); return; }
+    if (!f){
+      const all = (FACES || []).filter(x => window.Geom.pointInRing(wx, wy, x.ring));
+      log('填色失败：没命中内部面', { x: Math.round(wx), y: Math.round(wy), 面数: (FACES||[]).length,
+            含此点的面: all.map(x => x.id + '(' + Math.round(x.area) + (x.outer ? ',outer' : '') + ')') });
+      toast('这里没有面（已写日志）');
+      return;
+    }
     const nat = $('claimNation') ? $('claimNation').value : '';
     const fac = $('claimFaction') ? $('claimFaction').value.trim() : '';
     if (!nat){ toast('先在顶栏选一个国家'); return; }

@@ -67,7 +67,7 @@
     const minArea = opts.minArea == null ? 100 : opts.minArea;
     const t0 = Date.now();
 
-    const simp = opts.simplify == null ? 2.5 : opts.simplify;
+    const simp = opts.simplify == null ? 1.0 : opts.simplify;   // 不能大：会把河口/汇流点拉离原位，面就漏
     if (simp > 0) polylines = polylines.map(l => rdp(l, simp));
 
     // ---- 0. 贴线吸附：边界线的顶点贴到最近的水系线段上 ----
@@ -170,13 +170,31 @@
     }
 
     // ---- 4. 打断成子线段，节点取整合并 ----
-    const nodeKey = p => Math.round(p[0] * 10) / 10 + ',' + Math.round(p[1] * 10) / 10;
+    // 节点焊接：容差内的点并成一个节点，否则河与河、河与边界之间的小缝会让面漏出去
+    const WELD = opts.weld == null ? 6 : opts.weld;
     const nodes = [];
-    const nodeId = new Map();
+    const nGrid = new Map();
+    const nCell = Math.max(4, WELD * 2);
     function nodeOf(p) {
-      const k = nodeKey(p);
-      if (!nodeId.has(k)) { nodeId.set(k, nodes.length); nodes.push([Math.round(p[0]*10)/10, Math.round(p[1]*10)/10]); }
-      return nodeId.get(k);
+      const cx = Math.floor(p[0] / nCell), cy = Math.floor(p[1] / nCell);
+      if (WELD > 0){
+        let best = -1, bd = WELD;
+        for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++){
+          const arr = nGrid.get((cx+dx)+','+(cy+dy));
+          if (!arr) continue;
+          for (const i of arr){
+            const d = Math.hypot(nodes[i][0]-p[0], nodes[i][1]-p[1]);
+            if (d < bd){ bd = d; best = i; }
+          }
+        }
+        if (best >= 0) return best;
+      }
+      const i = nodes.length;
+      nodes.push([Math.round(p[0]*10)/10, Math.round(p[1]*10)/10]);
+      const k = cx + ',' + cy;
+      if (!nGrid.has(k)) nGrid.set(k, []);
+      nGrid.get(k).push(i);
+      return i;
     }
 
     const edges = new Map();       // 'a|b' -> true

@@ -67,7 +67,7 @@
     const minArea = opts.minArea == null ? 100 : opts.minArea;
     const t0 = Date.now();
 
-    const simp = opts.simplify == null ? 2.5 : opts.simplify;
+    const simp = opts.simplify == null ? 1.0 : opts.simplify;   // 不能大：会把河口/汇流点拉离原位，面就漏
     if (simp > 0) polylines = polylines.map(l => rdp(l, simp));
 
     // ---- 0. 贴线吸附：边界线的顶点贴到最近的水系线段上 ----
@@ -171,7 +171,7 @@
 
     // ---- 4. 打断成子线段，节点取整合并 ----
     // 节点焊接：容差内的点并成一个节点，否则河与河、河与边界之间的小缝会让面漏出去
-    const WELD = opts.weld == null ? 5 : opts.weld;
+    const WELD = opts.weld == null ? 6 : opts.weld;
     const nodes = [];
     const nGrid = new Map();
     const nCell = Math.max(4, WELD * 2);

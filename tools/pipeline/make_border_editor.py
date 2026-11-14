@@ -1368,7 +1368,7 @@ function computeFaces(){
       for (const r of S.V.rivers){ const pts = []; for (let i=1;i<r.length;i+=2) pts.push([r[i], r[i+1]]); water.push(pts); }
       for (const c of S.V.coasts){ const pts = []; for (let i=0;i<c.pts.length;i+=2) pts.push([c.pts[i], c.pts[i+1]]); water.push(pts); }
       for (const l of S.V.lakes){ const pts = []; for (let i=0;i<l.pts.length;i+=2) pts.push([l.pts[i], l.pts[i+1]]); water.push(pts); }
-      const res = window.Arrangement.build(edges.map(e => e.pts).concat(water), { minArea: 300, snap: 3 });
+      const res = window.Arrangement.build(edges.map(e => e.pts).concat(water), { minArea: 300 });
       FACES = res.faces.map((f, i) => ({ id: 'F' + (i + 1), ring: f.ring, area: f.area,
                                          center: window.Arrangement.representative(f) }));
       FACES.sort((a2, b2) => b2.area - a2.area);

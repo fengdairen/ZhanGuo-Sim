@@ -858,7 +858,7 @@ cv.addEventListener('pointerdown', e => {
       if (claims[idx].nation !== nat){ claims[idx].nation = nat; claims[idx].faction = fac; }
       else if (fac) claims[idx].faction = fac;          // 同国再点一次不要抹掉"地方"
     }
-    else claims.push({ seed: [wx, wy], nation: nat, faction: fac, note: '' });   // 存原始点击点，不取整
+    else claims.push({ seed: [wx, wy], face: f.id, nation: nat, faction: fac, note: '' });   // 同时记下面 id
     log('填色完成', { 认领后: claims.length, 地块: realms.length });
     log('当前地块', realms.map(r => (r.nation || '?') + ':' + Math.round(r.area) + (r.holes && r.holes.length ? '(洞' + r.holes.length + ')' : '')).join(' '));
     rebuildRealms();
@@ -1413,8 +1413,11 @@ let FACES = null, selFace = null;
 function rebuildRealms(){
   if (!facesReady || !FACES) return;
   const byFace = new Map();          // 一个面只留一条，后写的覆盖前面的
+  const byId = new Map(FACES.map(f => [f.id, f]));
   for (const c of claims){
-    const f = faceAt(c.seed[0], c.seed[1]);
+    // 优先用认领时记下的面 id；面重算过（id 变了）再退回按种子点定位
+    let f = c.face ? byId.get(c.face) : null;
+    if (!f || !window.Geom.pointInRing(c.seed[0], c.seed[1], f.ring)) f = faceAt(c.seed[0], c.seed[1]);
     if (!f) continue;                       // 线改了，种子落在面外 → 暂时丢掉
     byFace.set(f.id, { ring: f.ring, area: f.area, holes: f.holes || [], seed: c.seed, claim: c });
   }

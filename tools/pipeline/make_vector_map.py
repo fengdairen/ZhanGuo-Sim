@@ -67,6 +67,7 @@ if _fc.exists():
                 "nationName": nation_name.get(_f.get("nation"), ""),
                 "nationState": nation_state.get(_f.get("nation"), ""),
                 "faction": _f.get("faction") or "",
+                "area": _f.get("area") or 0,
                 "holes": [ [round(v,1) for q in h for v in q] for h in (_f.get("holes") or []) ], "cities": 0, "edges": 0, "pts": flat,
             })
     except Exception as _e:
@@ -738,7 +739,8 @@ function drawInnerFade(list, color, alpha){
   ga.setTransform(1,0,0,1,0,0); ga.clearRect(0,0,w,h);
   ga.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
   ga.fillStyle = '#fff';
-  for (const r of list) ga.fill(r.path, 'evenodd');
+  // 太小的地块整块都落在渐变带里，会被涂得比别处深 → 只给够大的地块做渐变
+  for (const r of list){ if ((r.area || 0) >= 20000) ga.fill(r.path, 'evenodd'); }
 
   const gb = _fadeB.getContext('2d');
   gb.setTransform(1,0,0,1,0,0); gb.clearRect(0,0,w,h);

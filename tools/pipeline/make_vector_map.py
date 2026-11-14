@@ -457,27 +457,28 @@ function draw(){
         ctx.fill(r.path, 'evenodd');
       }
 
-      // 2) 并集轮廓（同国相邻地块的共享边被剔除）
-      const rings = unionRings(list.map(r => r.ring));
-      if (!rings.length) continue;
-      const uniPath = new Path2D();
-      for (const ring of rings) uniPath.addPath(pathOfPairs(ring, true));
+      // 2) 内侧渐变：栅格遮罩（先填并集，再减去模糊后的自己 → 紧贴国界向内淡出）
+      drawInnerFade(list, color, on ? 0.20 : 0.16);
 
-      // 3) 内侧渐变：裁到本国范围内，沿国界线由深到浅叠涂
-      ctx.save();
-      ctx.clip(uniPath, 'nonzero');
-      const NB = 6, BW = 17 / V.scale;
-      for (let i = NB; i >= 1; i--){
-        ctx.strokeStyle = rgba(color, on ? 0.075 : 0.055);
-        ctx.lineWidth = (BW * 2) * (i / NB);
-        ctx.stroke(uniPath);
+      // 3) 国界线：整组描边后擦掉内部 → 只剩合起来的轮廓，宽度恒定
+      if (!off) off = document.createElement('canvas');
+      if (off.width !== cv.width || off.height !== cv.height){
+        off.width = cv.width; off.height = cv.height;
       }
-      ctx.restore();
-
-      // 4) 国界线：整圈一次描边，宽度恒定
-      ctx.strokeStyle = rgba(shade(color, on ? 0.55 : 0.45), on ? 1 : 0.95);
-      ctx.lineWidth = (on ? 4.6 : 3.0) / V.scale;
-      ctx.stroke(uniPath);
+      const g = off.getContext('2d');
+      g.setTransform(1,0,0,1,0,0);
+      g.clearRect(0,0,off.width,off.height);
+      g.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
+      g.lineJoin = 'round'; g.lineCap = 'round';
+      g.strokeStyle = rgba(shade(color, on ? 0.55 : 0.45), on ? 1 : 0.95);
+      g.lineWidth = (on ? 9.2 : 6.0) / V.scale;
+      for (const r of list) g.stroke(r.path);
+      g.globalCompositeOperation = 'destination-out';
+      for (const r of list) g.fill(r.path, 'evenodd');
+      g.globalCompositeOperation = 'source-over';
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.drawImage(off, 0, 0);
+      ctx.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
     }
   }
 
@@ -699,49 +700,40 @@ function pointInRing(x, y, ring){
   }
   return inside;
 }
-// 同国多块地的并集轮廓：共享边成对出现，剔除后剩下的连成闭环
-let _unionCache = new Map();
-function unionRings(rings){
-  if (!rings || !rings.length) return [];
-  const ck = rings.map(r => r.length + ':' + (r[0] ? r[0][0].toFixed(1) + ',' + r[0][1].toFixed(1) : '')).join('|');
-  if (_unionCache.has(ck)) return _unionCache.get(ck);
+// 内侧渐变：栅格法
+// A = 并集填充；B = A 的模糊版；A 减去 B → 只剩贴边的一圈，且由边向内淡出
+let _fadeA = null, _fadeB = null;
+function drawInnerFade(list, color, alpha){
+  const w = cv.width, h = cv.height;
+  if (!w || !h) return;
+  if (!_fadeA){ _fadeA = document.createElement('canvas'); _fadeB = document.createElement('canvas'); }
+  for (const c of [_fadeA, _fadeB]){
+    if (c.width !== w || c.height !== h){ c.width = w; c.height = h; }
+  }
+  const R = 9 * dpr;                            // 渐变带宽度（屏幕像素 × dpr）
+  const ga = _fadeA.getContext('2d');
+  ga.setTransform(1,0,0,1,0,0); ga.clearRect(0,0,w,h);
+  ga.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
+  ga.fillStyle = '#fff';
+  for (const r of list) ga.fill(r.path, 'evenodd');
 
-  const key = p => p[0].toFixed(1) + ',' + p[1].toFixed(1);
-  const cnt = new Map(), segs = [];
-  for (const ring of rings){
-    for (let i = 0; i + 1 < ring.length; i++){
-      const a = ring[i], b = ring[i+1];
-      const ka = key(a), kb = key(b);
-      if (ka === kb) continue;
-      const k = ka < kb ? ka + '|' + kb : kb + '|' + ka;
-      cnt.set(k, (cnt.get(k) || 0) + 1);
-      segs.push({ a, b, k });
-    }
-  }
-  const boundary = segs.filter(sg => cnt.get(sg.k) === 1);
-  const starts = new Map();
-  boundary.forEach((sg, i) => {
-    const k = key(sg.a);
-    if (!starts.has(k)) starts.set(k, []);
-    starts.get(k).push(i);
-  });
-  const used = new Array(boundary.length).fill(false);
-  const out = [];
-  for (let i = 0; i < boundary.length; i++){
-    if (used[i]) continue;
-    const loop = [];
-    let cur = i;
-    while (cur !== null && !used[cur]){
-      used[cur] = true;
-      loop.push(boundary[cur].a);
-      const nk = key(boundary[cur].b);
-      const cand = (starts.get(nk) || []).find(j => !used[j]);
-      cur = cand === undefined ? null : cand;
-    }
-    if (loop.length >= 3) out.push(loop);
-  }
-  _unionCache.set(ck, out);
-  return out;
+  const gb = _fadeB.getContext('2d');
+  gb.setTransform(1,0,0,1,0,0); gb.clearRect(0,0,w,h);
+  gb.filter = 'blur(' + R + 'px)';
+  gb.drawImage(_fadeA, 0, 0);
+  gb.filter = 'none';
+
+  ga.setTransform(1,0,0,1,0,0);
+  ga.globalCompositeOperation = 'destination-out';
+  ga.drawImage(_fadeB, 0, 0);
+  ga.globalCompositeOperation = 'source-in';
+  ga.fillStyle = rgba(color, Math.min(0.55, alpha * 2));
+  ga.fillRect(0, 0, w, h);
+  ga.globalCompositeOperation = 'source-over';
+
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.drawImage(_fadeA, 0, 0);
+  ctx.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
 }
 
 function pathOfPairs(pairs, close){
@@ -751,6 +743,104 @@ function pathOfPairs(pairs, close){
   for (let i=1;i<pairs.length;i++) p.lineTo(pairs[i][0], pairs[i][1]);
   if (close) p.closePath();
   return p;
+}
+
+// 同国多块地的并集轮廓
+// 共享边不一定完全重合（两块地分两次画，顶点采样可能不同），
+// 所以按"线段中点是否落在别的同国地块内部"来判定，而不是比对端点。
+let _unionCache = new Map();
+function unionRings(patches){
+  if (!patches || !patches.length) return [];
+  const ck = patches.map(r => r.length + ':' + (r[0] ? r[0][0].toFixed(1) + ',' + r[0][1].toFixed(1) : '')).join('|');
+  if (_unionCache.has(ck)) return _unionCache.get(ck);
+
+  const key = p => p[0].toFixed(1) + ',' + p[1].toFixed(1);
+  const segs = [];
+  for (const ring of patches){
+    for (let i = 0; i + 1 < ring.length; i++){
+      const a = ring[i], b = ring[i+1];
+      if (a[0] === b[0] && a[1] === b[1]) continue;
+      segs.push({ a, b, ring, k: key(a) + '|' + key(b) });
+    }
+  }
+
+  // 精确重合的共享边（两块地引用同一批顶点）→ 直接剔除
+  const cnt = new Map();
+  for (const sg of segs){
+    const k2 = sg.k.split('|').sort().join('|');
+    cnt.set(k2, (cnt.get(k2) || 0) + 1);
+  }
+  const keep = [];
+  for (const sg of segs){
+    const k2 = sg.k.split('|').sort().join('|');
+    if (cnt.get(k2) > 1) continue;               // 共享边
+    const mx = (sg.a[0] + sg.b[0]) / 2, my = (sg.a[1] + sg.b[1]) / 2;
+    let insideOther = false;
+    for (const ring of patches){
+      if (ring === null) continue;
+      if (ring === sg.ring) continue;
+      // 落在别的同国地块内部，或贴着它的边（共享边但顶点不重合）→ 都不算国界
+      if (pointInRing(mx, my, ring) || distToRingPx(mx, my, ring) < 2.5){ insideOther = true; break; }
+    }
+    if (!insideOther) keep.push(sg);
+  }
+
+  // 串环：从任一段出发，找端点最近的下一段
+  const used = new Array(keep.length).fill(false);
+  const grid = new Map();
+  const CELL = 16;
+  keep.forEach((sg, i) => {
+    const gx = Math.floor(sg.a[0]/CELL), gy = Math.floor(sg.a[1]/CELL);
+    const k = gx + ',' + gy;
+    if (!grid.has(k)) grid.set(k, []);
+    grid.get(k).push(i);
+  });
+  const nearStart = (p) => {
+    let best = -1, bd = 30;
+    const gx = Math.floor(p[0]/CELL), gy = Math.floor(p[1]/CELL);
+    for (let dx=-1; dx<=1; dx++) for (let dy=-1; dy<=1; dy++){
+      const arr = grid.get((gx+dx)+','+(gy+dy));
+      if (!arr) continue;
+      for (const i of arr){
+        if (used[i]) continue;
+        const d = Math.hypot(keep[i].a[0]-p[0], keep[i].a[1]-p[1]);
+        if (d < bd){ bd = d; best = i; }
+      }
+    }
+    return best;
+  };
+  const out = [];
+  for (let i = 0; i < keep.length; i++){
+    if (used[i]) continue;
+    const loop = [];
+    let cur = i;
+    let guard = 0;
+    while (cur >= 0 && guard++ < keep.length + 8){
+      used[cur] = true;
+      loop.push(keep[cur].a);
+      const next = nearStart(keep[cur].b);
+      if (next < 0){
+        // 接回起点则闭合
+        const d0 = Math.hypot(keep[cur].b[0]-loop[0][0], keep[cur].b[1]-loop[0][1]);
+        if (d0 < 30) loop.push(loop[0]);
+        break;
+      }
+      cur = next;
+    }
+    if (loop.length >= 4) out.push(loop);
+  }
+  _unionCache.set(ck, out);
+  return out;
+}
+function distToRingPx(x, y, ring){
+  let best = 1e9;
+  for (let i=0;i+1<ring.length;i++){
+    const x1 = ring[i][0], y1 = ring[i][1], x2 = ring[i+1][0], y2 = ring[i+1][1];
+    const dx = x2-x1, dy = y2-y1, L2 = dx*dx+dy*dy || 1e-9;
+    let t = ((x-x1)*dx + (y-y1)*dy)/L2; t = Math.max(0, Math.min(1, t));
+    best = Math.min(best, Math.hypot(x1+t*dx-x, y1+t*dy-y));
+  }
+  return best;
 }
 
 function realmAt(x, y){

@@ -599,7 +599,9 @@ function draw(){
   // 疆域填充
   if (S.layers.fill){
     ctx.setTransform(dpr*S.scale,0,0,dpr*S.scale,dpr*S.tx,dpr*S.ty);
-    for (const r of realms){
+    // 按面积从大到小画：小地块后画，永远压在大地块上面
+    const drawList = realms.slice().sort((x, y) => (y.area || 0) - (x.area || 0));
+    for (const r of drawList){
       if (!r.ring || r.ring.length < 3) continue;
       const nat = nations.find(n => n.id === r.nation);
       const p = patchPath(r);

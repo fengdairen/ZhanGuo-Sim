@@ -734,7 +734,11 @@ cv.addEventListener('pointerdown', e => {
     S.selRealm = rp.id;
     renderSel(); renderList(); draw(); return;
   }
-  S.box = {x0:mx, y0:my, x1:mx, y1:my}; S.selEdge = new Set(); S.selRealm = null;
+  // shift+框选：在现有选择上追加，不清空
+  const addBox = e.shiftKey;
+  S.box = {x0:mx, y0:my, x1:mx, y1:my, add:addBox};
+  if (!addBox){ S.selEdge = new Set(); }
+  S.selRealm = null;
   renderSel(); draw();
 });
 
@@ -803,7 +807,14 @@ cv.addEventListener('pointerup', () => {
   if (S.box){
     const [ax,ay] = s2w(Math.min(S.box.x0,S.box.x1), Math.min(S.box.y0,S.box.y1));
     const [bx,by] = s2w(Math.max(S.box.x0,S.box.x1), Math.max(S.box.y0,S.box.y1));
-    S.selEdge = new Set(edges.filter(e => e.pts.some(p => p[0]>=ax&&p[0]<=bx&&p[1]>=ay&&p[1]<=by)).map(e => e.id));
+    const got = edges.filter(e => e.pts.some(p => p[0]>=ax&&p[0]<=bx&&p[1]>=ay&&p[1]<=by)).map(e => e.id);
+    if (S.box.add){
+      const next = new Set(S.selEdge);
+      for (const id of got) next.add(id);
+      S.selEdge = next;
+    }else{
+      S.selEdge = new Set(got);
+    }
     S.box = null; renderSel(); draw();
   }
   S.drag = null;

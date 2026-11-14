@@ -257,6 +257,39 @@ check(!!api.S.draft.end, '终点应吸附到河上');
   check(Math.abs(api.edges[0].pts[1][1] - 2000) > 10, '内部顶点没有跟随拖动');
 }
 
+// 10) 框选：shift 追加，普通替换
+{
+  api.setVector({ sea:[], rivers:[], lakes:[], coasts:[] });
+  api.S.mode = 'sel';
+  api.setEdges([
+    { id:'b001', pts:[[100,100],[300,100]], ends:[] },
+    { id:'b002', pts:[[100,200],[300,200]], ends:[] },
+    { id:'b003', pts:[[100,300],[300,300]], ends:[] }
+  ]);
+  api.S.selEdge = new Set();
+  api.center(200, 200, 1);
+  const evv = (x,y,shift) => ({ button:0, clientX:x, clientY:y, shiftKey:!!shift, pointerId:1, preventDefault(){}, code:'', key:'' });
+  const pd = listeners.cv.pointerdown, pm = listeners.cv.pointermove, pu = listeners.cv.pointerup;
+  const box = (x1,y1,x2,y2,shift) => {
+    const a1 = api.w2s(x1,y1), b1 = api.w2s(x2,y2);
+    pd(evv(a1[0], a1[1], shift)); pm(evv(b1[0], b1[1], shift)); pu(evv(b1[0], b1[1], shift));
+  };
+
+  box(50, 50, 350, 150, false);
+  check(api.S.selEdge.size === 1 && api.S.selEdge.has('b001'),
+        '普通框选应只选 b001，实际 ' + [...api.S.selEdge]);
+
+  box(50, 150, 350, 250, true);
+  check(api.S.selEdge.size === 2 && api.S.selEdge.has('b001') && api.S.selEdge.has('b002'),
+        'shift 框选应追加 b002，实际 ' + [...api.S.selEdge]);
+
+  box(50, 250, 350, 350, true);
+  check(api.S.selEdge.size === 3, '再追加一块，实际 ' + [...api.S.selEdge]);
+
+  box(50, 50, 350, 150, false);
+  check(api.S.selEdge.size === 1, '普通框选应重置为 1，实际 ' + [...api.S.selEdge]);
+}
+
 console.log('PASS  国界绘制器：补全/闭环/内外判定/悬空报错/归属应用/拖点重算');
   process.exit(0);
 })().catch(e => { console.error('FAIL: ' + e.message); process.exit(1); });

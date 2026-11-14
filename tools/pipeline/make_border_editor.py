@@ -106,6 +106,22 @@ TPL = r"""<!DOCTYPE html>
   .erow .x{color:#a05040;cursor:pointer;margin-left:auto;padding:0 4px;font-size:13px}
   .erow.sel{background:rgba(45,93,128,.07)}
   .tag{font-size:11px;padding:0 6px;border-radius:8px;border:1px solid var(--line);color:#8a7350}
+  #mgr{position:fixed;inset:0;background:rgba(30,20,10,.45);display:none;
+    align-items:center;justify-content:center;z-index:30}
+  #mgr.on{display:flex}
+  #mgrBox{background:var(--paper);border:1px solid var(--line);border-radius:10px;
+    width:min(680px,92vw);max-height:80vh;overflow:auto;padding:18px 20px}
+  #mgrBox h2{font-size:15px;margin:0 0 10px;letter-spacing:2px;color:var(--accent)}
+  .mrow{display:flex;align-items:center;gap:6px;margin:6px 0}
+  .mrow input[type=text]{flex:1;min-width:0}
+  .mrow input[type=color]{width:32px;height:28px;padding:0;border:1px solid var(--line);border-radius:5px}
+  .mrow .x{color:#a05040;cursor:pointer;padding:0 4px}
+  .mhead{display:flex;gap:6px;font-size:11.5px;color:#8a7350;padding:0 2px}
+  .mhead span:nth-child(1){width:32px}
+  .mhead span:nth-child(2){flex:1}
+  .mhead span:nth-child(3){flex:1}
+  .mhead span:nth-child(4){width:14px}
+  .mfoot{margin-top:14px;text-align:right}
   #toast{position:absolute;left:50%;top:70px;transform:translateX(-50%);padding:8px 16px;
     background:rgba(40,26,12,.86);color:#f3e8cf;border-radius:7px;font-size:13px;
     opacity:0;transition:.2s;pointer-events:none;z-index:30}
@@ -129,6 +145,7 @@ TPL = r"""<!DOCTYPE html>
   <button id="bUndo" title="Ctrl+Z">撤销</button>
   <button id="bRedo">重做</button>
   <button id="bRealm" disabled>生成疆域</button>
+  <button id="bNations">国家…</button>
   <button id="bSave">存盘</button>
 </div>
 
@@ -152,6 +169,17 @@ TPL = r"""<!DOCTYPE html>
   <div id="listBox"><div class="hint">还没有疆域。</div></div>
 </div>
 
+<div id="mgr"><div id="mgrBox">
+  <h2>国家</h2>
+  <div class="hint" style="padding:0 0 8px">
+    国号 = 齐、赵、魏（地图上标的名字）；国家 = 姜氏齐国、田氏齐国（同一国号的不同政权，各用各的数据）；
+    颜色 = 地图疆域配色。
+  </div>
+  <div id="mgrNations"></div>
+  <div class="mrow" style="margin-top:10px"><button id="bAddNation">＋ 新增国家</button></div>
+  <div class="mfoot"><button id="bMgrClose">关闭</button></div>
+</div></div>
+
 <div id="status" class="panel">
   边界 <b id="sEdge">0</b> · 疆域 <b id="sRealm">0</b> · 选中 <b id="sSel">0</b> ·
   缩放 <b id="sZoom">—</b> · <span id="sSave">—</span>
@@ -165,7 +193,9 @@ const W = W_PX, H = H_PX;
 let edges  = (DATA.borders.edges  || []).map(e => Object.assign({}, e));
 let realms = (DATA.borders.realms || []).map(r => Object.assign({}, r));
 const PALETTE = DATA.palette || ['#c0392b','#2980b9','#27ae60','#8e44ad','#d35400'];
-let nations = (DATA.nations || []).map(n => Object.assign({}, n));
+let nations = (DATA.nations || []).map(n => ({
+  id: n.id, name: n.name || n.id, state: n.state || '', color: n.color || '#7a6248'
+}));
 let selRealmNation = null;   // 当前选中地块所属国家（同国一起高亮）
 const cities = DATA.cities;
 let owner = {};
@@ -886,7 +916,8 @@ function renderRealmBox(){
       '<div class="fld"><span>名称</span><input id="rName" value="' + esc(r.name||'') + '"></div>' +
       '<div class="fld"><span>国家</span><input id="rNation" list="natList" placeholder="选或直接输入国名"' +
         ' value="' + esc((nations.find(n => n.id === r.nation) || {}).name || '') + '"></div>' +
-      '<datalist id="natList">' + nations.map(n => '<option value="' + esc(n.name) + '">').join('') + '</datalist>' +
+      '<datalist id="natList">' + nations.map(n =>
+        '<option value="' + esc(n.name) + '">' + esc(n.state || '') + '</option>').join('') + '</datalist>' +
       '<div class="fld"><span>地方</span><input id="rFaction" value="' + esc(r.faction||'') + '" placeholder="留空 = 中央直辖"></div>' +
       '<div class="fld"><span>面积</span><span class="tag">' + Math.round(r.area||0).toLocaleString() + ' px²</span></div>' +
       '<div class="fld"><span>城邑</span><span id="rCount" class="tag">—</span></div>' +
@@ -896,12 +927,13 @@ function renderRealmBox(){
       const txt = (e.target.value || '').trim();
       if (!txt){ r.nation = ''; }
       else {
-        let hit = nations.find(n => n.name === txt || n.id === txt);
+        let hit = nations.find(n => n.name === txt || n.state === txt || n.id === txt);
         if (!hit){
-          hit = { id: 'N' + Date.now().toString(36), name: txt,
+          hit = { id: 'N' + Date.now().toString(36), name: txt, state: '',
                   color: PALETTE[nations.length % PALETTE.length] };
           nations.push(hit);
-          toast('已新建国家「' + txt + '」');
+          toast('已新建国家「' + txt + '」，可在「国家…」里补全称');
+          if ($('mgr').classList.contains('on')) renderMgr();
         }
         r.nation = hit.id;
       }
@@ -930,8 +962,9 @@ function renderList(){
   if (!realms.length){ box.innerHTML = '<div class="hint">还没有疆域。</div>'; return; }
   box.innerHTML = realms.map(r => {
     const nat = nations.find(n => n.id === r.nation);
+    const label = nat ? (nat.state ? (nat.name + '·' + nat.state) : nat.name) : '未定';
     return '<div class="erow" data-id="' + r.id + '">' +
-      '<span class="tag">' + (nat ? nat.name : '未定') + '</span> ' + (r.name || r.id) +
+      '<span class="tag">' + label + '</span> ' + (r.name || r.id) +
       ' <span class="tag">' + (r.edges ? r.edges.length : 0) + ' 段</span>' +
       '<span class="x">✕</span></div>';
   }).join('');
@@ -1047,6 +1080,46 @@ function snap(){ hist.push(JSON.stringify({edges, realms})); if (hist.length>40)
 function applyState(s){ const o = JSON.parse(s); edges = o.edges; realms = o.realms; draw(); renderSel(); renderList(); scheduleSave(); }
 function undo(){ if(!hist.length) return; fut.push(JSON.stringify({edges,realms})); applyState(hist.pop()); }
 function redo(){ if(!fut.length) return; hist.push(JSON.stringify({edges,realms})); applyState(fut.pop()); }
+
+/* ================= 国家管理 ================= */
+function renderMgr(){
+  const box = $('mgrNations');
+  if (!nations.length){
+    box.innerHTML = '<div class="hint">还没有国家，点下面新增。</div>';
+    return;
+  }
+  box.innerHTML = '<div class="mhead"><span></span><span>国号</span><span>国家</span><span></span></div>' +
+    nations.map(n =>
+      '<div class="mrow" data-id="' + n.id + '">' +
+        '<input type="color" value="' + n.color + '">' +
+        '<input type="text" value="' + esc(n.name) + '" placeholder="齐">' +
+        '<input type="text" value="' + esc(n.state || '') + '" placeholder="田氏齐国">' +
+        '<span class="x" title="删除">✕</span>' +
+      '</div>').join('');
+  box.querySelectorAll('.mrow').forEach(row => {
+    const n = nations.find(x => x.id === row.dataset.id);
+    const [c, nm, st] = row.querySelectorAll('input');
+    c.oninput = () => { n.color = c.value; draw(); scheduleSave(); };
+    nm.oninput = () => { n.name = nm.value; scheduleSave(); if (S.selRealm) renderSel(); };
+    st.oninput = () => { n.state = st.value; scheduleSave(); if (S.selRealm) renderSel(); };
+    row.querySelector('.x').onclick = () => {
+      if (!confirm('删除国家「' + (n.state || n.name) + '」？相关地块会变成未定。')) return;
+      snap();
+      nations = nations.filter(x => x !== n);
+      for (const r of realms) if (r.nation === n.id) r.nation = '';
+      renderMgr(); renderSel(); renderList(); draw(); scheduleSave();
+    };
+  });
+}
+$('bNations').onclick = () => { renderMgr(); $('mgr').classList.add('on'); };
+$('bMgrClose').onclick = () => $('mgr').classList.remove('on');
+$('mgr').onclick = e => { if (e.target.id === 'mgr') $('mgr').classList.remove('on'); };
+$('bAddNation').onclick = () => {
+  snap();
+  nations.push({ id:'N' + Date.now().toString(36), name:'新国号', state:'新国家',
+                 color: PALETTE[nations.length % PALETTE.length] });
+  renderMgr(); scheduleSave();
+};
 
 /* ================= 杂项 ================= */
 function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('on');

@@ -39,7 +39,7 @@ for r in csv.DictReader(open(ROOT / "data" / "map" / "nodes.csv", encoding="utf-
 PALETTE = ["#c0392b","#2980b9","#27ae60","#8e44ad","#d35400",
            "#16a085","#2c3e50","#c2185b","#7f8c8d","#f39c12",
            "#5d6d7e","#a04000","#1abc9c","#9b59b6","#e67e22"]
-nation_color, nation_name = {}, {}
+nation_color, nation_name, nation_state = {}, {}, {}
 try:
     _st = json.loads((ROOT / "data" / "state.json").read_text(encoding="utf-8"))
     for _i, _n in enumerate(_st.get("nations", [])):
@@ -58,6 +58,8 @@ if _bp.exists():
             if _n.get("id"):
                 nation_name.setdefault(_n["id"], _n.get("name") or _n["id"])
                 nation_color.setdefault(_n["id"], _n.get("color") or "#7a6248")
+                if _n.get("state"):
+                    nation_state[_n["id"]] = _n["state"]
         for _r in _b.get("realms", []):
             ring = _r.get("ring") or []
             if len(ring) < 4:
@@ -81,6 +83,7 @@ if _bp.exists():
                 "color": nation_color.get(_r.get("nation"), "#7a6248"),
                 "nation": _r.get("nation") or "",
                 "nationName": nation_name.get(_r.get("nation"), ""),
+                "nationState": nation_state.get(_r.get("nation"), ""),
                 "faction": _r.get("faction") or "",
                 "cities": _cnt,
                 "edges": len(_r.get("edges") or []),
@@ -324,6 +327,7 @@ G.realms = (DATA.realms || []).map(r => {
   const c = Math.abs(a) > 1 ? [cx/(6*a), cy/(6*a)] : [
     ring.reduce((s,p)=>s+p[0],0)/ring.length, ring.reduce((s,p)=>s+p[1],0)/ring.length];
   return { name:r.name, color:r.color, nationName:r.nationName || '',
+           nationState:r.nationState || '',
            nation:r.nation || '', faction:r.faction || '',
            cities:r.cities|0, edges:r.edges|0,
            path:pathOf(r.pts, true), area:Math.abs(a), center:c, bb, ring };
@@ -703,7 +707,8 @@ function showRealm(r){
   const area = group.reduce((s, x) => s + (x.area || 0), 0);
   const facs = [...new Set(group.map(x => x.faction).filter(Boolean))];
   el('rName').textContent = r.nationName || r.name || '地块';
-  el('rSub').textContent = r.nationName ? '疆域' : '未指定国家';
+  el('rSub').textContent = r.nationState ? (r.nationState)
+    : (r.nationName ? '疆域' : '未指定国家');
   el('rRealm').textContent = group.length + ' 块' + (group.length > 1 ? '（含飞地）' : '');
   el('rCities').textContent = cities ? (cities + ' 城') : '—';
   el('rEdges').textContent = facs.length ? facs.join('、') : '中央直辖';

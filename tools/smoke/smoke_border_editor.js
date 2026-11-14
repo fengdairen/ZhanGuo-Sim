@@ -54,7 +54,7 @@ const sandbox = {
   performance:{ now:()=>Date.now() }, setTimeout, clearTimeout, setInterval, clearInterval,
   requestAnimationFrame:fn=>setTimeout(()=>fn(0),0),
   fetch:()=>Promise.reject(new Error('no server')),
-  Path2D: class { moveTo(){} lineTo(){} closePath(){} },
+  Path2D: class { moveTo(){} lineTo(){} closePath(){} arc(){} addPath(){} },
   Blob: class {}, URL:{createObjectURL:()=>'blob:', revokeObjectURL(){}},
   alert:()=>{}, confirm:()=>true,
   Math, JSON, Date, Map, Set, Array, Object, String, Number, Boolean, Error, Promise, Float64Array, Int32Array, Uint8Array

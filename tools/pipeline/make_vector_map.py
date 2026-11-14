@@ -49,8 +49,31 @@ except Exception:
     pass
 
 realms = []
+_fc = ROOT / "data" / "map" / "faces.json"
+if _fc.exists():
+    try:
+        _fd = json.loads(_fc.read_text(encoding="utf-8-sig"))
+        for _f in (_fd.get("faces") or []):
+            ring = _f.get("ring") or []
+            if len(ring) < 4:
+                continue
+            flat = []
+            for _p in ring:
+                flat.append(round(_p[0], 1)); flat.append(round(_p[1], 1))
+            realms.append({
+                "name": "", "note": _f.get("note") or "",
+                "color": nation_color.get(_f.get("nation"), "#7a6248"),
+                "nation": _f.get("nation") or "",
+                "nationName": nation_name.get(_f.get("nation"), ""),
+                "nationState": nation_state.get(_f.get("nation"), ""),
+                "faction": _f.get("faction") or "",
+                "holes": [], "cities": 0, "edges": 0, "pts": flat,
+            })
+    except Exception as _e:
+        print("faces.json 读取失败：", _e)
+
 _bp = ROOT / "data" / "map" / "borders.json"
-if _bp.exists():
+if _bp.exists() and not realms:
     try:
         _b = json.loads(_bp.read_text(encoding="utf-8-sig"))
         # 国界编辑器里自定义的国家（含现场新建的）也认

@@ -74,6 +74,7 @@
   <button class="mode on" data-m="sel" title="选择 / 拖动 / 框选">选择</button>
   <button class="mode" data-m="draw" title="普通边界线：起止点必须落在海岸/河流/湖泊/其他边界线上">画边界</button>
   <button class="mode" data-m="loop" title="闭环边界线：首尾自己咬上，端点不受水系约束">闭环</button>
+  <button class="mode" data-m="claim" title="点一个面，把它归给当前国家">填色</button>
 </div>
 
 <div id="bar" class="panel">
@@ -84,6 +85,10 @@
   <button id="bUndo" title="Ctrl+Z">撤销</button>
   <button id="bRedo">重做</button>
   <button id="bRealm" disabled>生成疆域</button>
+  <span id="claimBar" style="display:none;align-items:center;gap:6px">
+    <select id="claimNation" title="填给哪个国家"></select>
+    <input id="claimFaction" placeholder="地方（可空）" style="width:110px">
+  </span>
   <button id="bNations">国家…</button>
   <button id="bSave">存盘</button>
 </div>
@@ -133,6 +138,8 @@ const W = 9101, H = 8509;
 
 let edges  = (DATA.borders.edges  || []).map(e => Object.assign({}, e));
 let realms = (DATA.borders.realms || []).map(r => Object.assign({}, r));
+let claims = (DATA.borders.claims || []).map(c => Object.assign({}, c));   // {seed,nation,faction,note}
+let facesReady = false;
 const PALETTE = DATA.palette || ['#c0392b','#2980b9','#27ae60','#8e44ad','#d35400'];
 let nations = (DATA.nations || []).map(n => ({
   id: n.id, name: n.name || n.id, state: n.state || '', color: n.color || '#7a6248'
@@ -750,6 +757,26 @@ cv.addEventListener('pointerdown', e => {
 
   if (e.button === 1 || e.button === 2 || e.code === 'Space'){ S.drag = {type:'pan', mx, my, tx:S.tx, ty:S.ty}; return; }
 
+  if (S.mode === 'claim'){
+    if (!FACES){ toast('正在算面，稍等…'); computeFaces(); return; }
+    const f = faceAt(wx, wy);
+    if (!f){ toast('这里没有面'); return; }
+    const nat = $('claimNation') ? $('claimNation').value : '';
+    const fac = $('claimFaction') ? $('claimFaction').value.trim() : '';
+    if (!nat){ toast('先在顶栏选一个国家'); return; }
+    snap();
+    // 同一个面只保留一条：换国家就更新
+    const idx = claims.findIndex(c => {
+      const cf = faceAt(c.seed[0], c.seed[1]);
+      return cf && cf.id === f.id;
+    });
+    if (idx >= 0){ claims[idx].nation = nat; claims[idx].faction = fac; }
+    else claims.push({ seed: f.center.slice(), nation: nat, faction: fac, note: '' });
+    rebuildRealms();
+    scheduleSave(); renderSel(); renderList(); draw();
+    return;
+  }
+
   if (S.mode === 'loop'){
     if (!S.draft){
       const t = snapTarget(wx, wy, 16);
@@ -810,7 +837,8 @@ cv.addEventListener('pointerdown', e => {
   if (rp){
     S.selEdge = new Set(rp.edges || []);
     S.selRealm = rp.id;
-    renderSel(); renderList(); draw(); return;
+    renderSel(); renderList(); draw();
+  computeFaces(); return;
   }
   // shift+框选：在现有选择上追加，不清空
   const addBox = e.shiftKey;
@@ -878,7 +906,7 @@ cv.addEventListener('pointerup', () => {
       e.ends[k] = {kind:d.snap.kind, id:d.snap.id, idx:d.snap.idx,
                    x:e.pts[d.idx][0], y:e.pts[d.idx][1], ok:true};
     }
-    if (d.moved){ FACES = null; syncRealmsForEdge(e.id); }
+    if (d.moved){ FACES = null; facesReady = false; computeFaces(); }
     else draw();
     return;
   }
@@ -997,8 +1025,8 @@ function commitLoop(){
   snap();
   const id = nextEdgeId();
   edges.push({ id, closed:true, pts:ring, ends:[] });
-  S.draft = null; FACES = null;
-  scheduleSave(); renderSel(); draw();
+  S.draft = null; FACES = null; facesReady = false;
+  scheduleSave(); renderSel(); computeFaces(); draw();
   toast('闭环边界线已生成：' + Math.round(area).toLocaleString() + ' px²');
 }
 
@@ -1211,7 +1239,12 @@ function scheduleSave(){ clearTimeout(saveTimer); saveTimer = setTimeout(pushSav
 async function pushSave(){
   if (saving) return; saving = true;
   try{
-    const body = JSON.stringify({version:1, canvas:[W,H], edges, realms, nations});
+    // 地块只存种子点，几何由面推导
+    const outClaims = realms.map(r => ({
+      seed: r.seed || (r.ring && representative([r.ring])),
+      nation: r.nation || '', faction: r.faction || '', note: r.note || ''
+    })).filter(c => c.seed);
+    const body = JSON.stringify({version:2, canvas:[W,H], edges, nations, claims: outClaims});
     const r = await fetch('/api/borders/save', {method:'POST',
       headers:{'Content-Type':'application/json'}, body});
     if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -1251,8 +1284,10 @@ function computeFaces(){
       }));
       FACES.sort((a2, b2) => b2.area - a2.area);
       FACES.forEach((f, i) => f.id = 'F' + (i + 1));
+      facesReady = true;
+      rebuildRealms();
       toast('面：' + FACES.length + ' 个（' + res.stats.ms + 'ms）');
-      draw(); renderList();
+      draw(); renderSel(); renderList();
     }catch(e){
       toast('面计算失败：' + e.message);
     }finally{
@@ -1260,6 +1295,46 @@ function computeFaces(){
     }
   }, 30);
 }
+// 用 claims 的种子点找回面，重建 realms（渲染与面板沿用原来的代码）
+function rebuildRealms(){
+  if (!facesReady || !FACES) return;
+  const out = [];
+  for (const c of claims){
+    const f = faceAt(c.seed[0], c.seed[1]);
+    if (!f) continue;                       // 线改了，种子落在外面 → 暂时丢掉
+    out.push({ id: 'q' + (out.length + 1), name: '', note: c.note || '',
+               nation: c.nation || '', faction: c.faction || '',
+               ring: f.ring, area: f.area, seed: c.seed, edges: [] });
+  }
+  realms = out;
+}
+
+// 多边形内部代表点（重心不在内部时用边的中点朝内挪）
+function representative(ring){
+  if (!ring || ring.length < 3) return null;
+  let a = 0, cx = 0, cy = 0;
+  for (let i = 0; i + 1 < ring.length; i++){
+    const cr = ring[i][0]*ring[i+1][1] - ring[i+1][0]*ring[i][1];
+    a += cr; cx += (ring[i][0]+ring[i+1][0])*cr; cy += (ring[i][1]+ring[i+1][1])*cr;
+  }
+  a /= 2;
+  if (Math.abs(a) > 1e-6){
+    const c = [cx/(6*a), cy/(6*a)];
+    if (pointInPoly(c, ring)) return c;
+  }
+  for (let i = 0; i + 1 < ring.length; i++){
+    const p = ring[i], q = ring[i+1];
+    const mx = (p[0]+q[0])/2, my = (p[1]+q[1])/2;
+    const dx = q[1]-p[1], dy = -(q[0]-p[0]);
+    const L = Math.hypot(dx, dy) || 1;
+    for (const d of [2,5,10,20]){
+      const x = mx + dx/L*d, y = my + dy/L*d;
+      if (pointInPoly([x,y], ring)) return [x,y];
+    }
+  }
+  return ring[0];
+}
+
 function faceAt(wx, wy){
   if (!FACES) return null;
   let best = null;
@@ -1328,11 +1403,22 @@ document.querySelectorAll('#rail .mode').forEach(b => {
     S.mode = b.dataset.m;
     if (S.mode === 'draw' && S.draft){ S.draft = null; }
     document.querySelectorAll('#rail .mode').forEach(x => x.classList.toggle('on', x===b));
-    cv.style.cursor = S.mode==='draw' ? 'crosshair' : 'default';
+    cv.style.cursor = (S.mode==='draw' || S.mode==='claim') ? 'crosshair' : 'default';
     if (S.mode !== 'draw'){ S.draft = null; }
+    $('claimBar').style.display = S.mode === 'claim' ? 'flex' : 'none';
+    if (S.mode === 'claim'){
+      if (!FACES) computeFaces();
+      fillClaimNation();
+    }
     draw();
   };
 });
+function fillClaimNation(){
+  const sel = $('claimNation');
+  sel.innerHTML = '<option value="">— 选国家 —</option>' +
+    nations.map(n => '<option value="' + n.id + '">' +
+      esc(n.state ? (n.name + '·' + n.state) : n.name) + '</option>').join('');
+}
 $('bFit').onclick = fit;
 $('bLayers').onclick = () => $('layers').classList.toggle('on');
 $('bUndo').onclick = undo;
@@ -1392,8 +1478,16 @@ window.__BORDER_EDITOR__ = {
       const b = await r.json();
       if (b && Array.isArray(b.edges)){
         edges = b.edges || [];
+        if (Array.isArray(b.claims)) claims = b.claims.map(c => Object.assign({}, c));
         const nFix = repairEdgeIds();
         if (nFix) toast('修复了 ' + nFix + ' 处重复编号');
+        if (!claims.length && Array.isArray(b.realms)){
+          // v1 → v2：每个多边形取一个内部点当种子
+          claims = b.realms.map(r => ({
+            seed: representative(r.ring || []),
+            nation: r.nation || '', faction: r.faction || '', note: r.note || ''
+          })).filter(c => c.seed && c.seed.length === 2);
+        }
         realms = b.realms || [];
         const nR = repairRealmIds();
         if (nR) toast('修复了 ' + nR + ' 处重复地块编号');

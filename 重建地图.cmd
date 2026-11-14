@@ -44,6 +44,15 @@ if errorlevel 1 goto failed
 
 echo.
 echo === 4/4  build map.html ===
+rem 3.5 面与归属（node 跑平面划分）
+where node >nul 2>nul
+if not errorlevel 1 (
+  echo [3.5/4] faces: planar arrangement ...
+  node tools\pipeline\faces.js
+) else (
+  echo [3.5/4] SKIP faces.js - node not found, map will use old realms
+)
+
 %PY% tools\pipeline\make_vector_map.py
 if errorlevel 1 goto failed
 

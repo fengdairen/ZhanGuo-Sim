@@ -205,8 +205,15 @@ let NET = null;
 /* 把端点"焊"到网络上：在每条折线上插入端点投影点，再把折线拆成图边。
    extra 是必须先落到网络上的点（边界线的两端）。 */
 function buildNet(extra, exclude){
-  extra = extra || [];
   exclude = exclude || new Set();
+  // 所有边界线的端点都要焊到水系上：之前只焊"选中的那几条"，
+  // 于是别的边界线端点离水 0.04px 也连不上，补全自然找不到路。
+  const weld = (extra || []).slice();
+  for (const e of edges){
+    if (!e.pts || e.pts.length < 2) continue;
+    weld.push(e.pts[0], e.pts[e.pts.length - 1]);
+  }
+  extra = weld;
   const nodes = [], adj = [], grid = new Map();
   const CELL = 24;
   function idx(p){

@@ -990,7 +990,18 @@ function showRealm(r){
   el('rSub').textContent = r.nationState ? (r.nationState)
     : (r.nationName ? '疆域' : '未指定国家');
   el('rRealm').textContent = group.length + ' 块' + (group.length > 1 ? '（含飞地）' : '');
-  el('rCities').textContent = cities ? (cities + ' 城') : '—';
+  // 城邑数现算：落在该国所有地块里的城；其中归地方势力的单独计数
+  let nAll = 0, nFac = 0;
+  for (const c of CITIES){
+    for (const r of group){
+      if (r.ring && pointInRing(c.x, c.y, r.ring)){
+        nAll++;
+        if (r.faction) nFac++;
+        break;
+      }
+    }
+  }
+  el('rCities').textContent = nAll ? (nAll + ' 城' + (nFac ? '（地方 ' + nFac + '）' : '')) : '—';
   el('rEdges').textContent = facs.length ? facs.join('、') : '中央直辖';
   el('rArea').textContent = Math.round(area).toLocaleString() + ' px²';
   box.classList.add('on');

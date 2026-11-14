@@ -38,6 +38,9 @@
 
   function rdp(pts, eps) {
     if (pts.length < 3) return pts;
+    // 闭合环首尾同点，RDP 会退化（基线长度为 0），直接不简化
+    const a0 = pts[0], aN = pts[pts.length - 1];
+    if (Math.abs(a0[0] - aN[0]) < 1e-6 && Math.abs(a0[1] - aN[1]) < 1e-6) return pts;
     const keep = new Uint8Array(pts.length);
     keep[0] = keep[pts.length - 1] = 1;
     const stack = [[0, pts.length - 1]];
@@ -107,8 +110,10 @@
     }
 
     // ---- 1. 收集线段（先焊接：端点吸附到网格、去掉重复与碎段） ----
-    const snap = opts.snap == null ? 3 : opts.snap;
-    const snapP = p => [Math.round(p[0] / snap) * snap, Math.round(p[1] / snap) * snap];
+    const snap = opts.snap == null ? 0 : opts.snap;
+    const snapP = snap > 0
+      ? (p => [Math.round(p[0] / snap) * snap, Math.round(p[1] / snap) * snap])
+      : (p => [p[0], p[1]]);
     const segSeen = new Set();
     const segs = [];
     for (const line of polylines) {
@@ -116,7 +121,7 @@
       for (let i = 0; i + 1 < line.length; i++) {
         const a = snapP(line[i]), b = snapP(line[i + 1]);
         if (a[0] === b[0] && a[1] === b[1]) continue;
-        if (Math.hypot(a[0] - b[0], a[1] - b[1]) < snap) continue;   // 碎段
+        if (snap > 0 && Math.hypot(a[0] - b[0], a[1] - b[1]) < snap) continue;   // 碎段
         const k = a[0] < b[0] || (a[0] === b[0] && a[1] < b[1])
           ? a + '|' + b : b + '|' + a;
         if (segSeen.has(k)) continue;                                 // 重复覆盖

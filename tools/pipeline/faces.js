@@ -37,7 +37,7 @@ function main() {
     .concat(load('lakes_drawn.json').map(l => flatToPts(l.pts)));
 
   // 全部水系参与：种子被河围着、没有边界线时也要能成面
-  const res = A.build(edges.concat(water), { minArea: 300 });
+  const res = A.build(edges.concat(water), { minArea: 300, snap: 3 });
   const faces = res.faces;
 
   const out = [];

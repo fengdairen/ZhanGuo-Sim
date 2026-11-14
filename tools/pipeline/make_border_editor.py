@@ -1351,7 +1351,7 @@ function computeFaces(){
       for (const c of S.V.coasts){ const pts = []; for (let i=0;i<c.pts.length;i+=2) pts.push([c.pts[i], c.pts[i+1]]); water.push(pts); }
       for (const l of S.V.lakes){ const pts = []; for (let i=0;i<l.pts.length;i+=2) pts.push([l.pts[i], l.pts[i+1]]); water.push(pts); }
       // 全部水系都参与：种子点如果被河围着、没有边界线，也要能成面
-      const res = window.Arrangement.build(edges.map(e => e.pts).concat(water), { minArea: 300 });
+      const res = window.Arrangement.build(edges.map(e => e.pts).concat(water), { minArea: 300, snap: 3 });
       FACES = res.faces.map((f, i) => ({
         id: 'F' + (i + 1), ring: f.ring, area: f.area,
         center: window.Arrangement.representative(f)

@@ -631,6 +631,18 @@ function draw(){
     ctx.setTransform(dpr,0,0,dpr,0,0);
   }
 
+  // 调试：把"这个点被画了几层"直接标在图上
+  if (window.__probePoint){
+    const [px, py] = window.__probePoint;
+    const hits = realms.filter(r => r.ring && inPatch(px, py, r));
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.font = 'bold 26px sans-serif';
+    ctx.fillStyle = 'rgba(0,0,0,.85)';
+    const txt = '该点命中 ' + hits.length + ' 层: ' +
+      hits.map(r => (r.nation || '?') + Math.round(r.area)).join(' ');
+    ctx.fillText(txt, 24, 40);
+  }
+
   // 边界线
   ctx.setTransform(dpr,0,0,dpr,0,0);
   if (S.layers.edge){
@@ -1648,6 +1660,14 @@ window.__BORDER_EDITOR__ = {
 
 (async function init(){
   resize(); fit();
+  // 调试：?probe=x,y,zoom 直接把视图对到某点，方便无头截图取样
+  try{
+    const m = (location.search || '').match(/[?&]probe=([-\d.]+),([-\d.]+)(?:,([-\d.]+))?/);
+    if (m){
+      center(parseFloat(m[1]), parseFloat(m[2]), parseFloat(m[3] || '1.2'));
+      window.__probePoint = [parseFloat(m[1]), parseFloat(m[2])];
+    }
+  }catch(_){}
   try{
     const r = await fetch('/api/vector', {cache:'no-store'});
     if (r.ok){

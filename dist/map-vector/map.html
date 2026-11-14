@@ -115,7 +115,6 @@ const COL = {
 };
 
 let dpr = Math.min(2.5, window.devicePixelRatio || 1);
-let selRealm = null, selNation = null, selFaction = null, selFactionNation = null;
 let cw = 0, ch = 0;
 const V = { scale: 0.15, tx: 0, ty: 0 };
 
@@ -363,9 +362,17 @@ function draw(){
       for (const r of list){
         if (!r.faction) continue;
         const fc = factionColor(color, r.faction);
-        r._facColor = fc;
-        ctx.fillStyle = rgba(fc, 0.13);
+        const hot = selFaction && r.faction === selFaction && key === selFactionNation;
+        ctx.fillStyle = rgba(fc, hot ? 0.30 : 0.13);
         ctx.fill(r.path, 'evenodd');
+        if (hot){
+          ctx.save();
+          ctx.setLineDash([6 / V.scale, 5 / V.scale]);
+          ctx.strokeStyle = rgba(shade(fc, 0.35), 0.55);
+          ctx.lineWidth = 1.6 / V.scale;
+          ctx.stroke(r.path);
+          ctx.restore();
+        }
       }
 
       // 2) 内侧渐变：栅格遮罩（先填并集，再减去模糊后的自己 → 紧贴国界向内淡出）
@@ -501,25 +508,6 @@ function draw(){
     (perfOn ? ('  ·  ' + drawMs.toFixed(1) + ' ms  ·  ' + (GEOM_POINTS/1000).toFixed(1) + 'k 点') : '');
 }
 
-  // ---- 地方势力高亮：所有图层画完之后再画，保证不被水系/渐变盖住 ----
-  if (selFaction){
-    ctx.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
-    for (const r of G.realms){
-      if (r.faction !== selFaction) continue;
-      if ((r.nation || '') !== (selFactionNation || '')) continue;
-      if (!r.path) continue;
-      const fc = r._facColor || factionColor(r.color || '#7a6248', r.faction);
-      ctx.fillStyle = rgba(fc, 0.30);
-      ctx.fill(r.path, 'evenodd');
-      ctx.save();
-      ctx.setLineDash([6 / V.scale, 5 / V.scale]);
-      ctx.strokeStyle = rgba(shade(fc, 0.35), 0.55);
-      ctx.lineWidth = 1.6 / V.scale;
-      ctx.stroke(r.path);
-      ctx.restore();
-    }
-  }
-
 function drawRiverNames(){
   const list = DATA.riverLabels || [];
   if (!list.length && !(DATA.lakesDrawn || []).length) return;
@@ -619,7 +607,9 @@ function drawLabels(L){
 }
 
 // ---- 疆域点选 ----
-
+let selRealm = null;
+let selNation = null;
+let selFaction = null, selFactionNation = null;
 let off = null;
 function pointInRing(x, y, ring){
   let inside = false;

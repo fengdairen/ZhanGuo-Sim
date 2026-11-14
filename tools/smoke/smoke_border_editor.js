@@ -304,6 +304,17 @@ check(!!api.S.draft.end, '终点应吸附到河上');
   check(api.nextEdgeId() === 'b009', '修复后重新编号占掉 b008，下一个应为 b009，实际 ' + api.nextEdgeId());
 }
 
+// 12) 地块重叠检测：相交拒绝，贴边允许
+{
+  const A = [[0,0],[100,0],[100,100],[0,100],[0,0]];
+  const B = [[50,50],[150,50],[150,150],[50,150],[50,50]];
+  const C = [[100,0],[200,0],[200,100],[100,100],[100,0]];
+  const D = [[10,10],[30,10],[30,30],[10,30],[10,10]];   // 完全包含
+  check(api.ringsOverlap(A, B) === true, '相交的两块应判定重叠');
+  check(api.ringsOverlap(A, D) === true, '包含关系的两块应判定重叠');
+  check(api.ringsOverlap(A, C) === false, '仅贴边的两块不应判定重叠');
+}
+
 console.log('PASS  国界绘制器：补全/闭环/内外判定/悬空报错/归属应用/拖点重算');
   process.exit(0);
 })().catch(e => { console.error('FAIL: ' + e.message); process.exit(1); });

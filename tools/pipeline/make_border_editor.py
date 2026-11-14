@@ -446,6 +446,32 @@ function buildRealm(edgeIds){
   return {ring, area, used:sel.map(e => e.id)};
 }
 
+function segCross(p1,p2,p3,p4){
+  const d = (p2[0]-p1[0])*(p3[1]-p4[1]) - (p2[1]-p1[1])*(p3[0]-p4[0]);
+  if (Math.abs(d) < 1e-9) return false;
+  const a1 = ((p3[0]-p4[0])*(p3[1]-p1[1]) - (p3[1]-p4[1])*(p3[0]-p1[0])) / d;
+  const a2 = ((p2[0]-p1[0])*(p3[1]-p1[1]) - (p2[1]-p1[1])*(p3[0]-p1[0])) / d;
+  return a1 > 0.001 && a1 < 0.999 && a2 > 0.001 && a2 < 0.999;
+}
+function strictIn(p, ring){
+  if (!pointInPoly(p, ring)) return false;
+  for (let i=0;i+1<ring.length;i++){
+    const [x1,y1] = ring[i], [x2,y2] = ring[i+1];
+    const dx = x2-x1, dy = y2-y1, L2 = dx*dx+dy*dy || 1e-9;
+    let t = ((p[0]-x1)*dx + (p[1]-y1)*dy)/L2; t = Math.max(0, Math.min(1, t));
+    if (Math.hypot(x1+t*dx-p[0], y1+t*dy-p[1]) < 1.5) return false;
+  }
+  return true;
+}
+function ringsOverlap(A, B){
+  for (const p of A) if (strictIn(p, B)) return true;
+  for (const p of B) if (strictIn(p, A)) return true;
+  for (let i=0;i+1<A.length;i++)
+    for (let j=0;j+1<B.length;j++)
+      if (segCross(A[i], A[i+1], B[j], B[j+1])) return true;
+  return false;
+}
+
 function pointInPoly(p, poly){
   let c = false;
   for (let i=0, j=poly.length-1; i<poly.length; j=i++){
@@ -1053,9 +1079,14 @@ function doBuildRealm(){
       for (let i=0;i+1<ring.length;i++) area += ring[i][0]*ring[i+1][1] - ring[i+1][0]*ring[i][1];
       area = Math.abs(area)/2;
       if (area < 500){ toast('这个环太小（' + Math.round(area) + ' px²）'); return; }
+      const clash0 = realms.filter(x => x.ring && x.ring.length > 2 && ringsOverlap(ring, x.ring));
+      if (clash0.length){
+        toast('与已有地块 ' + clash0.map(x => x.id).join('、') + ' 重叠，请调整边界线');
+        return;
+      }
       snap();
       const id = nextRealmId();
-      realms.push({ id, name:'新疆域', nation:'', edges:[e.id], ring, area });
+      realms.push({ id, name:'', note:'', nation:'', faction:'', edges:[e.id], ring, area });
       S.selRealm = id;
       toast('闭合边界线已转为疆域：' + Math.round(area).toLocaleString() + ' px²');
       scheduleSave(); renderSel(); renderList(); draw();
@@ -1065,6 +1096,13 @@ function doBuildRealm(){
 
   const r = buildRealm(ids);
   if (r.error){ toast(r.error); return; }
+
+  // 与已有地块相交 → 拒绝，避免一块地重复归属
+  const clash = realms.filter(x => x.ring && x.ring.length > 2 && ringsOverlap(r.ring, x.ring));
+  if (clash.length){
+    toast('与已有地块 ' + clash.map(x => x.id).join('、') + ' 重叠，请调整边界线');
+    return;
+  }
   snap();
   const id = nextRealmId();
   const realm = { id, name:'新疆域', nation:'', edges:r.used, ring:r.ring, area:r.area };
@@ -1086,15 +1124,19 @@ async function saveOwnership(){
 async function applyRealm(r){
   if (!r.nation){ toast('先指定国家'); return; }
   snap();
-  let n = 0;
+  let n = 0, skipped = 0;
   for (const c of cities){
-    if (pointInPoly([c.x, c.y], r.ring)){ owner[c.id] = { n: r.nation, f: r.faction || '' }; n++; }
+    if (!pointInPoly([c.x, c.y], r.ring)) continue;
+    const cur = owner[c.id];
+    if (cur && cur.n && cur.n !== r.nation){ skipped++; continue; }   // 已属他国，不静默覆盖
+    owner[c.id] = { n: r.nation, f: r.faction || '' }; n++;
   }
   const nm = (nations.find(x => x.id === r.nation) || {}).name || r.nation;
   draw();
   const ok = await saveOwnership();
-  toast(ok === true ? (n + ' 个城邑已归入 ' + nm + '，ownership.csv 已更新')
-                    : (n + ' 个城邑已归入 ' + nm + '（写盘失败：' + ok + '）'));
+  const skipTxt = skipped ? ('；' + skipped + ' 座城已属他国，未覆盖') : '';
+  toast(ok === true ? (n + ' 个城邑已归入 ' + nm + skipTxt)
+                    : (n + ' 个城邑已归入 ' + nm + skipTxt + '（写盘失败：' + ok + '）'));
 }
 
 // 删疆域 → 里面的城池变无归属
@@ -1222,7 +1264,7 @@ window.addEventListener('resize', resize);
 
 window.__BORDER_EDITOR__ = {
   S, draw, fit, center, w2s, s2w, snapTarget, buildRealm, buildNet, pointInPoly, dijkstra, commitDraft,
-  doBuildRealm, applyRealm, dropRealm, commitLoop, hitRealm, syncRealmsForEdge, vertexAt, polyArea, isClosedRing, undo, redo,
+  doBuildRealm, applyRealm, dropRealm, commitLoop, ringsOverlap, strictIn, hitRealm, syncRealmsForEdge, vertexAt, polyArea, isClosedRing, undo, redo,
   get edges(){ return edges; }, get realms(){ return realms; }, get owner(){ return owner; },
   get cities(){ return cities; }, get nations(){ return nations; },
   setVector(V){ S.V = V; bgKey = ''; },

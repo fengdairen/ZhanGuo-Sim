@@ -838,7 +838,7 @@ cv.addEventListener('pointerdown', e => {
       return cf && cf.id === f.id;
     });
     if (idx >= 0){ claims[idx].nation = nat; claims[idx].faction = fac; }
-    else claims.push({ seed: f.center.slice(), nation: nat, faction: fac, note: '' });
+    else claims.push({ seed: [Math.round(wx*10)/10, Math.round(wy*10)/10], nation: nat, faction: fac, note: '' });
     rebuildRealms();
     scheduleSave(); renderSel(); renderList(); draw();
     return;
@@ -1347,13 +1347,17 @@ let FACES = null, selFace = null;
 // 用 claims 的种子点找回面，重建 realms（渲染与面板沿用原来的代码）
 function rebuildRealms(){
   if (!facesReady || !FACES) return;
-  const out = [];
+  const byFace = new Map();          // 一个面只留一条，后写的覆盖前面的
   for (const c of claims){
     const f = faceAt(c.seed[0], c.seed[1]);
     if (!f) continue;                       // 线改了，种子落在面外 → 暂时丢掉
-    out.push({ id: 'q' + (out.length + 1), name: '', note: c.note || '',
-               nation: c.nation || '', faction: c.faction || '',
-               ring: f.ring, area: f.area, seed: c.seed, edges: [], _claim: c });
+    byFace.set(f.id, { ring: f.ring, area: f.area, seed: c.seed, claim: c });
+  }
+  const out = [];
+  for (const [fid, v] of byFace){
+    out.push({ id: 'q' + (out.length + 1), name: '', note: v.claim.note || '',
+               nation: v.claim.nation || '', faction: v.claim.faction || '',
+               ring: v.ring, area: v.area, seed: v.seed, edges: [], _claim: v.claim });
   }
   realms = out;
 }

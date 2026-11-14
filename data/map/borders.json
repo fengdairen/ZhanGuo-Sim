@@ -968,15 +968,6 @@
   },
   {
    "seed": [
-    5778.9,
-    3509.5
-   ],
-   "nation": "qi",
-   "faction": "鲍氏",
-   "note": ""
-  },
-  {
-   "seed": [
     6396.9,
     3734
    ],
@@ -991,15 +982,6 @@
    ],
    "nation": "qi",
    "faction": "田氏",
-   "note": ""
-  },
-  {
-   "seed": [
-    5946.7,
-    3511.5
-   ],
-   "nation": "qi",
-   "faction": "",
    "note": ""
   },
   {
@@ -1035,6 +1017,24 @@
     4275.9
    ],
    "nation": "Nmwghcjnd",
+   "faction": "",
+   "note": ""
+  },
+  {
+   "seed": [
+    6025,
+    3446.2
+   ],
+   "nation": "qi",
+   "faction": "",
+   "note": ""
+  },
+  {
+   "seed": [
+    5776.2,
+    3496.6
+   ],
+   "nation": "qi",
    "faction": "",
    "note": ""
   }

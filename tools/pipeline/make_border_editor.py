@@ -851,7 +851,10 @@ cv.addEventListener('pointerdown', e => {
     });
     log('填色点击', { x: Math.round(wx), y: Math.round(wy), 面: f.id, 面积: Math.round(f.area),
                       outer: !!f.outer, 洞: (f.holes || []).length, 命中已有: idx >= 0, 认领前: claims.length });
-    if (idx >= 0){ claims[idx].nation = nat; claims[idx].faction = fac; }
+    if (idx >= 0){
+      if (claims[idx].nation !== nat){ claims[idx].nation = nat; claims[idx].faction = fac; }
+      else if (fac) claims[idx].faction = fac;          // 同国再点一次不要抹掉"地方"
+    }
     else claims.push({ seed: [Math.round(wx*10)/10, Math.round(wy*10)/10], nation: nat, faction: fac, note: '' });
     log('填色完成', { 认领后: claims.length, 地块: realms.length + (idx >= 0 ? 0 : 1) });
     rebuildRealms();
@@ -1417,6 +1420,24 @@ function rebuildRealms(){
       const hn = claimedFaces.get(hf.id);
       return !(hn && hn === v.claim.nation);      // 同国 → 洞填掉
     });
+  }
+
+  // 只靠平面划分给的洞不够：同一连通分量里的嵌套面不会被算成洞，
+  // 两层半透明叠加就会更深。这里按几何再补一遍。
+  {
+    const list = [...byFace.values()];
+    for (const a2 of list){
+      const extra = [];
+      for (const b2 of list){
+        if (b2 === a2) continue;
+        if (b2.area >= a2.area) continue;
+        if (window.Geom.pointInRing(b2.ring[0][0], b2.ring[0][1], a2.ring)) extra.push(b2.ring);
+      }
+      if (extra.length){
+        const have = new Set((a2.holes || []).map(h => h.length + ':' + h[0][0].toFixed(1)));
+        for (const h of extra) if (!have.has(h.length + ':' + h[0][0].toFixed(1))) (a2.holes = a2.holes || []).push(h);
+      }
+    }
   }
 
   const out = [];

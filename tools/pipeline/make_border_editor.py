@@ -1184,10 +1184,15 @@ function renderRealmBox(){
         }
         r.nation = hit.id;
       }
+      if (r._claim) r._claim.nation = r.nation;
       scheduleSave(); draw(); renderList(); fillRealmCount(r);
       renderRealmBox();
     };
-    $('rFaction').oninput = e => { r.faction = e.target.value; scheduleSave(); };
+    $('rFaction').oninput = e => {
+      r.faction = e.target.value;
+      if (r._claim) r._claim.faction = r.faction;     // 数据源是 claims，必须写回去
+      scheduleSave(); renderList();
+    };
     $('bApply').onclick = () => applyRealm(r);
     $('bDelRealm').onclick = () => {
       if (!confirm('删除疆域？里面的城邑会变回无归属。')) return;

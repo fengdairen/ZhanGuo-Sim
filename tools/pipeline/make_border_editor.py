@@ -1440,11 +1440,14 @@ function rebuildRealms(){
   // 两层半透明叠加就会更深。这里按几何再补一遍。
   {
     const list = [...byFace.values()];
+    const allFaces = (FACES || []).filter(x => !x.outer);
     for (const a2 of list){
       const extra = [];
-      for (const b2 of list){
-        if (b2 === a2) continue;
+      // 洞要从"全部面"里找，不能只在已认领的面之间找：
+      // 否则同连通分量里的小面不会被挖掉，大国的色块就会盖住它
+      for (const b2 of allFaces){
         if (b2.area >= a2.area) continue;
+        if (b2.ring === a2.ring) continue;
         if (window.Geom.pointInRing(b2.ring[0][0], b2.ring[0][1], a2.ring)) extra.push(b2.ring);
       }
       if (extra.length){

@@ -1284,6 +1284,12 @@ el('foot').textContent =
 
 OUTDIR.mkdir(parents=True, exist_ok=True)
 _tex = ROOT / "assets" / "source" / "山地纹理.png"
+_tex_webp = VEC / "mount.webp"          # 已处理好的半分辨率纹理（进版本库，CI 用）
+if not _tex.exists() and _tex_webp.exists():
+    import shutil as _sh
+    _sh.copy2(_tex_webp, OUTDIR / "mount.webp")
+    print("mountain texture (cached) -> mount.webp",
+          round((OUTDIR / 'mount.webp').stat().st_size / 1024), "KB")
 if _tex.exists():
     # 转 WebP：13.5MB PNG -> 约 4MB，静态托管首屏快得多
     try:

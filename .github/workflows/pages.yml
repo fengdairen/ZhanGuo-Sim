@@ -1,0 +1,59 @@
+﻿name: 发布舆图
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "data/map/**"
+      - "tools/pipeline/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安装依赖
+        run: pip install pillow
+
+      - name: 生成面与归属
+        run: node tools/pipeline/faces.js
+
+      - name: 生成舆图
+        run: python tools/pipeline/make_vector_map.py
+
+      - name: 打包站点
+        run: python tools/pipeline/make_site.py
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

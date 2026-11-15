@@ -13,7 +13,7 @@
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;overflow:hidden;background:#54483a;
     font-family:"Songti SC","STSong","SimSun","Noto Serif CJK SC",serif;color:var(--ink)}
-  #cv{touch-action:none;-ms-touch-action:none;user-select:none;-webkit-user-select:none;display:block;width:100%;height:100%;cursor:grab;touch-action:none}
+  #cv{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
   #cv.drag{cursor:grabbing}
   .panel{position:fixed;background:rgba(250,244,229,.94);border:1px solid rgba(120,90,56,.35);
     border-radius:10px;box-shadow:0 6px 22px rgba(80,55,30,.14);backdrop-filter:blur(6px)}
@@ -183,7 +183,7 @@ const COL = {
   halo:'rgba(246,238,216,.92)', region:'#a2543a'
 };
 
-let dpr = Math.min(2, window.devicePixelRatio || 1);
+let dpr = Math.min(2.5, window.devicePixelRatio || 1);
 let cw = 0, ch = 0;
 const V = { scale: 0.15, tx: 0, ty: 0 };
 
@@ -412,7 +412,7 @@ function loadMountains(){
           mountReady = true;
         }catch(_){ /* 解码失败走 Image 兜底 */ }
       }
-      if (mountReady){ bootPct(0.85); bootText('正在生成全图底图……'); draw(); renderBaseMap();
+      if (mountReady){ bootPct(0.9); bootText('正在生成全图底衬……'); draw(); captureBackdrop();
                    bootPct(1); bootText('已载入'); bootDone(); draw(); }
       else mountFallback(src);
     };
@@ -436,147 +436,68 @@ const state = () => ({
 let hoverCity = null, flash = null;
 
 let perfOn = false, drawMs = 0;
-let _frameMs = 0, _lastTs = 0, _frames = 0;
-(function frameProbe(){
-  requestAnimationFrame(ts => {
-    if (_lastTs) _frameMs = _frameMs ? _frameMs * 0.85 + (ts - _lastTs) * 0.15 : (ts - _lastTs);
-    _lastTs = ts; _frames++;
-    frameProbe();
-  });
-})();
 // 交互（拖拽/缩放）期间走"轻渲染"：跳过投影阴影与逐国模糊渐变，
 // 停下来 180ms 后再补一帧完整效果
 let _moving = false, _moveTimer = null;
-let L0 = { sea:1, river:1, lake:1, city:1 };
 // 交互用"快照拖动"：开始拖动时把当前画面存成位图，
 // 移动/缩放期间只做位图变换（平滑、无重绘），停手后重画清晰版
 let _snap = null;
 function takeSnap(){
   if (_snap) return;
+  if (!_backdrop) captureBackdrop();
   const c = document.createElement('canvas');
   c.width = cv.width; c.height = cv.height;
   c.getContext('2d').drawImage(cv, 0, 0);
   _snap = { c, scale: V.scale, tx: V.tx, ty: V.ty };
 }
 function drawSnap(){
+  if (!_snap) return;
+  const k = V.scale / _snap.scale;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = '#54483a'; ctx.fillRect(0, 0, cv.width, cv.height);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawBackdrop();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);        // 底衬会残留世界变换，这里重置
   ctx.imageSmoothingEnabled = true;
-  try{ ctx.imageSmoothingQuality = 'low'; }catch(_){}
-
-  // 快照在屏幕上的矩形
-  const k = _snap ? (V.scale / _snap.scale) : 0;
-  const sx = _snap ? Math.round(V.tx - _snap.tx * k) : 0;
-  const sy = _snap ? Math.round(V.ty - _snap.ty * k) : 0;
-  const sw = _snap ? Math.round(cw * k) : 0;
-  const sh = _snap ? Math.round(ch * k) : 0;
-
-  // 只在"快照没盖住的条带"里补底图：四次裁剪 blit，面积通常很小
-  if (_base){
-    const bx = Math.round(V.tx), by = Math.round(V.ty);
-    const bw = Math.round(CW * V.scale), bh = Math.round(CH * V.scale);
-    const strips = [
-      [0, 0, cw, sy],                       // 上
-      [0, sy + sh, cw, ch - (sy + sh)],     // 下
-      [0, sy, sx, sh],                      // 左
-      [sx + sw, sy, cw - (sx + sw), sh],    // 右
-    ];
-    for (const [x, y, w, h] of strips){
-      if (w <= 0 || h <= 0) continue;
-      ctx.save();
-      ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
-      ctx.drawImage(_base.c, bx, by, bw, bh);
-      ctx.restore();
-    }
-  }
-
-  // 快照本身
-  if (_snap){
-    ctx.drawImage(_snap.c, sx, sy, sw, sh);
-  }
+  ctx.drawImage(_snap.c,
+    V.tx - _snap.tx * k, V.ty - _snap.ty * k,
+    cw * k, ch * k);
 }
-// ---------- 整幅底图（交互时只贴这一张） ----------
-const BASE = 0.25;                    // 只是垫底，清晰度交给快照
-let _base = null;                     // { c, w, h }
-let _baseErr = '';
-function renderBaseMap(){
+// 全图粗糙底衬：拖出快照范围时垫底，避免露白
+let _backdrop = null;
+function captureBackdrop(){
+  // 真正渲染一张"全图"底衬：临时把绘制目标换成离屏画布，按全图适配再画一遍
   try{
-    const BW = Math.round(CW * BASE), BH = Math.round(CH * BASE);
+    const BW = 2600, BH = Math.round(BW * CH / CW);
     const c = document.createElement('canvas');
     c.width = BW; c.height = BH;
     const g = c.getContext('2d');
-    g.setTransform(BASE, 0, 0, BASE, 0, 0);
-    // 纸面
-    g.fillStyle = '#e9dbb8'; g.fillRect(0, 0, CW, CH);
-    // 海 + 岛 + 湖
-    if (L0.sea){ g.fillStyle = COL.sea; g.fill(G.sea, 'evenodd'); }
-    if (DATA.islands.length){ g.fillStyle = '#efe2c2'; g.fill(G.islands, 'evenodd'); }
-    if (L0.lake){ g.fillStyle = COL.lake; g.fill(G.lakes, 'evenodd'); }
-    // 河
-    if (L0.river){
-      g.strokeStyle = COL.river; g.lineJoin = 'round'; g.lineCap = 'round';
-      for (const [w, pth] of G.riverBuckets){ g.lineWidth = w; g.stroke(pth); }
-    }
-    // 地块：填充 + 简单描边（底图糊，不做渐变）
-    for (const r of G.realms){
-      if (!r.path) continue;
-      g.fillStyle = rgba(r.color || '#7a6248', 0.16);
-      g.fill(r.path, 'evenodd');
-    }
-    for (const r of G.realms){
-      if (!r.path) continue;
-      g.strokeStyle = rgba(shade(r.color || '#7a6248', 0.45), 0.9);
-      g.lineWidth = 3.0;
-      g.stroke(r.path);
-    }
-    // 城邑点
-    if (L0.city){
-      g.fillStyle = COL.city;
-      for (const c2 of CITIES){ g.fillRect(c2.x - 3, c2.y - 3, 6, 6); }
-    }
-    _base = { c, w: BW, h: BH };
-    _baseErr = '';
+    const oldCtx = ctx, oldCw = cw, oldCh = ch, oldDpr = dpr;
+    const oldV = { scale: V.scale, tx: V.tx, ty: V.ty };
+    ctx = g; cw = BW; ch = BH; dpr = 1;
+    const s = Math.min(BW / CW, BH / CH) * 0.985;
+    V.scale = s; V.tx = (BW - CW * s) / 2; V.ty = (BH - CH * s) / 2;
+    draw();
+    _backdrop = { c, scale: s, tx: V.tx, ty: V.ty, w: BW, h: BH };
+    ctx = oldCtx; cw = oldCw; ch = oldCh; dpr = oldDpr;
+    V.scale = oldV.scale; V.tx = oldV.tx; V.ty = oldV.ty;
   }catch(e){
-    _base = null; _baseErr = String(e && e.message || e);
-    try{ console.warn('base map failed', e); }catch(_){}
-    bootText('底图生成失败：' + _baseErr);
+    try{ console.warn('backdrop failed', e); }catch(_){}
   }
 }
-function drawBaseMap(){
-  if (!_base) return false;
+function drawBackdrop(){
+  if (!_backdrop) return;
+  const k = V.scale / _backdrop.scale;          // 世界缩放比
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.imageSmoothingEnabled = true;
-  try{ ctx.imageSmoothingQuality = 'low'; }catch(_){}
-  // 目标矩形取整：非整数缩放的重采样会明显变慢
-  const x = Math.round(V.tx), y = Math.round(V.ty);
-  const w = Math.round(CW * V.scale), h = Math.round(CH * V.scale);
-  ctx.drawImage(_base.c, x, y, w, h);
-  return true;
-}
-
-const DPR_BASE = dpr;
-function setMoveDpr(on){
-  const nd = on ? DPR_BASE * 0.6 : DPR_BASE;
-  if (Math.abs(dpr - nd) < 0.01) return;
-  dpr = nd;
-  cv.width = Math.round(cw * dpr);
-  cv.height = Math.round(ch * dpr);
-}
-// 空闲时预先抓快照：手势开始时不用再拷贝画布
-let _snapTimer = null;
-function scheduleIdleSnap(){
-  clearTimeout(_snapTimer);
-  _snapTimer = setTimeout(() => {
-    if (_moving) return;
-    _snap = null; takeSnap();
-  }, 120);
+  // 底衬图覆盖的是"抓拍那一刻的整个屏幕"，对齐到世界原点
+  ctx.drawImage(_backdrop.c,
+    V.tx - _backdrop.tx * k, V.ty - _backdrop.ty * k,
+    _backdrop.w * k, _backdrop.h * k);
+  ctx.setTransform(dpr*V.scale, 0, 0, dpr*V.scale, dpr*V.tx, dpr*V.ty);
 }
 function markMoving(){
-  if (!_moving){
-    if (!_base) renderBaseMap();
-    if (!_snap) takeSnap();     // 一般空闲时已经抓好，这里只是兜底
-  }
+  if (!_moving){ takeSnap(); }
   _moving = true;
   clearTimeout(_moveTimer);
   _moveTimer = setTimeout(() => {
@@ -593,9 +514,7 @@ function requestDraw(){
 }
 function draw(){
   const t0 = performance.now();
-  L0 = { sea: el('lSea').checked, river: el('lRiver').checked,
-         lake: el('lLakesDrawn').checked, city: el('lCity').checked };
-  if (_moving){ drawSnap(); return; }
+  if (_moving && _snap){ drawSnap(); return; }
   updateVBB();
   const L = state();
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -827,9 +746,8 @@ function draw(){
     } else flash = null;
   }
   drawMs = drawMs ? drawMs * 0.8 + (performance.now() - t0) * 0.2 : (performance.now() - t0);
-  if (!_moving) scheduleIdleSnap();
   zoomEl.textContent = '缩放 ' + (V.scale*100).toFixed(0) + '%' +
-    (perfOn ? ('  ·  帧 ' + _frameMs.toFixed(0) + 'ms  ·  绘 ' + drawMs.toFixed(1) + 'ms  ·  ' + (GEOM_POINTS/1000).toFixed(1) + 'k 点') : '');
+    (perfOn ? ('  ·  ' + drawMs.toFixed(1) + ' ms  ·  ' + (GEOM_POINTS/1000).toFixed(1) + 'k 点') : '');
 
 }
 
@@ -1342,7 +1260,7 @@ window.addEventListener('keydown', e => {
 el('bIn').onclick = () => zoomAt(cw/2, ch/2, 1.35);
 el('bOut').onclick = () => zoomAt(cw/2, ch/2, 1/1.35);
 for (const id of ['lSea','lRiver','lRName','lCoastDrawn','lLakesDrawn','lCity','lLabel','lRegion'])
-  el(id).addEventListener('change', () => { _base = null; draw(); renderBaseMap(); });
+  el(id).addEventListener('change', draw);
 
 const q = el('q'), hits = el('hits');
 // 搜索：回车在重名结果之间循环
@@ -1391,12 +1309,8 @@ window.addEventListener('resize', resize);
 
 
 
-window.__MAPAPI__ = {
-  renderBaseMap, draw, fit, get base(){ return _base ? [_base.w, _base.h] : null; },
-  get baseErr(){ return _baseErr; }
-};
 resize(); fit(); deepLink();
-setTimeout(() => { if (!_base) renderBaseMap(); }, 1500);
+setTimeout(() => { if (!_backdrop) captureBackdrop(); }, 1500);
 bootPct(0.05); bootText('正在绘制底图……');
 draw();
 loadMountains();

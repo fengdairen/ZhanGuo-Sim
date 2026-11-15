@@ -1,0 +1,7 @@
+﻿name = "zgyy-yutu"
+compatibility_date = "2025-01-01"
+
+# 静态资源：把打包好的 dist/site 直接作为 Workers 资产发布
+[assets]
+directory = "./dist/site"
+not_found_handling = "404-page"

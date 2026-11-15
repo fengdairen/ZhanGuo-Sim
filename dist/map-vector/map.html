@@ -298,6 +298,14 @@ const state = () => ({
 let hoverCity = null, flash = null;
 
 let perfOn = false, drawMs = 0;
+// 交互（拖拽/缩放）期间走"轻渲染"：跳过投影阴影与逐国模糊渐变，
+// 停下来 180ms 后再补一帧完整效果
+let _moving = false, _moveTimer = null;
+function markMoving(){
+  _moving = true;
+  clearTimeout(_moveTimer);
+  _moveTimer = setTimeout(() => { _moving = false; draw(); }, 180);
+}
 
 function draw(){
   const t0 = performance.now();
@@ -314,9 +322,11 @@ function draw(){
   ctx.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
 
   ctx.save();
-  ctx.shadowColor = 'rgba(18,10,4,.55)';
-  ctx.shadowBlur = 34 / V.scale;
-  ctx.shadowOffsetY = 10 / V.scale;
+  if (!_moving){
+    ctx.shadowColor = 'rgba(18,10,4,.55)';
+    ctx.shadowBlur = 34 / V.scale;
+  }
+  if (!_moving) ctx.shadowOffsetY = 10 / V.scale;
   ctx.fillStyle = '#c9b389';
   ctx.fillRect(-MAT, -MAT, CW + MAT*2, CH + MAT*2);
   ctx.restore();
@@ -376,7 +386,7 @@ function draw(){
       }
 
       // 2) 内侧渐变：栅格遮罩（先填并集，再减去模糊后的自己 → 紧贴国界向内淡出）
-      drawInnerFade(list, color, 0.16, key);
+      if (!_moving) drawInnerFade(list, color, 0.16, key);
 
       // 3) 国界线：整组描边后擦掉内部 → 只剩合起来的轮廓，宽度恒定
       if (!off) off = document.createElement('canvas');
@@ -506,6 +516,7 @@ function draw(){
   drawMs = drawMs ? drawMs * 0.8 + (performance.now() - t0) * 0.2 : (performance.now() - t0);
   zoomEl.textContent = '缩放 ' + (V.scale*100).toFixed(0) + '%' +
     (perfOn ? ('  ·  ' + drawMs.toFixed(1) + ' ms  ·  ' + (GEOM_POINTS/1000).toFixed(1) + 'k 点') : '');
+
 }
 
 function drawRiverNames(){
@@ -888,6 +899,7 @@ cv.addEventListener('pointerleave', () => { tip.style.opacity = 0; hoverCity = n
 cv.addEventListener('pointermove', e => {
   if (dragging && last){
     if (downPt && Math.hypot(e.clientX - downPt[0], e.clientY - downPt[1]) > 4) moved = true;
+    markMoving();
     V.tx += e.clientX - last[0]; V.ty += e.clientY - last[1];
     last = [e.clientX, e.clientY];
     draw(); return;
@@ -911,6 +923,7 @@ cv.addEventListener('pointermove', e => {
 });
 
 cv.addEventListener('wheel', e => {
+  markMoving();
   e.preventDefault();
   const r = cv.getBoundingClientRect();
   const mx = e.clientX - r.left, my = e.clientY - r.top;
@@ -976,6 +989,8 @@ setInterval(async () => {
 }, 3000);
 
 window.addEventListener('resize', resize);
+
+
 
 resize(); fit(); deepLink();
 el('foot').textContent =

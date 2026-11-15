@@ -434,6 +434,7 @@ let _moving = false, _moveTimer = null;
 let _snap = null;
 function takeSnap(){
   if (_snap) return;
+  if (!_backdrop) captureBackdrop();      // 还没抓到底衬就先抓一张
   const c = document.createElement('canvas');
   c.width = cv.width; c.height = cv.height;
   c.getContext('2d').drawImage(cv, 0, 0);
@@ -446,11 +447,11 @@ function drawSnap(){
   ctx.fillStyle = '#54483a'; ctx.fillRect(0, 0, cv.width, cv.height);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   drawBackdrop();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);        // 底衬会残留世界变换，这里重置
   ctx.imageSmoothingEnabled = true;
-  ctx.translate(V.tx - _snap.tx * k, V.ty - _snap.ty * k);
-  ctx.scale(k, k);
-  ctx.drawImage(_snap.c, 0, 0, cw, ch);
-  ctx.setTransform(dpr*V.scale, 0, 0, dpr*V.scale, dpr*V.tx, dpr*V.ty);
+  ctx.drawImage(_snap.c,
+    V.tx - _snap.tx * k, V.ty - _snap.ty * k,
+    cw * k, ch * k);
 }
 // 全图粗糙底衬：拖出快照范围时垫底，避免露白
 let _backdrop = null;
@@ -465,13 +466,13 @@ function captureBackdrop(){
 }
 function drawBackdrop(){
   if (!_backdrop) return;
-  const k = V.scale / _backdrop.scale;
+  const k = V.scale / _backdrop.scale;          // 世界缩放比
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.imageSmoothingEnabled = true;
-  ctx.globalAlpha = 1;
-  ctx.translate(V.tx - _backdrop.tx * k, V.ty - _backdrop.ty * k);
-  ctx.scale(k, k);
-  ctx.drawImage(_backdrop.c, 0, 0, _backdrop.w, _backdrop.h);
+  // 底衬图覆盖的是"抓拍那一刻的整个屏幕"，对齐到世界原点
+  ctx.drawImage(_backdrop.c,
+    V.tx - _backdrop.tx * k, V.ty - _backdrop.ty * k,
+    _backdrop.w * k, _backdrop.h * k);
   ctx.setTransform(dpr*V.scale, 0, 0, dpr*V.scale, dpr*V.tx, dpr*V.ty);
 }
 function markMoving(){
@@ -1277,7 +1278,8 @@ window.addEventListener('resize', resize);
 
 
 resize(); fit(); deepLink();
-setTimeout(captureBackdrop, 1200);
+setTimeout(captureBackdrop, 400);
+setTimeout(captureBackdrop, 1600);
 bootPct(0.05); bootText('正在绘制底图……');
 draw();
 loadMountains();

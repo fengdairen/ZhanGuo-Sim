@@ -183,7 +183,7 @@ const COL = {
   halo:'rgba(246,238,216,.92)', region:'#a2543a'
 };
 
-let dpr = Math.min(2.5, window.devicePixelRatio || 1);
+let dpr = Math.min(2, window.devicePixelRatio || 1);
 let cw = 0, ch = 0;
 const V = { scale: 0.15, tx: 0, ty: 0 };
 
@@ -453,16 +453,26 @@ function takeSnap(){
 function drawSnap(){
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = '#54483a'; ctx.fillRect(0, 0, cv.width, cv.height);
-  drawBaseMap();                              // 整幅底图：拖到哪都有内容
+  // 快照如果已经盖满屏幕，就不必再贴底图（省一次全屏填充）
+  let covered = false;
+  if (_snap){
+    const k = V.scale / _snap.scale;
+    const x = V.tx - _snap.tx * k, y = V.ty - _snap.ty * k;
+    covered = (x <= 0.5 && y <= 0.5 && x + cw * k >= cw - 0.5 && y + ch * k >= ch - 0.5);
+  }
+  if (!covered) drawBaseMap();                 // 整幅底图：拖到哪都有内容
   if (_snap){                                 // 快照覆盖：清晰
     const k = V.scale / _snap.scale;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(_snap.c, V.tx - _snap.tx * k, V.ty - _snap.ty * k, cw * k, ch * k);
+    try{ ctx.imageSmoothingQuality = 'low'; }catch(_){}
+    ctx.drawImage(_snap.c,
+      Math.round(V.tx - _snap.tx * k), Math.round(V.ty - _snap.ty * k),
+      Math.round(cw * k), Math.round(ch * k));
   }
 }
 // ---------- 整幅底图（交互时只贴这一张） ----------
-const BASE = 0.5;                     // 相对世界坐标的分辨率
+const BASE = 0.25;                    // 只是垫底，清晰度交给快照
 let _base = null;                     // { c, w, h }
 let _baseErr = '';
 function renderBaseMap(){
@@ -512,19 +522,33 @@ function drawBaseMap(){
   if (!_base) return false;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(_base.c, V.tx, V.ty, CW * V.scale, CH * V.scale);
+  try{ ctx.imageSmoothingQuality = 'low'; }catch(_){}
+  // 目标矩形取整：非整数缩放的重采样会明显变慢
+  const x = Math.round(V.tx), y = Math.round(V.ty);
+  const w = Math.round(CW * V.scale), h = Math.round(CH * V.scale);
+  ctx.drawImage(_base.c, x, y, w, h);
   return true;
 }
 
+const DPR_BASE = dpr;
+function setMoveDpr(on){
+  const nd = on ? DPR_BASE * 0.6 : DPR_BASE;
+  if (Math.abs(dpr - nd) < 0.01) return;
+  dpr = nd;
+  cv.width = Math.round(cw * dpr);
+  cv.height = Math.round(ch * dpr);
+}
 function markMoving(){
   if (!_moving){
     if (!_base) renderBaseMap();
-    takeSnap();                 // 快照叠在底图之上，拖起来是清晰的
+    takeSnap();                 // 先在原生分辨率下抓一张清晰快照
+    setMoveDpr(true);           // 再把画布降到 0.6，填充量只剩 36%
   }
   _moving = true;
   clearTimeout(_moveTimer);
   _moveTimer = setTimeout(() => {
     _moving = false; _snap = null;
+    setMoveDpr(false);          // 恢复清晰分辨率
     draw();
   }, 260);
 }

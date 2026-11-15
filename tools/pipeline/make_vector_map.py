@@ -635,10 +635,33 @@ function drawSnap(){
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = '#54483a'; ctx.fillRect(0, 0, cv.width, cv.height);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawBackdrop();
   ctx.imageSmoothingEnabled = true;
   ctx.translate(V.tx - _snap.tx * k, V.ty - _snap.ty * k);
   ctx.scale(k, k);
   ctx.drawImage(_snap.c, 0, 0, cw, ch);
+  ctx.setTransform(dpr*V.scale, 0, 0, dpr*V.scale, dpr*V.tx, dpr*V.ty);
+}
+// 全图粗糙底衬：拖出快照范围时垫底，避免露白
+let _backdrop = null;
+function captureBackdrop(){
+  try{
+    const c = document.createElement('canvas');
+    c.width = 900; c.height = Math.round(900 * ch / cw);
+    const g = c.getContext('2d');
+    g.drawImage(cv, 0, 0, c.width, c.height);
+    _backdrop = { c, scale: V.scale, tx: V.tx, ty: V.ty, w: cw, h: ch };
+  }catch(_){}
+}
+function drawBackdrop(){
+  if (!_backdrop) return;
+  const k = V.scale / _backdrop.scale;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.globalAlpha = 1;
+  ctx.translate(V.tx - _backdrop.tx * k, V.ty - _backdrop.ty * k);
+  ctx.scale(k, k);
+  ctx.drawImage(_backdrop.c, 0, 0, _backdrop.w, _backdrop.h);
   ctx.setTransform(dpr*V.scale, 0, 0, dpr*V.scale, dpr*V.tx, dpr*V.ty);
 }
 function markMoving(){
@@ -648,7 +671,8 @@ function markMoving(){
   _moveTimer = setTimeout(() => {
     _moving = false; _snap = null;
     draw();
-  }, 160);
+    captureBackdrop();
+  }, 260);
 }
 
 let _rafPending = false;
@@ -784,6 +808,18 @@ function draw(){
     }
   }
 
+  // 海岛等小地块兜底：海面/岛屿底填充可能晚于地块，这里再上一次色
+  if (G.realms.length){
+    ctx.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
+    for (const r of G.realms){
+      if ((r.area || 0) > 12000) continue;
+      if (!realmVisible(r)) continue;
+      ctx.fillStyle = rgba(r.color || '#7a6248', 0.20);
+      ctx.fill(r.path, 'evenodd');
+    }
+  }
+
+
 
 
   if (L.mount && !_moving) drawMountains();
@@ -812,10 +848,7 @@ function draw(){
     ctx.stroke(G.lakesDrawn);
   }
   if (L.coastDrawn){
-    if (DATA.coastDrawn && DATA.coastDrawn.some(c => c.closed)){
-      ctx.fillStyle = '#efe2c2';
-      ctx.fill(G.islandDrawn, 'evenodd');
-    }
+
     ctx.strokeStyle = '#40606f';
     // 海岸线要比河流显得"重"：至少 1 屏幕像素，放大时保持 5.5 世界像素
     ctx.lineWidth = Math.max(1.0/V.scale, 5.5);
@@ -1316,6 +1349,7 @@ cv.addEventListener('pointermove', e => {
     const [a1, a2] = [..._ptrs.values()];
     const d = Math.hypot(a1[0]-a2[0], a1[1]-a2[1]);
     if (_pinch.d > 10){
+      markMoving();
       const ns = Math.max(0.03, Math.min(3, _pinch.scale * (d / _pinch.d)));
       const r = cv.getBoundingClientRect();
       const mx = _pinch.cx - r.left, my = _pinch.cy - r.top;
@@ -1433,6 +1467,7 @@ window.addEventListener('resize', resize);
 
 
 resize(); fit(); deepLink();
+setTimeout(captureBackdrop, 1200);
 bootPct(0.05); bootText('正在绘制底图……');
 draw();
 loadMountains();

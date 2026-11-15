@@ -37,6 +37,7 @@ VEC = ROOT / "data" / "map" / "vector"
 CITY_STATE = ROOT / "data" / "map" / "_editor" / "city_state.json"
 CITY_BACKUP = ROOT / "data" / "map" / "_editor" / "_backup"
 BORDERS = ROOT / "data" / "map" / "borders.json"
+NATIONS = ROOT / "data" / "map" / "nations.json"
 BORDERS_BACKUP = ROOT / "data" / "map" / "_editor" / "_backup"
 OWNERSHIP = ROOT / "data" / "map" / "ownership.csv"
 BAKDIR = ROOT / "data" / "map" / "rivers" / "_backup"
@@ -191,6 +192,13 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json({"owner": own})
             except Exception as e:
                 return self._json({"error": str(e)}, 500)
+        if self.path.startswith("/api/nations/load"):
+            try:
+                if not NATIONS.exists():
+                    return self._json({"version": 1, "nations": []})
+                return self._json(json.loads(NATIONS.read_text(encoding="utf-8-sig")))
+            except Exception as e:
+                return self._json({"error": str(e)}, 500)
         if self.path.startswith("/api/borders/load"):
             try:
                 if not BORDERS.exists():
@@ -263,6 +271,17 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json({"ok": True, "cities": len(ids),
                                    "owned": len([c for c in ids if (own.get(c) or {}).get("n")]),
                                    "at": time.strftime("%H:%M:%S")})
+            except Exception as e:
+                return self._json({"error": str(e)}, 500)
+        if self.path.startswith("/api/nations/save"):
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+                data = json.loads(self.rfile.read(n).decode("utf-8"))
+                if not isinstance(data.get("nations"), list):
+                    return self._json({"error": "nations 必须是数组"}, 400)
+                NATIONS.parent.mkdir(parents=True, exist_ok=True)
+                NATIONS.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+                return self._json({"ok": True, "count": len(data["nations"])})
             except Exception as e:
                 return self._json({"error": str(e)}, 500)
         if self.path.startswith("/api/borders/save"):

@@ -1406,7 +1406,11 @@ async function pushSave(){
       seed: r.seed || (r.ring && representative([r.ring])),
       nation: r.nation || '', faction: r.faction || '', note: r.note || ''
     })).filter(c => c.seed);
-    const body = JSON.stringify({version:2, canvas:[W,H], edges, nations, claims: outClaims});
+    const body = JSON.stringify({version:2, canvas:[W,H], edges, claims: outClaims});   // nations 单独存 nations.json
+    try{
+      await fetch('/api/nations/save', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({version:1, nations})});
+    }catch(_){}
     const r = await fetch('/api/borders/save', {method:'POST',
       headers:{'Content-Type':'application/json'}, body});
     if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -1718,6 +1722,19 @@ window.__BORDER_EDITOR__ = {
     const r = await fetch('/api/ownership/load', {cache:'no-store'});
     if (r.ok){ const o = await r.json(); if (o && o.owner){ owner = o.owner; draw(); } }
   }catch(e){}
+  try{
+    const r0 = await fetch('/api/nations/load', {cache:'no-store'});
+    if (r0.ok){
+      const n0 = await r0.json();
+      if (n0 && Array.isArray(n0.nations) && n0.nations.length){
+        for (const n of n0.nations){
+          const cur = nations.find(x => x.id === n.id);
+          if (cur){ cur.name = n.name || cur.name; cur.state = n.state || ''; cur.color = n.color || cur.color; }
+          else nations.push({ id: n.id, name: n.name || n.id, state: n.state || '', color: n.color || '#7a6248' });
+        }
+      }
+    }
+  }catch(_){}
   try{
     const r = await fetch('/api/borders/load', {cache:'no-store'});
     if (r.ok){

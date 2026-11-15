@@ -51,6 +51,19 @@ except Exception:
 realms = []
 # 先把 borders.json 里的自定义国家并进查表，
 # 否则 faces.json 那段（在下面）会给陈/蔡/卫/曹这类国家算出空名字
+# 国家表以 data/map/nations.json 为准；borders.json 里若还留着 nations 作为兼容再并一次
+_nj = ROOT / "data" / "map" / "nations.json"
+if _nj.exists():
+    try:
+        _nd = json.loads(_nj.read_text(encoding="utf-8-sig"))
+        for _n in (_nd.get("nations") or []):
+            nation_name.setdefault(_n["id"], _n.get("name") or _n["id"])
+            nation_color.setdefault(_n["id"], _n.get("color") or "#7a6248")
+            if _n.get("state"):
+                nation_state.setdefault(_n["id"], _n["state"])
+    except Exception as _e:
+        print("nations.json 读取失败：", _e)
+
 _bp0 = ROOT / "data" / "map" / "borders.json"
 if _bp0.exists():
     try:

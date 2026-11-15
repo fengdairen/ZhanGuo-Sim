@@ -1,0 +1,101 @@
+{
+ "version": 1,
+ "nations": [
+  {
+   "id": "lu",
+   "name": "鲁",
+   "state": "姬姓鲁国",
+   "color": "#c0392b"
+  },
+  {
+   "id": "qi",
+   "name": "齐",
+   "state": "姜氏齐国",
+   "color": "#a2ad00"
+  },
+  {
+   "id": "song",
+   "name": "宋",
+   "state": "宋氏宋国",
+   "color": "#f5d1ff"
+  },
+  {
+   "id": "wei",
+   "name": "魏",
+   "state": "",
+   "color": "#8e44ad"
+  },
+  {
+   "id": "han",
+   "name": "韩",
+   "state": "",
+   "color": "#000cb3"
+  },
+  {
+   "id": "zhao",
+   "name": "赵",
+   "state": "",
+   "color": "#16a085"
+  },
+  {
+   "id": "qin",
+   "name": "秦",
+   "state": "",
+   "color": "#2c3e50"
+  },
+  {
+   "id": "yue",
+   "name": "越",
+   "state": "",
+   "color": "#2ad4fe"
+  },
+  {
+   "id": "chu",
+   "name": "楚",
+   "state": "",
+   "color": "#570000"
+  },
+  {
+   "id": "Nmwggx82f",
+   "name": "倪",
+   "state": "小邾国",
+   "color": "#f39c12"
+  },
+  {
+   "id": "Nmwgh2pyv",
+   "name": "邹",
+   "state": "邾国",
+   "color": "#5d6d7e"
+  },
+  {
+   "id": "Nmwghcjnd",
+   "name": "曹",
+   "state": "",
+   "color": "#a04000"
+  },
+  {
+   "id": "Nmwghnazm",
+   "name": "萧",
+   "state": "",
+   "color": "#1abc9c"
+  },
+  {
+   "id": "Nmwgittbm",
+   "name": "陈",
+   "state": "",
+   "color": "#5878b6"
+  },
+  {
+   "id": "Nmwgivw3v",
+   "name": "蔡",
+   "state": "",
+   "color": "#e67e22"
+  },
+  {
+   "id": "Nmwhhspsh",
+   "name": "卫",
+   "state": "",
+   "color": "#c0392b"
+  }
+ ]
+}

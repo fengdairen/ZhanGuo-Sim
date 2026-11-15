@@ -1305,6 +1305,9 @@ function renderRealmBox(){
       scheduleSave(); draw(); renderList(); fillRealmCount(r);
       renderRealmBox();
     };
+    log('选中地块', { id: r.id, nation: r.nation || '', faction: r.faction || '',
+                     面积: Math.round(r.area || 0), 洞: (r.holes || []).length,
+                     seed: (r.seed || []).map(v => Math.round(v)) });
     $('rFaction').oninput = e => {
       r.faction = e.target.value;
       if (r._claim) r._claim.faction = r.faction;     // 数据源是 claims，必须写回去

@@ -49,11 +49,19 @@ function main() {
   const res = A.build(edges.concat(water), { minArea: 300 });
   const faces = res.faces;
 
-  const out = [];
+  // 同一块面只允许一条认领：先按 face id 归位（与编辑器一致），落空再按种子点定位
+  const byFace = new Map();
+  const innerAll = faces.filter(fc => !fc.outer);
   for (const c of claims) {
     if (!c.seed) continue;
-    const f = faces.find(fc => !fc.outer && A.contains(fc, c.seed[0], c.seed[1]));
+    // 编辑器的 F-id 与这里的编号不一定一致，只按种子点定位，避免错配
+    let f = innerAll.find(fc => A.contains(fc, c.seed[0], c.seed[1]));
     if (!f) continue;
+    const rk = f.ring.length + ':' + f.ring[0][0].toFixed(1) + ',' + f.ring[0][1].toFixed(1);
+    byFace.set(rk, { f, c });
+  }
+  const out = [];
+  for (const { f, c } of byFace.values()) {
     out.push({ nation: c.nation || '', faction: c.faction || '', note: c.note || '',
                area: Math.round(f.area), ring: f.ring, holes: (f.holes || []).slice() });
   }

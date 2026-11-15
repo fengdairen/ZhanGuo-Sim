@@ -1534,7 +1534,17 @@ function rebuildRealms(){
   for (const c of claims){
     // 优先用认领时记下的面 id；面重算过（id 变了）再退回按种子点定位
     let f = c.face ? byId.get(c.face) : null;
-    if (!f) f = faceAt(c.seed[0], c.seed[1]);
+    // 存的 id 必须真的包含这个种子点，否则说明编号过期，按种子点重定位并回写
+    if (!f || !window.Geom.pointInRing(c.seed[0], c.seed[1], f.ring)){
+      const bySeed = faceAt(c.seed[0], c.seed[1]);
+      if (bySeed && bySeed !== f){
+        log('认领重定位', { from: f ? f.id : null, to: bySeed.id, seed: c.seed });
+        c.face = bySeed.id;
+        f = bySeed;
+      } else if (!f){
+        f = bySeed;
+      }
+    }
     if (!f){ log('认领无法归位', { face: c.face || null, seed: c.seed }); continue; }
     byFace.set(f.id, { ring: f.ring, area: f.area, holes: f.holes || [], seed: c.seed, claim: c });
   }

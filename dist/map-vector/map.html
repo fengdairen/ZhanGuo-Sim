@@ -445,7 +445,6 @@ let L0 = { sea:1, river:1, lake:1, city:1 };
 let _snap = null;
 function takeSnap(){
   if (_snap) return;
-  if (!_backdrop) captureBackdrop();
   const c = document.createElement('canvas');
   c.width = cv.width; c.height = cv.height;
   c.getContext('2d').drawImage(cv, 0, 0);
@@ -454,11 +453,18 @@ function takeSnap(){
 function drawSnap(){
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = '#54483a'; ctx.fillRect(0, 0, cv.width, cv.height);
-  if (!drawBaseMap()){ _moving = false; draw(); }
+  drawBaseMap();                              // 整幅底图：拖到哪都有内容
+  if (_snap){                                 // 快照覆盖：清晰
+    const k = V.scale / _snap.scale;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(_snap.c, V.tx - _snap.tx * k, V.ty - _snap.ty * k, cw * k, ch * k);
+  }
 }
 // ---------- 整幅底图（交互时只贴这一张） ----------
 const BASE = 0.5;                     // 相对世界坐标的分辨率
 let _base = null;                     // { c, w, h }
+let _baseErr = '';
 function renderBaseMap(){
   try{
     const BW = Math.round(CW * BASE), BH = Math.round(CH * BASE);
@@ -495,7 +501,12 @@ function renderBaseMap(){
       for (const c2 of CITIES){ g.fillRect(c2.x - 3, c2.y - 3, 6, 6); }
     }
     _base = { c, w: BW, h: BH };
-  }catch(e){ try{ console.warn('base map failed', e); }catch(_){} }
+    _baseErr = '';
+  }catch(e){
+    _base = null; _baseErr = String(e && e.message || e);
+    try{ console.warn('base map failed', e); }catch(_){}
+    bootText('底图生成失败：' + _baseErr);
+  }
 }
 function drawBaseMap(){
   if (!_base) return false;
@@ -506,11 +517,14 @@ function drawBaseMap(){
 }
 
 function markMoving(){
-  if (!_moving && !_base) renderBaseMap();
+  if (!_moving){
+    if (!_base) renderBaseMap();
+    takeSnap();                 // 快照叠在底图之上，拖起来是清晰的
+  }
   _moving = true;
   clearTimeout(_moveTimer);
   _moveTimer = setTimeout(() => {
-    _moving = false;
+    _moving = false; _snap = null;
     draw();
   }, 260);
 }
@@ -1320,6 +1334,10 @@ window.addEventListener('resize', resize);
 
 
 
+window.__MAPAPI__ = {
+  renderBaseMap, draw, fit, get base(){ return _base ? [_base.w, _base.h] : null; },
+  get baseErr(){ return _baseErr; }
+};
 resize(); fit(); deepLink();
 setTimeout(() => { if (!_base) renderBaseMap(); }, 1500);
 bootPct(0.05); bootText('正在绘制底图……');

@@ -232,15 +232,18 @@ HTML = r"""<!doctype html>
   #tip{position:fixed;pointer-events:none;padding:5px 9px;font-size:12px;background:rgba(48,33,20,.92);
     color:#f6eeda;border-radius:6px;transform:translate(-50%,-165%);opacity:0;transition:opacity .12s;
     white-space:nowrap;z-index:9}
-#rinfo{position:fixed;right:14px;top:64px;width:230px;background:rgba(250,243,226,.97);
+#rinfo{position:fixed;right:14px;top:64px;width:304px;background:rgba(250,243,226,.97);
   border:1px solid rgba(120,90,56,.35);border-radius:8px;box-shadow:0 8px 26px rgba(40,26,12,.3);
   padding:12px 14px 10px;display:none;z-index:20;font-family:"Songti SC","SimSun",serif;color:#33241a}
 #rinfo.on{display:block}
 #rinfo .rn{font-size:26px;font-weight:700;letter-spacing:4px;line-height:1.2}
 #rinfo .rr{font-size:11.5px;color:#8a7350;margin:2px 0 10px}
-#rinfo .rl{display:flex;justify-content:space-between;font-size:12.5px;color:#6b5940;
+#rinfo .rl{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#6b5940;
   padding:3px 0;border-top:1px solid rgba(120,90,56,.14)}
+#rinfo .rl span{white-space:nowrap;flex:none;color:#8a7350}
 #rinfo .rl b{font-weight:600;color:#33241a}
+#rinfo .rl b.multi{white-space:pre-line;text-align:right;line-height:1.6;font-weight:600}
+#rinfo .rl b:empty{display:none}
 #rinfo .rx{margin-top:10px;font-size:11.5px;color:#2d5d80;cursor:pointer;text-align:right}
   .btn{position:fixed;right:14px;top:14px;display:flex;gap:6px;z-index:5}
   .btn button{padding:6px 11px;font:inherit;font-size:12px;color:#4a3524;cursor:pointer;
@@ -279,10 +282,9 @@ HTML = r"""<!doctype html>
 <div id="rinfo">
   <div class="rn" id="rName">—</div>
   <div class="rr" id="rSub"></div>
-  <div class="rl"><span>疆域</span><b id="rRealm">—</b></div>
   <div class="rl"><span>城邑</span><b id="rCities">—</b></div>
+  <div class="rl"><span>人口</span><b id="rPop">—</b></div>
   <div class="rl"><span>地方</span><b id="rEdges">—</b></div>
-  <div class="rl"><span>面积</span><b id="rArea">—</b></div>
   <div class="rx" id="rClose">关闭</div>
 </div>
 
@@ -996,23 +998,25 @@ function realmAt(x, y){
 function showFaction(fac, nation, anchor){
   const box = el('rinfo');
   const group = G.realms.filter(x => x.faction === fac && (x.nation || '') === (nation || ''));
-  const cities = group.reduce((s2, x) => s2 + (x.cities || 0), 0);
-  const area = group.reduce((s2, x) => s2 + (x.area || 0), 0);
-  el('rName').textContent = fac;
-  el('rSub').textContent = '地方势力 · 隶属' + ((anchor && anchor.nationName) || '');
-  el('rRealm').textContent = group.length + ' 块' + (group.length > 1 ? '（跨地块）' : '');
-  // 城邑数：直接数落在这些地块里的城
-  let nCity = 0;
+  const cnt = {都: 0, 城: 0, 邑: 0};
+  let pop = 0;
   for (const c of CITIES){
-    for (const r of group){
-      if (r.ring && pointInRing(c.x, c.y, r.ring)){ nCity++; break; }
+    for (const rr of group){
+      if (rr.ring && pointInRing(c.x, c.y, rr.ring)){
+        const k = (c.kind === '都' || c.kind === '城') ? c.kind : '邑';
+        cnt[k]++;
+        pop += (c.pop || 0);
+        break;
+      }
     }
   }
-  el('rCities').textContent = nCity + ' 城';
-  el('rArea').textContent = Math.round(area).toLocaleString() + ' px²';
-  // 地方：用各块的备注，没有就写破折号（不要再出现莫名其妙的顿号）
-  const names = group.map(x => (x.note || '').trim()).filter(Boolean);
-  el('rEdges').textContent = names.length ? names.slice(0, 6).join('、') : '—';
+  const total = cnt.都 + cnt.城 + cnt.邑;
+  el('rName').textContent = fac;
+  el('rSub').textContent = '地方势力 · 隶属' + ((anchor && anchor.nationName) || '');
+  el('rCities').textContent = cnt.都 + ' 都 ' + cnt.城 + ' 城 ' + cnt.邑 + ' 邑（合计 ' + total + '）';
+  el('rPop').textContent = pop ? (pop.toLocaleString() + ' 万') : '—';
+  el('rEdges').textContent = group.length + ' 块地块';
+  el('rEdges').className = '';
   box.classList.add('on');
 }
 
@@ -1021,27 +1025,31 @@ function showRealm(r){
   if (!r){ box.classList.remove('on'); return; }
   const key = r.nation || ('_' + r.id);
   const group = G.realms.filter(x => (x.nation || ('_' + x.id)) === key);
-  const cities = group.reduce((s, x) => s + (x.cities || 0), 0);
-  const area = group.reduce((s, x) => s + (x.area || 0), 0);
-  const facs = [...new Set(group.map(x => x.faction).filter(Boolean))];
-  el('rName').textContent = r.nationName || r.name || '地块';
-  el('rSub').textContent = r.nationState ? (r.nationState)
-    : (r.nationName ? '疆域' : '未指定国家');
-  el('rRealm').textContent = group.length + ' 块' + (group.length > 1 ? '（含飞地）' : '');
-  // 城邑数现算：落在该国所有地块里的城；其中归地方势力的单独计数
-  let nAll = 0, nFac = 0;
+
+  // 城邑：按 都/城/邑 分类，并算出人口
+  const cnt = {都: 0, 城: 0, 邑: 0};
+  let pop = 0;
+  const facCnt = new Map();
   for (const c of CITIES){
-    for (const r of group){
-      if (r.ring && pointInRing(c.x, c.y, r.ring)){
-        nAll++;
-        if (r.faction) nFac++;
-        break;
-      }
+    let host = null;
+    for (const rr of group){
+      if (rr.ring && pointInRing(c.x, c.y, rr.ring)){ host = rr; break; }
     }
+    if (!host) continue;
+    const k = (c.kind === '都' || c.kind === '城') ? c.kind : '邑';
+    cnt[k]++;
+    pop += (c.pop || 0);
+    if (host.faction) facCnt.set(host.faction, (facCnt.get(host.faction) || 0) + 1);
   }
-  el('rCities').textContent = nAll ? (nAll + ' 城' + (nFac ? '（地方 ' + nFac + '）' : '')) : '—';
-  el('rEdges').textContent = facs.length ? facs.join('、') : '中央直辖';
-  el('rArea').textContent = Math.round(area).toLocaleString() + ' px²';
+  const total = cnt.都 + cnt.城 + cnt.邑;
+
+  el('rName').textContent = r.nationName || r.name || '地块';
+  el('rSub').textContent = r.nationState ? r.nationState : (r.nationName ? '疆域' : '未指定国家');
+  el('rCities').textContent = cnt.都 + ' 都 ' + cnt.城 + ' 城 ' + cnt.邑 + ' 邑（合计 ' + total + '）';
+  el('rPop').textContent = pop ? (pop.toLocaleString() + ' 万') : '—';
+  const lines = [...facCnt.entries()].map(([f, n]) => f + '（' + n + ' 城邑）');
+  el('rEdges').textContent = lines.length ? lines.join('\n') : '中央直辖';
+  el('rEdges').className = 'multi';
   box.classList.add('on');
 }
 el('rClose').onclick = () => { selRealm = null; selNation = null; selFaction = null; selFactionNation = null; showRealm(null); draw(); };

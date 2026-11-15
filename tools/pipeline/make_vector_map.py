@@ -619,21 +619,36 @@ let perfOn = false, drawMs = 0;
 // 交互（拖拽/缩放）期间走"轻渲染"：跳过投影阴影与逐国模糊渐变，
 // 停下来 180ms 后再补一帧完整效果
 let _moving = false, _moveTimer = null;
-const DPR_BASE = dpr;
-function setDpr(v){
-  if (Math.abs(dpr - v) < 0.01) return;
-  dpr = v;
-  cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
+// 交互用"快照拖动"：开始拖动时把当前画面存成位图，
+// 移动/缩放期间只做位图变换（平滑、无重绘），停手后重画清晰版
+let _snap = null;
+function takeSnap(){
+  if (_snap) return;
+  const c = document.createElement('canvas');
+  c.width = cv.width; c.height = cv.height;
+  c.getContext('2d').drawImage(cv, 0, 0);
+  _snap = { c, scale: V.scale, tx: V.tx, ty: V.ty };
+}
+function drawSnap(){
+  if (!_snap) return;
+  const k = V.scale / _snap.scale;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#54483a'; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.translate(V.tx - _snap.tx * k, V.ty - _snap.ty * k);
+  ctx.scale(k, k);
+  ctx.drawImage(_snap.c, 0, 0, cw, ch);
+  ctx.setTransform(dpr*V.scale, 0, 0, dpr*V.scale, dpr*V.tx, dpr*V.ty);
 }
 function markMoving(){
-  if (!_moving) setDpr(DPR_BASE * 0.6);      // 交互时半分辨率，像素量减 64%
+  if (!_moving){ takeSnap(); }
   _moving = true;
   clearTimeout(_moveTimer);
   _moveTimer = setTimeout(() => {
-    _moving = false;
-    setDpr(DPR_BASE);                        // 停手恢复清晰
+    _moving = false; _snap = null;
     draw();
-  }, 180);
+  }, 160);
 }
 
 let _rafPending = false;
@@ -644,6 +659,7 @@ function requestDraw(){
 }
 function draw(){
   const t0 = performance.now();
+  if (_moving && _snap){ drawSnap(); return; }
   updateVBB();
   const L = state();
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -687,6 +703,15 @@ function draw(){
   ctx.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
 
   // ---- 疆域地块：并集轮廓 + 内侧渐变 ----
+  if (L.sea){
+    ctx.fillStyle = COL.sea; ctx.fill(G.sea, 'evenodd');
+    ctx.strokeStyle = COL.seaEdge; ctx.lineWidth = 1.2/V.scale; ctx.stroke(G.sea);
+    if (DATA.islands.length){
+      ctx.fillStyle = '#efe2c2'; ctx.fill(G.islands, 'evenodd');
+      ctx.strokeStyle = COL.coast; ctx.lineWidth = Math.max(0.7/V.scale, 1); ctx.stroke(G.islands);
+    }
+  }
+
   if (G.realms.length){
     const byNation = new Map();
     for (const r of G.realms){
@@ -698,6 +723,15 @@ function draw(){
       const on = list.some(r => selNation && selNation === key);
       const color = list[0].color;
 
+      // 调试：?dbg=1 时把面积 <5000 的地块中心点标红
+      if (typeof location !== 'undefined' && /[?&]dbg=1/.test(location.search)){
+        for (const r of list){
+          if ((r.area || 0) < 5000 && r.center){
+            ctx.beginPath(); ctx.arc(r.center[0], r.center[1], 12 / V.scale, 0, 6.283);
+            ctx.fillStyle = 'rgba(255,0,0,.9)'; ctx.fill();
+          }
+        }
+      }
       // 1) 面（只画视野内的）
       const visList = [];
       for (const r of list){
@@ -729,14 +763,6 @@ function draw(){
       if (!_moving) drawInnerFade(list, color, 0.16, key);
 
       // 3) 国界线：整组描边后擦掉内部 → 只剩合起来的轮廓，宽度恒定
-      if (_moving){
-        // 交互期间用廉价描边：省掉两次全屏合成
-        ctx.strokeStyle = rgba(shade(color, 0.45), 0.9);
-        ctx.lineWidth = 3.0 / V.scale;
-        ctx.lineJoin = 'round';
-        for (const r of visList) ctx.stroke(r.path);
-        continue;
-      }
       if (!off) off = document.createElement('canvas');
       if (off.width !== cv.width || off.height !== cv.height){
         off.width = cv.width; off.height = cv.height;
@@ -759,14 +785,6 @@ function draw(){
   }
 
 
-  if (L.sea){
-    ctx.fillStyle = COL.sea; ctx.fill(G.sea, 'evenodd');
-    ctx.strokeStyle = COL.seaEdge; ctx.lineWidth = 1.2/V.scale; ctx.stroke(G.sea);
-    if (DATA.islands.length){
-      ctx.fillStyle = '#efe2c2'; ctx.fill(G.islands, 'evenodd');
-      ctx.strokeStyle = COL.coast; ctx.lineWidth = Math.max(0.7/V.scale, 1); ctx.stroke(G.islands);
-    }
-  }
 
   if (L.mount && !_moving) drawMountains();
 

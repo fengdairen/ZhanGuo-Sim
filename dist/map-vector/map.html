@@ -13,7 +13,7 @@
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;overflow:hidden;background:#54483a;
     font-family:"Songti SC","STSong","SimSun","Noto Serif CJK SC",serif;color:var(--ink)}
-  #cv{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
+  #cv{touch-action:none;-ms-touch-action:none;user-select:none;-webkit-user-select:none;display:block;width:100%;height:100%;cursor:grab;touch-action:none}
   #cv.drag{cursor:grabbing}
   .panel{position:fixed;background:rgba(250,244,229,.94);border:1px solid rgba(120,90,56,.35);
     border-radius:10px;box-shadow:0 6px 22px rgba(80,55,30,.14);backdrop-filter:blur(6px)}
@@ -453,22 +453,39 @@ function takeSnap(){
 function drawSnap(){
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = '#54483a'; ctx.fillRect(0, 0, cv.width, cv.height);
-  // 快照如果已经盖满屏幕，就不必再贴底图（省一次全屏填充）
-  let covered = false;
-  if (_snap){
-    const k = V.scale / _snap.scale;
-    const x = V.tx - _snap.tx * k, y = V.ty - _snap.ty * k;
-    covered = (x <= 0.5 && y <= 0.5 && x + cw * k >= cw - 0.5 && y + ch * k >= ch - 0.5);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  try{ ctx.imageSmoothingQuality = 'low'; }catch(_){}
+
+  // 快照在屏幕上的矩形
+  const k = _snap ? (V.scale / _snap.scale) : 0;
+  const sx = _snap ? Math.round(V.tx - _snap.tx * k) : 0;
+  const sy = _snap ? Math.round(V.ty - _snap.ty * k) : 0;
+  const sw = _snap ? Math.round(cw * k) : 0;
+  const sh = _snap ? Math.round(ch * k) : 0;
+
+  // 只在"快照没盖住的条带"里补底图：四次裁剪 blit，面积通常很小
+  if (_base){
+    const bx = Math.round(V.tx), by = Math.round(V.ty);
+    const bw = Math.round(CW * V.scale), bh = Math.round(CH * V.scale);
+    const strips = [
+      [0, 0, cw, sy],                       // 上
+      [0, sy + sh, cw, ch - (sy + sh)],     // 下
+      [0, sy, sx, sh],                      // 左
+      [sx + sw, sy, cw - (sx + sw), sh],    // 右
+    ];
+    for (const [x, y, w, h] of strips){
+      if (w <= 0 || h <= 0) continue;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+      ctx.drawImage(_base.c, bx, by, bw, bh);
+      ctx.restore();
+    }
   }
-  if (!covered) drawBaseMap();                 // 整幅底图：拖到哪都有内容
-  if (_snap){                                 // 快照覆盖：清晰
-    const k = V.scale / _snap.scale;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.imageSmoothingEnabled = true;
-    try{ ctx.imageSmoothingQuality = 'low'; }catch(_){}
-    ctx.drawImage(_snap.c,
-      Math.round(V.tx - _snap.tx * k), Math.round(V.ty - _snap.ty * k),
-      Math.round(cw * k), Math.round(ch * k));
+
+  // 快照本身
+  if (_snap){
+    ctx.drawImage(_snap.c, sx, sy, sw, sh);
   }
 }
 // ---------- 整幅底图（交互时只贴这一张） ----------
@@ -538,17 +555,24 @@ function setMoveDpr(on){
   cv.width = Math.round(cw * dpr);
   cv.height = Math.round(ch * dpr);
 }
+// 空闲时预先抓快照：手势开始时不用再拷贝画布
+let _snapTimer = null;
+function scheduleIdleSnap(){
+  clearTimeout(_snapTimer);
+  _snapTimer = setTimeout(() => {
+    if (_moving) return;
+    _snap = null; takeSnap();
+  }, 120);
+}
 function markMoving(){
   if (!_moving){
     if (!_base) renderBaseMap();
-    takeSnap();                 // 先在原生分辨率下抓一张清晰快照
-    setMoveDpr(true);           // 再把画布降到 0.6，填充量只剩 36%
+    if (!_snap) takeSnap();     // 一般空闲时已经抓好，这里只是兜底
   }
   _moving = true;
   clearTimeout(_moveTimer);
   _moveTimer = setTimeout(() => {
     _moving = false; _snap = null;
-    setMoveDpr(false);          // 恢复清晰分辨率
     draw();
   }, 260);
 }
@@ -795,6 +819,7 @@ function draw(){
     } else flash = null;
   }
   drawMs = drawMs ? drawMs * 0.8 + (performance.now() - t0) * 0.2 : (performance.now() - t0);
+  if (!_moving) scheduleIdleSnap();
   zoomEl.textContent = '缩放 ' + (V.scale*100).toFixed(0) + '%' +
     (perfOn ? ('  ·  ' + drawMs.toFixed(1) + ' ms  ·  ' + (GEOM_POINTS/1000).toFixed(1) + 'k 点') : '');
 

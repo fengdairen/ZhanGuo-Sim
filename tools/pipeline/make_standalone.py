@@ -37,12 +37,12 @@ def main():
         data = base64.b64encode(path.read_bytes()).decode("ascii")
         uri = "data:%s;base64,%s" % (mime, data)
         before = len(html)
-        for ref in ("mount.webp", "mount.png"):
-            html = html.replace("MOUNT.src = '%s'" % ref, "MOUNT.src = '%s'" % uri)
+        html = html.replace("const MOUNT_SRC = 'mount.webp'", "const MOUNT_SRC = '%s'" % uri)
+        html = html.replace("const MOUNT_SRC = 'mount.png'", "const MOUNT_SRC = '%s'" % uri)
         print("内嵌纹理：%s（%.1f MB → base64 %.1f MB）" % (
             path.name, path.stat().st_size / 1024 / 1024, len(uri) / 1024 / 1024))
         if len(html) == before:
-            print("警告：没找到 MOUNT.src 引用，纹理未内嵌")
+            print("警告：没找到 MOUNT_SRC 引用，纹理未内嵌")
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(html, encoding="utf-8")

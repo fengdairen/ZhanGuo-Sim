@@ -232,6 +232,14 @@ HTML = r"""<!doctype html>
   #tip{position:fixed;pointer-events:none;padding:5px 9px;font-size:12px;background:rgba(48,33,20,.92);
     color:#f6eeda;border-radius:6px;transform:translate(-50%,-165%);opacity:0;transition:opacity .12s;
     white-space:nowrap;z-index:9}
+#boot{position:fixed;inset:0;z-index:99;background:#54483a;display:flex;
+  align-items:center;justify-content:center;transition:opacity .45s}
+#boot .bootbox{text-align:center;color:#efe2c2;font-family:"Songti SC","SimSun",serif}
+#boot .bootttl{font-size:38px;letter-spacing:14px;margin-bottom:8px}
+#boot .bootsub{font-size:12.5px;letter-spacing:3px;color:#a08d6b;margin-bottom:26px}
+#boot .bootbar{width:280px;height:4px;background:rgba(239,226,194,.18);border-radius:2px;overflow:hidden;margin:0 auto}
+#boot .bootbar i{display:block;height:100%;width:0;background:#c9b389;transition:width .25s}
+#boot .boottxt{margin-top:12px;font-size:12.5px;color:#a08d6b;letter-spacing:1px}
 #rinfo{position:fixed;right:14px;top:64px;width:236px;background:rgba(250,243,226,.97);
   border:1px solid rgba(120,90,56,.35);border-radius:8px;box-shadow:0 8px 26px rgba(40,26,12,.3);
   padding:12px 14px 10px;display:none;z-index:20;font-family:"Songti SC","SimSun",serif;color:#33241a}
@@ -253,6 +261,14 @@ HTML = r"""<!doctype html>
 </head>
 <body>
 <canvas id="cv"></canvas>
+<div id="boot">
+  <div class="bootbox">
+    <div class="bootttl">舆 图</div>
+    <div class="bootsub">战国演义 · 公元前 390 年</div>
+    <div class="bootbar"><i id="bootfill"></i></div>
+    <div class="boottxt" id="boottxt">正在载入……</div>
+  </div>
+</div>
 
 <div id="hud" class="panel">
   <h1>战国演义 · 舆图</h1>
@@ -481,15 +497,64 @@ const GEOM_POINTS = (() => {
 const REGIONS = DATA.regions.map(r => ({id:r[0], name:r[1], x:r[2], y:r[3], pop:r[4]}));
 
 const el = id => document.getElementById(id);
+const MOUNT_SRC = 'mount.webp';
 
 // 山地纹理（与地图同尺寸的透明叠层）
-const MOUNT = (typeof Image !== 'undefined') ? new Image() : { complete:false, naturalWidth:0 };
-if (typeof Image !== 'undefined'){
-  MOUNT.onload = () => { if (typeof draw === 'function') draw(); };
-  MOUNT.src = 'mount.webp';
+// ---- 后台预载 + 进度条 ----
+let MOUNT = null, mountReady = false;
+function bootPct(p){
+  const e = document.getElementById('bootfill');
+  if (e) e.style.width = Math.max(0, Math.min(1, p) * 100).toFixed(0) + '%';
 }
+function bootText(t){ const e = document.getElementById('boottxt'); if (e) e.textContent = t; }
+const BOOT_T0 = (typeof performance !== 'undefined') ? performance.now() : 0;
+function bootDone(){
+  const b = document.getElementById('boot');
+  if (!b) return;
+  // 至少显示 700ms：本地秒开时也不会一闪而过
+  const wait = Math.max(0, 700 - (performance.now() - BOOT_T0));
+  setTimeout(() => {
+    b.style.opacity = '0';
+    setTimeout(() => { try { b.remove(); } catch(_){} }, 480);
+  }, wait);
+}
+function mountFallback(src){
+  if (typeof Image === 'undefined'){ bootDone(); return; }
+  const img = new Image();
+  img.onload = () => { MOUNT = img; mountReady = true; bootPct(1); bootText('已载入'); bootDone(); draw(); };
+  img.onerror = () => { bootDone(); draw(); };
+  img.src = src;
+}
+function loadMountains(){
+  const src = MOUNT_SRC;
+  if (typeof XMLHttpRequest === 'undefined' || src.startsWith('data:')){ mountFallback(src); return; }
+  try{
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', src, true);
+    xhr.responseType = 'blob';
+    xhr.onprogress = e => {
+      if (e.lengthComputable && e.total){
+        bootPct(e.loaded / e.total);
+        bootText('正在载入山地纹理 ' + Math.round(e.loaded / e.total * 100) + '%');
+      }
+    };
+    xhr.onload = async () => {
+      if (xhr.status === 200 || xhr.status === 0){
+        try{
+          MOUNT = await createImageBitmap(xhr.response);
+          mountReady = true;
+        }catch(_){ /* 解码失败走 Image 兜底 */ }
+      }
+      if (mountReady){ bootPct(1); bootText('已载入'); bootDone(); draw(); }
+      else mountFallback(src);
+    };
+    xhr.onerror = () => mountFallback(src);
+    xhr.send();
+  }catch(_){ mountFallback(src); }
+}
+
 function drawMountains(){
-  if (!MOUNT.complete || !MOUNT.naturalWidth) return;
+  if (!mountReady || !MOUNT) return;
   ctx.save();
   ctx.globalAlpha = 0.9;
   ctx.drawImage(MOUNT, 0, 0, CW, CH);
@@ -625,7 +690,7 @@ function draw(){
     }
   }
 
-  if (L.mount) drawMountains();
+  if (L.mount && !_moving) drawMountains();
 
   if (L.river){
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
@@ -1206,6 +1271,9 @@ window.addEventListener('resize', resize);
 
 
 resize(); fit(); deepLink();
+bootPct(0.05); bootText('正在绘制底图……');
+draw();
+loadMountains();
 el('foot').textContent =
   '河 ' + DATA.rivers.length + ' 段 · 湖 ' + (DATA.lakesDrawn || []).length + ' 处 · 城邑 ' + CITIES.length +
   ' 座 · 部族 ' + REGIONS.length + '　｜　滚轮缩放 · 拖拽平移 · 双击放大 · P 看性能';
@@ -1221,7 +1289,10 @@ if _tex.exists():
     try:
         from PIL import Image as _Im
         _im = _Im.open(_tex).convert("RGBA")
-        _im.save(OUTDIR / "mount.webp", "WEBP", quality=90, method=6)
+        # 半分辨率：4.2MB/310MB 解码内存 → 1.9MB/73MB，观感几乎无差
+        _w, _h = _im.size
+        _im = _im.resize((_w // 2, _h // 2), _Im.LANCZOS)
+        _im.save(OUTDIR / "mount.webp", "WEBP", quality=88, method=6)
         print("mountain texture -> mount.webp", round((OUTDIR / 'mount.webp').stat().st_size/1024), "KB")
     except Exception as _e:
         import shutil as _sh

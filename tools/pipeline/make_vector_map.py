@@ -57,8 +57,9 @@ if _nj.exists():
     try:
         _nd = json.loads(_nj.read_text(encoding="utf-8-sig"))
         for _n in (_nd.get("nations") or []):
-            nation_name.setdefault(_n["id"], _n.get("name") or _n["id"])
-            nation_color.setdefault(_n["id"], _n.get("color") or "#7a6248")
+            _nn = _n.get("name") or _n["id"]
+            nation_name[_n["id"]] = _nn
+            nation_color[_n["id"]] = _n.get("color") or nation_color.get(_n["id"]) or "#7a6248"
             if _n.get("state"):
                 nation_state.setdefault(_n["id"], _n["state"])
     except Exception as _e:
@@ -69,8 +70,9 @@ if _bp0.exists():
     try:
         _b0 = json.loads(_bp0.read_text(encoding="utf-8-sig"))
         for _n in (_b0.get("nations") or []):
-            nation_name.setdefault(_n["id"], _n.get("name") or _n["id"])
-            nation_color.setdefault(_n["id"], _n.get("color") or "#7a6248")
+            _nn = _n.get("name") or _n["id"]
+            nation_name[_n["id"]] = _nn
+            nation_color[_n["id"]] = _n.get("color") or nation_color.get(_n["id"]) or "#7a6248"
             if _n.get("state"):
                 nation_state.setdefault(_n["id"], _n["state"])
     except Exception as _e:
@@ -107,8 +109,8 @@ if _bp.exists() and not realms:
         # 国界编辑器里自定义的国家（含现场新建的）也认
         for _n in (_b.get("nations") or []):
             if _n.get("id"):
-                nation_name.setdefault(_n["id"], _n.get("name") or _n["id"])
-                nation_color.setdefault(_n["id"], _n.get("color") or "#7a6248")
+                nation_name[_n["id"]] = _n.get("name") or _n["id"]
+                nation_color[_n["id"]] = _n.get("color") or nation_color.get(_n["id"]) or "#7a6248"
                 if _n.get("state"):
                     nation_state[_n["id"]] = _n["state"]
         for _r in _b.get("realms", []):

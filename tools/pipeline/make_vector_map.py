@@ -245,7 +245,12 @@ HTML = r"""<!doctype html>
 #rinfo{position:fixed;right:14px;top:64px;width:236px;background:rgba(250,243,226,.97);
   border:1px solid rgba(120,90,56,.35);border-radius:8px;box-shadow:0 8px 26px rgba(40,26,12,.3);
   padding:12px 14px 10px;display:none;z-index:20;font-family:"Songti SC","SimSun",serif;color:#33241a}
+#rinfo{position:fixed}
 #rinfo.on{display:block}
+#rinfo .rx2{position:absolute;right:10px;top:8px;width:26px;height:26px;line-height:26px;
+  text-align:center;border-radius:50%;color:#8a7350;cursor:pointer;font-size:14px;
+  background:rgba(120,90,56,.08)}
+#rinfo .rx2:hover{background:rgba(120,90,56,.18);color:#5c4a33}
 #rinfo .rn{font-size:26px;font-weight:700;letter-spacing:4px;line-height:1.2}
 #rinfo .rr{font-size:11.5px;color:#8a7350;margin:2px 0 10px}
 #rinfo .rl{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#6b5940;
@@ -283,8 +288,9 @@ HTML = r"""<!doctype html>
     #hud h1{display:none}
     #hud .row{font-size:11px;margin:1px 7px 1px 0}
     #zoom{right:10px;top:auto;bottom:calc(70px + env(safe-area-inset-bottom));font-size:11px}
-    #rinfo{left:8px;right:8px;bottom:calc(12px + env(safe-area-inset-bottom));top:auto;
+    #rinfo{left:8px;right:74px;bottom:calc(12px + env(safe-area-inset-bottom));top:auto;
            width:auto;max-height:46vh;overflow:auto;font-size:12px;padding:10px 12px}
+    #rinfo .rx2{width:30px;height:30px;line-height:30px;font-size:16px;right:8px;top:6px}
     #rinfo .rn{font-size:20px;letter-spacing:3px}
     #rinfo .rl{font-size:11.5px;padding:2px 0}
     #zoom,#home{font-size:11px;padding:4px 8px}
@@ -331,6 +337,7 @@ HTML = r"""<!doctype html>
 <div id="zoom" class="panel">—</div>
 <div id="tip"></div>
 <div id="rinfo">
+  <div class="rx2" id="rX" title="关闭">✕</div>
   <div class="rn" id="rName">—</div>
   <div class="rr" id="rSub"></div>
   <div class="rl"><span>城邑</span><b id="rCities">—</b></div>
@@ -1173,7 +1180,9 @@ function showRealm(r){
   el('rEdges').className = 'multi';
   box.classList.add('on');
 }
-el('rClose').onclick = () => { selRealm = null; selNation = null; selFaction = null; selFactionNation = null; showRealm(null); draw(); };
+function closeRealm(){ selRealm = null; selNation = null; selFaction = null; selFactionNation = null; showRealm(null); draw(); }
+el('rClose').onclick = closeRealm;
+el('rX').onclick = closeRealm;
 
 let dragging = false, last = null;
 let downPt = null, moved = false, panBtn = 0;
@@ -1300,16 +1309,26 @@ for (const id of ['lSea','lRiver','lRName','lCoastDrawn','lLakesDrawn','lCity','
   el(id).addEventListener('change', draw);
 
 const q = el('q'), hits = el('hits');
+// 搜索：回车在重名结果之间循环
+let hitList = [], hitIdx = -1, hitKw = '';
 q.addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
+  if (e.preventDefault) e.preventDefault();
   const kw = q.value.trim();
-  if (!kw){ hits.textContent = ''; return; }
-  const fc = CITIES.filter(c => c.name.indexOf(kw) >= 0);
-  const fr = REGIONS.filter(r => r.name.indexOf(kw) >= 0);
-  const all = fc.concat(fr);
-  if (!all.length){ hits.textContent = '无匹配'; return; }
-  hits.textContent = '命中 ' + all.length + '：' + all.slice(0,6).map(c=>c.name).join('、');
-  flyTo(all[0]);
+  if (!kw){ hits.textContent = ''; hitList = []; hitIdx = -1; hitKw = ''; return; }
+  if (kw !== hitKw){
+    hitKw = kw;
+    hitList = CITIES.filter(c => c.name.indexOf(kw) >= 0)
+      .concat(REGIONS.filter(r => r.name.indexOf(kw) >= 0));
+    hitIdx = -1;
+  }
+  if (!hitList.length){ hits.textContent = '无匹配'; return; }
+  hitIdx = (hitIdx + 1) % hitList.length;
+  const t = hitList[hitIdx];
+  const dup = hitList.filter(c => c.name === t.name).length;
+  hits.textContent = '第 ' + (hitIdx + 1) + '/' + hitList.length + '：' + t.name +
+    (dup > 1 ? '（同名 ' + dup + ' 处，再按回车下一个）' : '');
+  flyTo(t);
 });
 
 window.addEventListener('keydown', e => {

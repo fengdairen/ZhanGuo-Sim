@@ -28,7 +28,17 @@ def read(name):
 
 def main():
     cities = [{"id": r["id"], "name": r["name"], "kind": r["kind"],
-               "x": float(r["x"]), "y": float(r["y"])} for r in read("nodes.csv")]
+               "x": float(r["x"]), "y": float(r["y"]),
+               "pop": float(r.get("pop") or 0)} for r in read("nodes.csv")]
+    # 部族：和城邑同构，可归属、计人口
+    regions = []
+    try:
+        for r in read("regions.csv"):
+            regions.append({"id": r["id"], "name": r["name"],
+                            "x": float(r["x"]), "y": float(r["y"]),
+                            "pop": float(r.get("pop") or 0)})
+    except Exception as _e:
+        print("regions.csv 读取失败：", _e)
     nations = []
     sp = ROOT / "data" / "state.json"
     if sp.exists():
@@ -48,7 +58,7 @@ def main():
         if r.get("owner"):
             owner[r["city_id"]] = r["owner"]
 
-    data = {"cities": cities, "nations": nations, "owner": owner,
+    data = {"cities": cities, "regions": regions, "nations": nations, "owner": owner,
             "borders": state, "palette": PALETTE, "size": [W, H]}
 
     html = (TPL.replace("__DATA__", json.dumps(data, ensure_ascii=False, separators=(",", ":")))
@@ -173,6 +183,7 @@ TPL = r"""<!DOCTYPE html>
   <label><input type="checkbox" id="lCoast" checked>海岸线</label>
   <label><input type="checkbox" id="lRiver" checked>河网</label>
   <label><input type="checkbox" id="lMount" checked>山地纹理</label>
+  <label><input type="checkbox" id="lRegion" checked>部族</label>
   <label><input type="checkbox" id="lEdge" checked>边界线</label>
   <label><input type="checkbox" id="lFill" checked>疆域填充</label>
   <label><input type="checkbox" id="lFace">面（平面划分）</label>
@@ -222,12 +233,13 @@ let nations = (DATA.nations || []).map(n => ({
 }));
 let selRealmNation = null;   // 当前选中地块所属国家（同国一起高亮）
 const cities = DATA.cities;
+const regions = DATA.regions || [];
 let owner = {};
 for (const k in DATA.owner) owner[k] = { n: DATA.owner[k], f: '' };
 
 const S = {
   mode:'sel', selEdge:new Set(), selRealm:null,
-  layers:{sea:1,lake:1,mount:1,coast:1,river:1,edge:1,fill:1,city:1,name:1,face:0},
+  layers:{sea:1,lake:1,mount:1,coast:1,river:1,edge:1,fill:1,city:1,region:1,name:1,face:0},
   V:{sea:[],rivers:[],lakes:[],coasts:[]},
   scale:0.15, tx:0, ty:0, drag:null, box:null, cursor:null,
   draft:null, drawTarget:null
@@ -771,6 +783,27 @@ function draw(){
     const [sx,sy] = w2s(S.drawTarget.x, S.drawTarget.y);
     ctx.beginPath(); ctx.arc(sx,sy,5,0,6.283);
     ctx.strokeStyle = '#2d5d80'; ctx.lineWidth = 1.8; ctx.stroke();
+  }
+
+  // 部族
+  if (S.layers.region && regions.length){
+    const showName = S.layers.name && S.scale > 0.28;
+    ctx.font = '10px "Songti SC","SimSun",serif'; ctx.textBaseline='middle';
+    for (const g of regions){
+      const [sx,sy] = w2s(g.x, g.y);
+      if (sx<-20||sy<-20||sx>vw+20||sy>vh+20) continue;
+      const ow = owner[g.id];
+      ctx.beginPath();
+      ctx.moveTo(sx, sy-3.5); ctx.lineTo(sx+3.5, sy); ctx.lineTo(sx, sy+3.5); ctx.lineTo(sx-3.5, sy);
+      ctx.closePath();
+      ctx.fillStyle = ow ? (nations.find(n=>n.id===ow.n) || {}).color || '#7a6248' : 'rgba(122,98,72,.45)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,252,240,.85)'; ctx.lineWidth = 1; ctx.stroke();
+      if (showName){
+        ctx.fillStyle = 'rgba(60,42,26,.8)';
+        ctx.fillText(g.name, sx+6, sy+1);
+      }
+    }
   }
 
   // 城邑
@@ -1326,8 +1359,10 @@ function renderRealmBox(){
 }
 function fillRealmCount(r){
   const el = $('rCount'); if (!el || !r.ring) return;
-  const n = cities.filter(c => pointInPoly([c.x,c.y], r.ring)).length;
-  el.textContent = n + ' 城';
+  const inIt = o => inPatch(o.x, o.y, r);
+  const cs = cities.filter(inIt), gs = regions.filter(inIt);
+  const pop = cs.reduce((a, c) => a + (c.pop || 0), 0) + gs.reduce((a, g) => a + (g.pop || 0), 0);
+  el.textContent = cs.length + ' 城 · ' + gs.length + ' 部族 · ' + pop.toFixed(1) + ' 万人';
 }
 function renderList(){
   const box = $('listBox');
@@ -1431,10 +1466,17 @@ async function applyRealm(r){
     if (others.some(x => pointInPoly([c.x, c.y], x.ring))){ skipped++; continue; }  // 真在别国地块里才跳过
     owner[c.id] = { n: r.nation, f: r.faction || '' }; n++;
   }
-  const nm = (nations.find(x => x.id === r.nation) || {}).name || r.nation;
+    let ng = 0;
+  for (const g of regions){
+    if (!inPatch(g.x, g.y, r)) continue;
+    if (others.some(x => pointInPoly([g.x, g.y], x.ring))) continue;
+    owner[g.id] = { n: r.nation, f: r.faction || '' }; ng++;
+  }
+const nm = (nations.find(x => x.id === r.nation) || {}).name || r.nation;
   draw();
   const ok = await saveOwnership();
   const skipTxt = skipped ? ('；' + skipped + ' 座城已属他国，未覆盖') : '';
+  const gTxt = ng ? ('、' + ng + ' 个部族') : '';
   toast(ok === true ? (n + ' 个城邑已归入 ' + nm + skipTxt)
                     : (n + ' 个城邑已归入 ' + nm + skipTxt + '（写盘失败：' + ok + '）'));
 }
@@ -1451,7 +1493,12 @@ async function dropRealm(r){
   // 真正的数据是 claims：按 seed 删掉对应那条
   if (r._claim) claims = claims.filter(c => c !== r._claim);
   else claims = claims.filter(c => !(c.seed && r.seed && c.seed[0] === r.seed[0] && c.seed[1] === r.seed[1]));
-  realms = realms.filter(x => x !== r);
+    for (const g of regions){
+    if (inPatch(g.x, g.y, r) && owner[g.id] && owner[g.id].n === r.nation){
+      delete owner[g.id]; n++;
+    }
+  }
+realms = realms.filter(x => x !== r);
   if (S.selRealm === r.id) S.selRealm = null;
   draw(); renderSel(); renderList(); scheduleSave();
   const ok = await saveOwnership();
@@ -1754,7 +1801,7 @@ $('bNuke').onclick = async () => {
   toast('已清空全部边界线与地块' + (ok === true && ok2 === true ? '' : '（写盘失败）'));
   computeFaces();
 };
-const LM = {lSea:'sea',lLake:'lake',lCoast:'coast',lRiver:'river',lMount:'mount',lEdge:'edge',lFill:'fill',lCity:'city',lName:'name',lFace:'face'};
+const LM = {lSea:'sea',lLake:'lake',lCoast:'coast',lRiver:'river',lMount:'mount',lRegion:'region',lEdge:'edge',lFill:'fill',lCity:'city',lName:'name',lFace:'face'};
 for (const [id,key] of Object.entries(LM)){
   const el = $(id); if (!el) continue;
   el.checked = !!S.layers[key];

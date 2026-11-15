@@ -1140,7 +1140,13 @@ function showFaction(fac, nation, anchor){
       }
     }
   }
-  const total = cnt.都 + cnt.城 + cnt.邑;
+    // 部族也算人口
+  for (const g of REGIONS){
+    for (const rr of group){
+      if (rr.ring && pointInRing(g.x, g.y, rr.ring)){ pop += (g.pop || 0); nTribe++; break; }
+    }
+  }
+const total = cnt.都 + cnt.城 + cnt.邑;
   el('rName').textContent = fac;
   el('rSub').textContent = '地方势力 · 隶属' + ((anchor && anchor.nationName) || '');
   el('rCities').textContent = cnt.都 + '都' + cnt.城 + '城' + cnt.邑 + '邑（合计' + total + '）';
@@ -1158,7 +1164,7 @@ function showRealm(r){
 
   // 城邑：按 都/城/邑 分类，并算出人口
   const cnt = {都: 0, 城: 0, 邑: 0};
-  let pop = 0;
+  let pop = 0, nTribe = 0;
   const facCnt = new Map();
   for (const c of CITIES){
     let host = null;

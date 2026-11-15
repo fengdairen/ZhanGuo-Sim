@@ -132,6 +132,30 @@
    "name": "燕",
    "state": "偃",
    "color": "#2c3e50"
+  },
+  {
+   "id": "Nmwhzm9ir",
+   "name": "巴",
+   "state": "北巴",
+   "color": "#c2185b"
+  },
+  {
+   "id": "Nmwhzme9f",
+   "name": "巴",
+   "state": "南巴",
+   "color": "#7f8c8d"
+  },
+  {
+   "id": "Nmwhzml1j",
+   "name": "蜀",
+   "state": "",
+   "color": "#f39c12"
+  },
+  {
+   "id": "Nmwhznkpx",
+   "name": "苴",
+   "state": "",
+   "color": "#5d6d7e"
   }
  ]
 }

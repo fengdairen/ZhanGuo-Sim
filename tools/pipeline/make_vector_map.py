@@ -352,7 +352,7 @@ HTML = r"""<!doctype html>
 const DATA = __DATA__;
 const CW = 9101, CH = 8509;
 const cv = document.getElementById('cv');
-const ctx = cv.getContext('2d');
+let ctx = cv.getContext('2d');
 const tip = document.getElementById('tip');
 const zoomEl = document.getElementById('zoom');
 
@@ -593,7 +593,8 @@ function loadMountains(){
           mountReady = true;
         }catch(_){ /* 解码失败走 Image 兜底 */ }
       }
-      if (mountReady){ bootPct(1); bootText('已载入'); bootDone(); draw(); }
+      if (mountReady){ bootPct(0.9); bootText('正在生成全图底衬……'); draw(); captureBackdrop();
+                   bootPct(1); bootText('已载入'); bootDone(); draw(); }
       else mountFallback(src);
     };
     xhr.onerror = () => mountFallback(src);
@@ -624,7 +625,7 @@ let _moving = false, _moveTimer = null;
 let _snap = null;
 function takeSnap(){
   if (_snap) return;
-  if (!_backdrop) captureBackdrop();      // 还没抓到底衬就先抓一张
+  if (!_backdrop) captureBackdrop();
   const c = document.createElement('canvas');
   c.width = cv.width; c.height = cv.height;
   c.getContext('2d').drawImage(cv, 0, 0);
@@ -646,13 +647,24 @@ function drawSnap(){
 // 全图粗糙底衬：拖出快照范围时垫底，避免露白
 let _backdrop = null;
 function captureBackdrop(){
+  // 真正渲染一张"全图"底衬：临时把绘制目标换成离屏画布，按全图适配再画一遍
   try{
+    const BW = 2600, BH = Math.round(BW * CH / CW);
     const c = document.createElement('canvas');
-    c.width = 900; c.height = Math.round(900 * ch / cw);
+    c.width = BW; c.height = BH;
     const g = c.getContext('2d');
-    g.drawImage(cv, 0, 0, c.width, c.height);
-    _backdrop = { c, scale: V.scale, tx: V.tx, ty: V.ty, w: cw, h: ch };
-  }catch(_){}
+    const oldCtx = ctx, oldCw = cw, oldCh = ch, oldDpr = dpr;
+    const oldV = { scale: V.scale, tx: V.tx, ty: V.ty };
+    ctx = g; cw = BW; ch = BH; dpr = 1;
+    const s = Math.min(BW / CW, BH / CH) * 0.985;
+    V.scale = s; V.tx = (BW - CW * s) / 2; V.ty = (BH - CH * s) / 2;
+    draw();
+    _backdrop = { c, scale: s, tx: V.tx, ty: V.ty, w: BW, h: BH };
+    ctx = oldCtx; cw = oldCw; ch = oldCh; dpr = oldDpr;
+    V.scale = oldV.scale; V.tx = oldV.tx; V.ty = oldV.ty;
+  }catch(e){
+    try{ console.warn('backdrop failed', e); }catch(_){}
+  }
 }
 function drawBackdrop(){
   if (!_backdrop) return;
@@ -672,7 +684,6 @@ function markMoving(){
   _moveTimer = setTimeout(() => {
     _moving = false; _snap = null;
     draw();
-    captureBackdrop();
   }, 260);
 }
 
@@ -1468,8 +1479,7 @@ window.addEventListener('resize', resize);
 
 
 resize(); fit(); deepLink();
-setTimeout(captureBackdrop, 400);
-setTimeout(captureBackdrop, 1600);
+setTimeout(() => { if (!_backdrop) captureBackdrop(); }, 1500);
 bootPct(0.05); bootText('正在绘制底图……');
 draw();
 loadMountains();

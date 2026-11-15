@@ -486,7 +486,7 @@ const el = id => document.getElementById(id);
 const MOUNT = (typeof Image !== 'undefined') ? new Image() : { complete:false, naturalWidth:0 };
 if (typeof Image !== 'undefined'){
   MOUNT.onload = () => { if (typeof draw === 'function') draw(); };
-  MOUNT.src = 'mount.png';
+  MOUNT.src = 'mount.webp';
 }
 function drawMountains(){
   if (!MOUNT.complete || !MOUNT.naturalWidth) return;
@@ -1217,8 +1217,15 @@ el('foot').textContent =
 OUTDIR.mkdir(parents=True, exist_ok=True)
 _tex = ROOT / "assets" / "source" / "山地纹理.png"
 if _tex.exists():
-    import shutil as _sh
-    _sh.copy2(_tex, OUTDIR / "mount.png")
-    print("mountain texture ->", OUTDIR / "mount.png")
+    # 转 WebP：13.5MB PNG -> 约 4MB，静态托管首屏快得多
+    try:
+        from PIL import Image as _Im
+        _im = _Im.open(_tex).convert("RGBA")
+        _im.save(OUTDIR / "mount.webp", "WEBP", quality=90, method=6)
+        print("mountain texture -> mount.webp", round((OUTDIR / 'mount.webp').stat().st_size/1024), "KB")
+    except Exception as _e:
+        import shutil as _sh
+        _sh.copy2(_tex, OUTDIR / "mount.png")
+        print("WebP 转换失败，退回 PNG：", _e)
 OUT.write_text(HTML.replace("__DATA__", payload), encoding="utf-8")
 print(f"written {OUT}  {OUT.stat().st_size/1024:.0f} KB")

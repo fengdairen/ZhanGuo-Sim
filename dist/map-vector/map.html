@@ -298,7 +298,7 @@ const el = id => document.getElementById(id);
 const MOUNT = (typeof Image !== 'undefined') ? new Image() : { complete:false, naturalWidth:0 };
 if (typeof Image !== 'undefined'){
   MOUNT.onload = () => { if (typeof draw === 'function') draw(); };
-  MOUNT.src = 'mount.png';
+  MOUNT.src = 'mount.webp';
 }
 function drawMountains(){
   if (!MOUNT.complete || !MOUNT.naturalWidth) return;

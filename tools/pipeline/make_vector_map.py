@@ -1376,18 +1376,22 @@ if not _tex.exists() and _tex_webp.exists():
     print("mountain texture (cached) -> mount.webp",
           round((OUTDIR / 'mount.webp').stat().st_size / 1024), "KB")
 if _tex.exists():
-    # 转 WebP：13.5MB PNG -> 约 4MB，静态托管首屏快得多
-    try:
-        from PIL import Image as _Im
-        _im = _Im.open(_tex).convert("RGBA")
-        # 半分辨率：4.2MB/310MB 解码内存 → 1.9MB/73MB，观感几乎无差
-        _w, _h = _im.size
-        _im = _im.resize((_w // 2, _h // 2), _Im.LANCZOS)
-        _im.save(OUTDIR / "mount.webp", "WEBP", quality=88, method=6)
-        print("mountain texture -> mount.webp", round((OUTDIR / 'mount.webp').stat().st_size/1024), "KB")
-    except Exception as _e:
-        import shutil as _sh
-        _sh.copy2(_tex, OUTDIR / "mount.png")
-        print("WebP 转换失败，退回 PNG：", _e)
+    _out = OUTDIR / "mount.webp"
+    _up_to_date = _out.exists() and _out.stat().st_mtime >= _tex.stat().st_mtime
+    if _up_to_date:
+        print("mountain texture -> mount.webp (复用)", round(_out.stat().st_size / 1024), "KB")
+    else:
+        try:
+            from PIL import Image as _Im
+            _im = _Im.open(_tex).convert("RGBA")
+            # 半分辨率：310MB 解码内存 → 73MB；BOX 比 LANCZOS 快一个数量级
+            _w, _h = _im.size
+            _im = _im.resize((_w // 2, _h // 2), _Im.BOX)
+            _im.save(_out, "WEBP", quality=88, method=4)
+            print("mountain texture -> mount.webp", round(_out.stat().st_size / 1024), "KB")
+        except Exception as _e:
+            import shutil as _sh
+            _sh.copy2(_tex, OUTDIR / "mount.png")
+            print("WebP 转换失败，退回 PNG：", _e)
 OUT.write_text(HTML.replace("__DATA__", payload), encoding="utf-8")
 print(f"written {OUT}  {OUT.stat().st_size/1024:.0f} KB")

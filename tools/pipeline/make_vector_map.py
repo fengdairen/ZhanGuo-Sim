@@ -232,7 +232,7 @@ HTML = r"""<!doctype html>
   #tip{position:fixed;pointer-events:none;padding:5px 9px;font-size:12px;background:rgba(48,33,20,.92);
     color:#f6eeda;border-radius:6px;transform:translate(-50%,-165%);opacity:0;transition:opacity .12s;
     white-space:nowrap;z-index:9}
-#rinfo{position:fixed;right:14px;top:64px;width:304px;background:rgba(250,243,226,.97);
+#rinfo{position:fixed;right:14px;top:64px;width:236px;background:rgba(250,243,226,.97);
   border:1px solid rgba(120,90,56,.35);border-radius:8px;box-shadow:0 8px 26px rgba(40,26,12,.3);
   padding:12px 14px 10px;display:none;z-index:20;font-family:"Songti SC","SimSun",serif;color:#33241a}
 #rinfo.on{display:block}
@@ -1013,9 +1013,9 @@ function showFaction(fac, nation, anchor){
   const total = cnt.都 + cnt.城 + cnt.邑;
   el('rName').textContent = fac;
   el('rSub').textContent = '地方势力 · 隶属' + ((anchor && anchor.nationName) || '');
-  el('rCities').textContent = cnt.都 + ' 都 ' + cnt.城 + ' 城 ' + cnt.邑 + ' 邑（合计 ' + total + '）';
-  el('rPop').textContent = pop ? (pop.toLocaleString() + ' 万') : '—';
-  el('rEdges').textContent = group.length + ' 块地块';
+  el('rCities').textContent = cnt.都 + '都' + cnt.城 + '城' + cnt.邑 + '邑（合计' + total + '）';
+  el('rPop').textContent = pop ? (pop.toLocaleString() + '万') : '—';
+  el('rEdges').textContent = group.length + '块地块';
   el('rEdges').className = '';
   box.classList.add('on');
 }
@@ -1045,9 +1045,9 @@ function showRealm(r){
 
   el('rName').textContent = r.nationName || r.name || '地块';
   el('rSub').textContent = r.nationState ? r.nationState : (r.nationName ? '疆域' : '未指定国家');
-  el('rCities').textContent = cnt.都 + ' 都 ' + cnt.城 + ' 城 ' + cnt.邑 + ' 邑（合计 ' + total + '）';
-  el('rPop').textContent = pop ? (pop.toLocaleString() + ' 万') : '—';
-  const lines = [...facCnt.entries()].map(([f, n]) => f + '（' + n + ' 城邑）');
+  el('rCities').textContent = cnt.都 + '都' + cnt.城 + '城' + cnt.邑 + '邑（合计' + total + '）';
+  el('rPop').textContent = pop ? (pop.toLocaleString() + '万') : '—';
+  const lines = [...facCnt.entries()].map(([f, n]) => f + '（' + n + '城邑）');
   el('rEdges').textContent = lines.length ? lines.join('\n') : '中央直辖';
   el('rEdges').className = 'multi';
   box.classList.add('on');

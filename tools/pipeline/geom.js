@@ -301,12 +301,25 @@
       if (!byComp.has(l.comp)) byComp.set(l.comp, []);
       byComp.get(l.comp).push(i);
     });
+    // 无界面怎么认：
+    //   同一分量里有界面走向一致，无界面相反 → 按符号多数，丢掉少数那一侧。
+    //   旧办法是"丢掉面积最大的那圈"，结果国家的整块疆域一旦成为本分量最大，
+    //   就被当成外部面扔掉——越画越大、越大越丢，正是这个症状。
+    //   符号打平时（只有"一块区域 + 它的外部"两圈）才退回按面积丢最大的那个。
     const outer = new Set();
     for (const idxs of byComp.values()) {
       if (idxs.length < 2) continue;
-      let big = idxs[0];
-      for (const i of idxs) if (Math.abs(uniq[i].area) > Math.abs(uniq[big].area)) big = i;
-      outer.add(big);
+      let pos = 0, neg = 0;
+      for (const i of idxs) (uniq[i].area > 0 ? pos++ : neg++);
+      if (pos > neg){
+        for (const i of idxs) if (uniq[i].area < 0) outer.add(i);
+      } else if (neg > pos){
+        for (const i of idxs) if (uniq[i].area > 0) outer.add(i);
+      } else {
+        let big = idxs[0];
+        for (const i of idxs) if (Math.abs(uniq[i].area) > Math.abs(uniq[big].area)) big = i;
+        outer.add(big);
+      }
     }
 
     // 12. 拆 spur：环里重复出现的顶点，取其中面积最大的一段作为主环

@@ -265,6 +265,7 @@ function buildNet(extra, exclude){
   // 于是别的边界线端点离水 0.04px 也连不上，补全自然找不到路。
   const weld = (extra || []).slice();
   for (const e of edges){
+    { const eb = bboxOf(e.pts); if (!inView(eb[0], eb[1], eb[2], eb[3], 20/S.scale)) continue; }
     if (!e.pts || e.pts.length < 2) continue;
     weld.push(e.pts[0], e.pts[e.pts.length - 1]);
   }
@@ -608,19 +609,58 @@ function drawBg(){
     g.fill(sp, 'evenodd');
   }
   if (S.layers.lake){ g.strokeStyle = COL.lakeEdge; g.lineWidth = 2.2/S.scale; g.fillStyle = COL.lake;
-    for (const l of S.V.lakes){ const p = pathOf(l.pts); p.closePath(); g.fill(p); g.stroke(p); } }
+    for (const l of S.V.lakes){
+      const bb = bboxOf(l.pts); if (!inView(bb[0],bb[1],bb[2],bb[3], 40/S.scale)) continue;
+      const p = pathOf(l.pts); p.closePath(); g.fill(p); g.stroke(p); } }
   if (S.layers.coast){ g.strokeStyle = COL.coast; g.lineWidth = Math.max(1,4/S.scale); g.lineCap='round';
-    for (const c of S.V.coasts){ const p = pathOf(c.pts); if (c.closed) p.closePath(); g.stroke(p); } }
+    for (const c of S.V.coasts){
+      const bb = bboxOf(c.pts); if (!inView(bb[0],bb[1],bb[2],bb[3], 40/S.scale)) continue;
+      const p = pathOf(c.pts); if (c.closed) p.closePath(); g.stroke(p); } }
   if (S.layers.mount) drawMountains(g);
   if (S.layers.river){ g.strokeStyle = COL.river; g.lineJoin='round';
-    for (const e of S.V.rivers){ const p = new Path2D(); p.moveTo(e[1],e[2]);
+    for (const e of S.V.rivers){
+      const bb = bboxOf(e, 1); if (!inView(bb[0],bb[1],bb[2],bb[3], 40/S.scale)) continue;
+      const p = new Path2D(); p.moveTo(e[1],e[2]);
       for (let i=3;i<e.length;i+=2) p.lineTo(e[i],e[i+1]);
       g.lineWidth = Math.max(1.2/S.scale, e[0]); g.stroke(p); } }
   ctx.setTransform(dpr,0,0,dpr,0,0); ctx.drawImage(bgCanvas,0,0,vw,vh);
 }
 
+// ---- 视野裁剪 ----
+const _holeCache = { faces: null, map: new Map() };
+function bboxOutside(bb, ab){
+  return bb[2] < ab[0] || bb[0] > ab[2] || bb[3] < ab[1] || bb[1] > ab[3];
+}
+let VIEW = {x0:0,y0:0,x1:0,y1:0};
+const _bbox = new WeakMap();
+function bboxOf(arr, from){
+  let b = _bbox.get(arr);
+  if (b) return b;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const start = from || 0;
+  for (let i = start; i < arr.length; i++){
+    const p = arr[i];
+    const x = Array.isArray(p) ? p[0] : p, y = Array.isArray(p) ? p[1] : p;
+    if (x < x0) x0 = x; if (x > x1) x1 = x;
+    if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  b = [x0, y0, x1, y1];
+  _bbox.set(arr, b);
+  return b;
+}
+function inView(x0, y0, x1, y1, pad){
+  const p = pad || 0;
+  return !(x1 < VIEW.x0 - p || x0 > VIEW.x1 + p || y1 < VIEW.y0 - p || y0 > VIEW.y1 + p);
+}
+function updateView(){
+  VIEW.x0 = (0 - S.tx) / S.scale;
+  VIEW.y0 = (0 - S.ty) / S.scale;
+  VIEW.x1 = (vw - S.tx) / S.scale;
+  VIEW.y1 = (vh - S.ty) / S.scale;
+}
 function draw(){
   S.draws = (S.draws||0)+1;
+  updateView();
   drawBg();
 
   // 疆域填充
@@ -630,6 +670,8 @@ function draw(){
     const drawList = realms.slice().sort((x, y) => (y.area || 0) - (x.area || 0));
     for (const r of drawList){
       if (!r.ring || r.ring.length < 3) continue;
+      const rb = bboxOf(r.ring);
+      if (!inView(rb[0], rb[1], rb[2], rb[3], 20/S.scale)) continue;
       const nat = nations.find(n => n.id === r.nation);
       const p = patchPath(r);
       const sameNation = r.nation && selRealmNation && r.nation === selRealmNation;
@@ -646,6 +688,8 @@ function draw(){
   if (S.layers.face && FACES){
     ctx.setTransform(dpr*S.scale,0,0,dpr*S.scale,dpr*S.tx,dpr*S.ty);
     for (const f of FACES){
+      const fb = bboxOf(f.ring);
+      if (!inView(fb[0], fb[1], fb[2], fb[3], 20/S.scale)) continue;
       const on = selFace && selFace.id === f.id;
       const p = pathOf(f.ring); p.closePath();
       if (f.holes) for (const h of f.holes){ const hp = pathOf(h); hp.closePath(); p.addPath(hp); }
@@ -1186,7 +1230,7 @@ function commitLoop(){
   edges.push({ id, closed:true, pts:ring, ends:[] });
   S.draft = null; FACES = null; facesReady = false;
   log('闭环边界线', { id, 点数: ring.length, 面积: Math.round(area) });
-  scheduleSave(); renderSel(); computeFaces(); draw();
+  scheduleSave(); renderSel(); scheduleFaces(); draw();
   toast('闭环边界线已生成：' + Math.round(area).toLocaleString() + ' px²');
 }
 
@@ -1512,14 +1556,22 @@ function rebuildRealms(){
   {
     const list = [...byFace.values()];
     const allFaces = (FACES || []).filter(x => !x.outer);
+    if (_holeCache.faces !== FACES){ _holeCache.faces = FACES; _holeCache.map = new Map(); }
     for (const a2 of list){
-      const extra = [];
-      // 洞要从"全部面"里找，不能只在已认领的面之间找：
-      // 否则同连通分量里的小面不会被挖掉，大国的色块就会盖住它
-      for (const b2 of allFaces){
-        if (b2.area >= a2.area) continue;
-        if (b2.ring === a2.ring) continue;
-        if (window.Geom.pointInRing(b2.ring[0][0], b2.ring[0][1], a2.ring)) extra.push(b2.ring);
+      // 每个面的洞只算一次，之后复用（bbox 预筛 + 缓存，避免 O(认领×面×顶点)）
+      const ab = bboxOf(a2.ring);
+      let extra = _holeCache.map.get(a2.ring);
+      if (extra) { /* 命中缓存 */ }
+      else {
+        extra = [];
+        for (const b2 of allFaces){
+          if (b2.area >= a2.area) continue;
+          if (b2.ring === a2.ring) continue;
+          const bb = bboxOf(b2.ring);
+          if (bboxOutside(bb, ab)) continue;
+          if (window.Geom.pointInRing(b2.ring[0][0], b2.ring[0][1], a2.ring)) extra.push(b2.ring);
+        }
+        _holeCache.map.set(a2.ring, extra);
       }
       const sig = h => h.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(';');
       const seen = new Set();
@@ -1543,6 +1595,11 @@ function rebuildRealms(){
   realms = out;
 }
 
+let _faceTimer = null;
+function scheduleFaces(delay){
+  clearTimeout(_faceTimer);
+  _faceTimer = setTimeout(computeFaces, delay == null ? 140 : delay);
+}
 function computeFaces(){
   if (faceBusy) return;
   faceBusy = true;

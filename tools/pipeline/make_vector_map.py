@@ -619,14 +619,32 @@ let perfOn = false, drawMs = 0;
 // 交互（拖拽/缩放）期间走"轻渲染"：跳过投影阴影与逐国模糊渐变，
 // 停下来 180ms 后再补一帧完整效果
 let _moving = false, _moveTimer = null;
+const DPR_BASE = dpr;
+function setDpr(v){
+  if (Math.abs(dpr - v) < 0.01) return;
+  dpr = v;
+  cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
+}
 function markMoving(){
+  if (!_moving) setDpr(DPR_BASE * 0.6);      // 交互时半分辨率，像素量减 64%
   _moving = true;
   clearTimeout(_moveTimer);
-  _moveTimer = setTimeout(() => { _moving = false; draw(); }, 180);
+  _moveTimer = setTimeout(() => {
+    _moving = false;
+    setDpr(DPR_BASE);                        // 停手恢复清晰
+    draw();
+  }, 180);
 }
 
+let _rafPending = false;
+function requestDraw(){
+  if (_rafPending) return;
+  _rafPending = true;
+  requestAnimationFrame(() => { _rafPending = false; draw(); });
+}
 function draw(){
   const t0 = performance.now();
+  updateVBB();
   const L = state();
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,cw,ch);
@@ -680,11 +698,15 @@ function draw(){
       const on = list.some(r => selNation && selNation === key);
       const color = list[0].color;
 
-      // 1) 面
+      // 1) 面（只画视野内的）
+      const visList = [];
       for (const r of list){
+        if (!realmVisible(r)) continue;
+        visList.push(r);
         ctx.fillStyle = rgba(color, on ? 0.20 : 0.075);
         ctx.fill(r.path, 'evenodd');
       }
+      if (!visList.length) continue;
 
       // 1.2) 地方势力：同国底色上叠一层偏移色，不画边界线
       for (const r of list){
@@ -707,6 +729,14 @@ function draw(){
       if (!_moving) drawInnerFade(list, color, 0.16, key);
 
       // 3) 国界线：整组描边后擦掉内部 → 只剩合起来的轮廓，宽度恒定
+      if (_moving){
+        // 交互期间用廉价描边：省掉两次全屏合成
+        ctx.strokeStyle = rgba(shade(color, 0.45), 0.9);
+        ctx.lineWidth = 3.0 / V.scale;
+        ctx.lineJoin = 'round';
+        for (const r of visList) ctx.stroke(r.path);
+        continue;
+      }
       if (!off) off = document.createElement('canvas');
       if (off.width !== cv.width || off.height !== cv.height){
         off.width = cv.width; off.height = cv.height;
@@ -718,9 +748,9 @@ function draw(){
       g.lineJoin = 'round'; g.lineCap = 'round';
       g.strokeStyle = rgba(shade(color, on ? 0.55 : 0.45), on ? 1 : 0.95);
       g.lineWidth = (on ? 9.2 : 6.0) / V.scale;
-      for (const r of list) g.stroke(r.path);
+      for (const r of visList) g.stroke(r.path);
       g.globalCompositeOperation = 'destination-out';
-      for (const r of list) g.fill(r.path, 'evenodd');
+      for (const r of visList) g.fill(r.path, 'evenodd');
       g.globalCompositeOperation = 'source-over';
       ctx.setTransform(1,0,0,1,0,0);
       ctx.drawImage(off, 0, 0);
@@ -1113,6 +1143,27 @@ function distToRingPx(x, y, ring){
   return best;
 }
 
+// 世界坐标视野 + 包围盒裁剪：放大后只画看得见的地块
+let VBB = {x0:0,y0:0,x1:0,y1:0};
+function updateVBB(){
+  VBB.x0 = (0 - V.tx) / V.scale; VBB.y0 = (0 - V.ty) / V.scale;
+  VBB.x1 = (cw - V.tx) / V.scale; VBB.y1 = (ch - V.ty) / V.scale;
+}
+function realmVisible(r, pad){
+  if (!r.ring || !r.ring.length) return false;
+  let bb = r._bb;
+  if (!bb){
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const p of r.ring){
+      if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0];
+      if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1];
+    }
+    bb = r._bb = [x0, y0, x1, y1];
+  }
+  const d = pad || 30 / V.scale;
+  return !(bb[2] < VBB.x0 - d || bb[0] > VBB.x1 + d || bb[3] < VBB.y0 - d || bb[1] > VBB.y1 + d);
+}
+
 function realmAt(x, y){
   let best = null;
   for (const r of G.realms){
@@ -1263,7 +1314,7 @@ cv.addEventListener('pointermove', e => {
     markMoving();
     V.tx += e.clientX - last[0]; V.ty += e.clientY - last[1];
     last = [e.clientX, e.clientY];
-    draw(); return;
+    requestDraw(); return;
   }
   const r = cv.getBoundingClientRect();
   const mx = e.clientX - r.left, my = e.clientY - r.top;
@@ -1300,7 +1351,7 @@ function zoomAt(mx, my, k){
   const wx = (mx - V.tx)/V.scale, wy = (my - V.ty)/V.scale;
   V.scale = Math.max(0.05, Math.min(9, V.scale * k));
   V.tx = mx - wx*V.scale; V.ty = my - wy*V.scale;
-  draw();
+  requestDraw();
 }
 
 function flyTo(c){

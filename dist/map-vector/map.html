@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>战国演义 · 矢量舆图 BC 390</title>
 <style>
   :root{
@@ -45,7 +45,9 @@
     color:#f6eeda;border-radius:6px;transform:translate(-50%,-165%);opacity:0;transition:opacity .12s;
     white-space:nowrap;z-index:9}
 #boot{position:fixed;inset:0;z-index:99;background:#54483a;display:flex;
+  animation:bootfall .5s ease 4s forwards;
   align-items:center;justify-content:center;transition:opacity .45s}
+@keyframes bootfall{to{opacity:0;visibility:hidden}}
 #boot .bootbox{text-align:center;color:#efe2c2;font-family:"Songti SC","SimSun",serif}
 #boot .bootttl{font-size:38px;letter-spacing:14px;margin-bottom:8px}
 #boot .bootsub{font-size:12.5px;letter-spacing:3px;color:#a08d6b;margin-bottom:26px}
@@ -69,6 +71,38 @@
   .btn button{padding:6px 11px;font:inherit;font-size:12px;color:#4a3524;cursor:pointer;
     background:rgba(250,244,229,.94);border:1px solid rgba(120,90,56,.35);border-radius:8px}
   .btn button:hover{background:#fffdf6}
+
+  /* ---------- 移动端 ---------- */
+  @media (max-width: 820px), (pointer: coarse){
+    #hud{width:auto;max-width:calc(100vw - 24px);left:8px;top:8px;right:8px;
+         padding:8px 10px;font-size:12px}
+    #hud h1{font-size:14px;letter-spacing:2px}
+    #hud .sub{display:none}
+    #hud .row{display:inline-flex;margin:2px 8px 2px 0;padding:2px 0;font-size:11.5px}
+    #hud .row input{width:14px;height:14px}
+    #hud #q{width:100%;margin-top:6px;font-size:12px;padding:5px 8px}
+    #hudMin{display:none}
+    .btn{top:auto;left:auto;right:auto;bottom:auto;width:0;height:0;z-index:30}
+    .btn button{position:fixed !important;right:10px;width:46px;height:46px;
+                font-size:16px;border-radius:12px;padding:0;z-index:30;
+                display:flex;align-items:center;justify-content:center;
+                box-shadow:0 4px 14px rgba(0,0,0,.28)}
+    #bFit{bottom:calc(14px + env(safe-area-inset-bottom))}
+    #bIn{bottom:calc(68px + env(safe-area-inset-bottom))}
+    #bOut{bottom:calc(122px + env(safe-area-inset-bottom))}
+    #home{display:none}
+    #hud{padding:6px 8px 8px}
+    #hud h1{display:none}
+    #hud .row{font-size:11px;margin:1px 7px 1px 0}
+    #zoom{right:10px;top:auto;bottom:calc(70px + env(safe-area-inset-bottom));font-size:11px}
+    #rinfo{left:8px;right:8px;bottom:calc(12px + env(safe-area-inset-bottom));top:auto;
+           width:auto;max-height:46vh;overflow:auto;font-size:12px;padding:10px 12px}
+    #rinfo .rn{font-size:20px;letter-spacing:3px}
+    #rinfo .rl{font-size:11.5px;padding:2px 0}
+    #zoom,#home{font-size:11px;padding:4px 8px}
+    #foot{display:none}
+    #tip{font-size:11px}
+  }
 </style>
 </head>
 <body>
@@ -320,6 +354,11 @@ function bootPct(p){
 }
 function bootText(t){ const e = document.getElementById('boottxt'); if (e) e.textContent = t; }
 const BOOT_T0 = (typeof performance !== 'undefined') ? performance.now() : 0;
+// 兜底：无论加载走到哪一步，5 秒后一定撤掉遮罩
+setTimeout(() => {
+  const b = document.getElementById('boot');
+  if (b){ b.style.opacity = '0'; b.style.display = 'none'; }
+}, 5000);
 function bootDone(){
   const b = document.getElementById('boot');
   if (!b) return;
@@ -951,14 +990,25 @@ el('rClose').onclick = () => { selRealm = null; selNation = null; selFaction = n
 let dragging = false, last = null;
 let downPt = null, moved = false, panBtn = 0;
 cv.addEventListener('contextmenu', e => e.preventDefault());
+const _ptrs = new Map();
+let _pinch = null;
 cv.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'touch'){ _ptrs.set(e.pointerId, [e.clientX, e.clientY]); }
+  if (_ptrs.size === 2){
+    const [a1, a2] = [..._ptrs.values()];
+    _pinch = { d: Math.hypot(a1[0]-a2[0], a1[1]-a2[1]), scale: V.scale,
+               cx: (a1[0]+a2[0])/2, cy: (a1[1]+a2[1])/2 };
+  }
   if (e.button !== 0){ e.preventDefault(); }
   dragging = true; moved = false; panBtn = e.button;
   downPt = [e.clientX, e.clientY]; last = [e.clientX, e.clientY];
   cv.classList.add('drag');
   try { cv.setPointerCapture(e.pointerId); } catch(_){}
 });
+cv.addEventListener('pointercancel', e => { _ptrs.delete(e.pointerId); _pinch = null; });
 cv.addEventListener('pointerup', e => {
+  _ptrs.delete(e.pointerId);
+  if (_ptrs.size < 2) _pinch = null;
   // 用"按下点到现在"的距离判断，而不是和上一次移动点比（那样永远接近 0）
   const dist = downPt ? Math.hypot(e.clientX - downPt[0], e.clientY - downPt[1]) : 0;
   const wasDrag = moved || dist > 4 || panBtn !== 0;
@@ -987,6 +1037,22 @@ cv.addEventListener('pointerup', e => {
 cv.addEventListener('pointerleave', () => { tip.style.opacity = 0; hoverCity = null; draw(); });
 
 cv.addEventListener('pointermove', e => {
+  if (e.pointerType === 'touch' && _ptrs.has(e.pointerId)) _ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (_pinch && _ptrs.size === 2){
+    const [a1, a2] = [..._ptrs.values()];
+    const d = Math.hypot(a1[0]-a2[0], a1[1]-a2[1]);
+    if (_pinch.d > 10){
+      const ns = Math.max(0.03, Math.min(3, _pinch.scale * (d / _pinch.d)));
+      const r = cv.getBoundingClientRect();
+      const mx = _pinch.cx - r.left, my = _pinch.cy - r.top;
+      const wx = (mx - V.tx) / V.scale, wy = (my - V.ty) / V.scale;
+      V.scale = ns;
+      V.tx = mx - wx * ns; V.ty = my - wy * ns;
+      markMoving(); draw();
+    }
+    last = [e.clientX, e.clientY];
+    return;
+  }
   if (dragging && last){
     if (downPt && Math.hypot(e.clientX - downPt[0], e.clientY - downPt[1]) > 4) moved = true;
     markMoving();

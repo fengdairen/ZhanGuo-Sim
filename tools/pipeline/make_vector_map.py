@@ -207,7 +207,15 @@ HTML = r"""<!doctype html>
   #cv.drag{cursor:grabbing}
   .panel{position:fixed;background:rgba(250,244,229,.94);border:1px solid rgba(120,90,56,.35);
     border-radius:10px;box-shadow:0 6px 22px rgba(80,55,30,.14);backdrop-filter:blur(6px)}
-  #hud{top:14px;left:14px;width:236px;padding:12px 13px 11px;font-size:13px}
+  #hud{top:14px;left:14px;width:236px;padding:12px 13px 11px;font-size:13px;position:fixed}
+  #hudTog{position:absolute;right:8px;top:8px;width:22px;height:22px;line-height:20px;
+    text-align:center;border-radius:6px;cursor:pointer;color:#8a7350;font-size:13px;
+    background:rgba(120,90,56,.08);user-select:none}
+  #hudTog:hover{background:rgba(120,90,56,.18);color:#5c4a33}
+  #hud.min{padding:7px 12px}
+  #hud.min h1{font-size:13px;letter-spacing:2px;margin:0;padding-right:26px}
+  #hud.min .sub,#hud.min .row,#hud.min #q,#hud.min #hits{display:none}
+  #hud.min #hudTog{transform:rotate(-90deg)}
   #hud h1{margin:0 0 2px;font-size:16px;letter-spacing:2px;font-weight:600}
   #hud .sub{font-size:11px;color:#7a6a55;margin-bottom:9px;letter-spacing:.5px}
   .row{display:flex;align-items:center;gap:7px;margin:5px 0;cursor:pointer;user-select:none}
@@ -313,6 +321,7 @@ HTML = r"""<!doctype html>
 </div>
 
 <div id="hud" class="panel">
+  <div id="hudTog" title="收起 / 展开（H）">▾</div>
   <h1>战国演义 · 舆图</h1>
   <div class="sub">BC 390 · 矢量版（无底图）</div>
   <label class="row"><input type="checkbox" id="lSea" checked><span class="sw sea"></span>海岸与海域</label>
@@ -1426,6 +1435,18 @@ function flyTo(c){
 }
 
 el('bFit').onclick = fit;
+// 图层面板折叠（H 键切换，记住上次状态）
+function setHudMin(m){
+  const hud = el('hud');
+  hud.classList.toggle('min', m);
+  try{ localStorage.setItem('hudMin', m ? '1' : '0'); }catch(_){}
+}
+el('hudTog').onclick = () => setHudMin(!el('hud').classList.contains('min'));
+try{ if (localStorage.getItem('hudMin') === '1') setHudMin(true); }catch(_){}
+window.addEventListener('keydown', e => {
+  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+  if (e.key === 'h' || e.key === 'H') setHudMin(!el('hud').classList.contains('min'));
+});
 el('bIn').onclick = () => zoomAt(cw/2, ch/2, 1.35);
 el('bOut').onclick = () => zoomAt(cw/2, ch/2, 1/1.35);
 for (const id of ['lSea','lRiver','lRName','lCoastDrawn','lLakesDrawn','lCity','lLabel','lRegion'])

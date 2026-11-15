@@ -56,6 +56,9 @@ def main():
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(html, encoding="utf-8")
     import shutil
+    _tex = ROOT / "assets" / "source" / "山地纹理.png"
+    if _tex.exists():
+        shutil.copy2(_tex, OUT.parent / "mount.png")
     shutil.copy2(ROOT / "tools" / "pipeline" / "geom.js",
                  OUT.parent / "geom.js")
     shutil.copy2(ROOT / "tools" / "pipeline" / "face_worker.js",
@@ -169,6 +172,7 @@ TPL = r"""<!DOCTYPE html>
   <label><input type="checkbox" id="lLake" checked>湖泽</label>
   <label><input type="checkbox" id="lCoast" checked>海岸线</label>
   <label><input type="checkbox" id="lRiver" checked>河网</label>
+  <label><input type="checkbox" id="lMount" checked>山地纹理</label>
   <label><input type="checkbox" id="lEdge" checked>边界线</label>
   <label><input type="checkbox" id="lFill" checked>疆域填充</label>
   <label><input type="checkbox" id="lFace">面（平面划分）</label>
@@ -223,7 +227,7 @@ for (const k in DATA.owner) owner[k] = { n: DATA.owner[k], f: '' };
 
 const S = {
   mode:'sel', selEdge:new Set(), selRealm:null,
-  layers:{sea:1,lake:1,coast:1,river:1,edge:1,fill:1,city:1,name:1,face:0},
+  layers:{sea:1,lake:1,mount:1,coast:1,river:1,edge:1,fill:1,city:1,name:1,face:0},
   V:{sea:[],rivers:[],lakes:[],coasts:[]},
   scale:0.15, tx:0, ty:0, drag:null, box:null, cursor:null,
   draft:null, drawTarget:null
@@ -567,9 +571,21 @@ const COL = { sea:'#b2c4cb', lake:'#8ec3d8', lakeEdge:'#3e7ca6', coast:'#40606f'
 function pathOf(a){ const f = flatten(a); const p = new Path2D();
   p.moveTo(f[0], f[1]); for (let i=2;i<f.length;i+=2) p.lineTo(f[i], f[i+1]); return p; }
 
+const MOUNT = (typeof Image !== 'undefined') ? new Image() : { complete:false, naturalWidth:0 };
+if (typeof Image !== 'undefined'){
+  MOUNT.onload = () => { bgKey = ''; if (typeof draw === 'function') draw(); };
+  MOUNT.src = 'mount.png';
+}
+function drawMountains(g){
+  if (!MOUNT.complete || !MOUNT.naturalWidth) return;
+  g.save(); g.globalAlpha = 0.9;
+  g.drawImage(MOUNT, 0, 0, W, H);
+  g.restore();
+}
+
 let bgCanvas = null, bgKey = '';
 function bgState(){ return [S.scale,S.tx,S.ty,vw,vh,
-  S.layers.sea?1:0,S.layers.lake?1:0,S.layers.coast?1:0,S.layers.river?1:0].join('|'); }
+  S.layers.sea?1:0,S.layers.lake?1:0,S.layers.coast?1:0,S.layers.river?1:0,S.layers.mount?1:0].join('|'); }
 function drawBg(){
   const key = bgState();
   if (bgCanvas && key === bgKey){ ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -595,6 +611,7 @@ function drawBg(){
     for (const l of S.V.lakes){ const p = pathOf(l.pts); p.closePath(); g.fill(p); g.stroke(p); } }
   if (S.layers.coast){ g.strokeStyle = COL.coast; g.lineWidth = Math.max(1,4/S.scale); g.lineCap='round';
     for (const c of S.V.coasts){ const p = pathOf(c.pts); if (c.closed) p.closePath(); g.stroke(p); } }
+  if (S.layers.mount) drawMountains(g);
   if (S.layers.river){ g.strokeStyle = COL.river; g.lineJoin='round';
     for (const e of S.V.rivers){ const p = new Path2D(); p.moveTo(e[1],e[2]);
       for (let i=3;i<e.length;i+=2) p.lineTo(e[i],e[i+1]);
@@ -1667,7 +1684,7 @@ $('bNuke').onclick = async () => {
   toast('已清空全部边界线与地块' + (ok === true && ok2 === true ? '' : '（写盘失败）'));
   computeFaces();
 };
-const LM = {lSea:'sea',lLake:'lake',lCoast:'coast',lRiver:'river',lEdge:'edge',lFill:'fill',lCity:'city',lName:'name',lFace:'face'};
+const LM = {lSea:'sea',lLake:'lake',lCoast:'coast',lRiver:'river',lMount:'mount',lEdge:'edge',lFill:'fill',lCity:'city',lName:'name',lFace:'face'};
 for (const [id,key] of Object.entries(LM)){
   const el = $(id); if (!el) continue;
   el.checked = !!S.layers[key];

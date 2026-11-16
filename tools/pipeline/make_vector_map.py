@@ -626,6 +626,16 @@ const state = () => ({
 let hoverCity = null, flash = null;
 
 let perfOn = false, drawMs = 0;
+// 常驻 rAF 探针：量「相邻帧真实间隔」，而不是 Canvas2D 指令提交时间（后者永远漂亮但骗人）
+let _frameMs = 0, _lastTs = 0;
+(function frameProbe(){
+  requestAnimationFrame(ts => {
+    if (_lastTs) _frameMs = _frameMs ? _frameMs * 0.85 + (ts - _lastTs) * 0.15 : (ts - _lastTs);
+    _lastTs = ts;
+    frameProbe();
+  });
+})();
+try{ window.__perf = { frame: () => _frameMs, draw: () => drawMs }; }catch(_){}
 // 交互（拖拽/缩放）期间走"轻渲染"：跳过投影阴影与逐国模糊渐变，
 // 停下来 180ms 后再补一帧完整效果
 let _moving = false, _moveTimer = null;
@@ -937,7 +947,7 @@ function draw(){
   }
   drawMs = drawMs ? drawMs * 0.8 + (performance.now() - t0) * 0.2 : (performance.now() - t0);
   zoomEl.textContent = '缩放 ' + (V.scale*100).toFixed(0) + '%' +
-    (perfOn ? ('  ·  ' + drawMs.toFixed(1) + ' ms  ·  ' + (GEOM_POINTS/1000).toFixed(1) + 'k 点') : '');
+    (perfOn ? ('  ·  帧 ' + _frameMs.toFixed(0) + 'ms  ·  绘 ' + drawMs.toFixed(1) + 'ms  ·  ' + (GEOM_POINTS/1000).toFixed(1) + 'k 点') : '');
 
 }
 

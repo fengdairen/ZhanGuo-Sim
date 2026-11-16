@@ -599,42 +599,6 @@ function drawMountains(g){
 let bgCanvas = null, bgKey = '';
 function bgState(){ return [S.scale,S.tx,S.ty,vw,vh,
   S.layers.sea?1:0,S.layers.lake?1:0,S.layers.coast?1:0,S.layers.river?1:0,S.layers.mount?1:0].join('|'); }
-// ---- 静态几何的 Path2D 缓存 ----
-// 水系/海岸/湖是只读数据（setVector 整体替换数组 → WeakMap 键自然失效），
-// 以前每次重建背景都重新构造全部路径（海面 2354 点每帧一次）
-const _closedP2d = new WeakMap();     // 点数组 -> 闭合 Path2D
-const _openP2d = new WeakMap();       // 点数组/扁平线 -> 开放 Path2D
-function closedPath(pts){
-  let p = _closedP2d.get(pts);
-  if (!p){ p = pathOf(pts); p.closePath(); _closedP2d.set(pts, p); }
-  return p;
-}
-function openPath(pts){
-  let p = _openP2d.get(pts);
-  if (!p){ p = pathOf(pts); _openP2d.set(pts, p); }
-  return p;
-}
-function riverPath(e){                // 河流是扁平数组 [宽, x,y, x,y, ...]
-  let p = _openP2d.get(e);
-  if (!p){
-    p = new Path2D(); p.moveTo(e[1], e[2]);
-    for (let i=3;i<e.length;i+=2) p.lineTo(e[i], e[i+1]);
-    _openP2d.set(e, p);
-  }
-  return p;
-}
-let _seaP2d = null, _seaVKey = undefined;
-function seaComposite(){              // 海面 + 闭合海岸线挖岛，随 S.V 一起缓存
-  if (_seaVKey === S.V) return _seaP2d;
-  const sp = new Path2D();
-  for (const f of S.V.sea){ sp.addPath(openPath(f)); }
-  for (const c of S.V.coasts){
-    if (!c.closed) continue;
-    sp.addPath(closedPath(c.pts));
-  }
-  _seaP2d = sp; _seaVKey = S.V;
-  return sp;
-}
 function drawBg(){
   const key = bgState();
   if (bgCanvas && key === bgKey){ ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -647,22 +611,30 @@ function drawBg(){
   g.setTransform(dpr*S.scale,0,0,dpr*S.scale,dpr*S.tx,dpr*S.ty);
   if (S.layers.sea){
     // 海面要挖掉闭合海岸线圈出来的小岛，否则海水会盖住岛（岛上没有陆地色）
+    const sp = new Path2D();
+    for (const f of S.V.sea){ const fp = pathOf(f); sp.addPath(fp); }
+    for (const c of S.V.coasts){
+      if (!c.closed) continue;
+      const cp = pathOf(c.pts); cp.closePath(); sp.addPath(cp);
+    }
     g.fillStyle = COL.sea;
-    g.fill(seaComposite(), 'evenodd');
+    g.fill(sp, 'evenodd');
   }
   if (S.layers.lake){ g.strokeStyle = COL.lakeEdge; g.lineWidth = 2.2/S.scale; g.fillStyle = COL.lake;
     for (const l of S.V.lakes){
       const bb = bboxOf(l.pts); if (!inView(bb[0],bb[1],bb[2],bb[3], 40/S.scale)) continue;
-      const p = closedPath(l.pts); g.fill(p); g.stroke(p); } }
+      const p = pathOf(l.pts); p.closePath(); g.fill(p); g.stroke(p); } }
   if (S.layers.coast){ g.strokeStyle = COL.coast; g.lineWidth = Math.max(1,4/S.scale); g.lineCap='round';
     for (const c of S.V.coasts){
       const bb = bboxOf(c.pts); if (!inView(bb[0],bb[1],bb[2],bb[3], 40/S.scale)) continue;
-      g.stroke(c.closed ? closedPath(c.pts) : openPath(c.pts)); } }
+      const p = pathOf(c.pts); if (c.closed) p.closePath(); g.stroke(p); } }
   if (S.layers.mount) drawMountains(g);
   if (S.layers.river){ g.strokeStyle = COL.river; g.lineJoin='round';
     for (const e of S.V.rivers){
       const bb = bboxOf(e, 1); if (!inView(bb[0],bb[1],bb[2],bb[3], 40/S.scale)) continue;
-      g.lineWidth = Math.max(1.2/S.scale, e[0]); g.stroke(riverPath(e)); } }
+      const p = new Path2D(); p.moveTo(e[1],e[2]);
+      for (let i=3;i<e.length;i+=2) p.lineTo(e[i],e[i+1]);
+      g.lineWidth = Math.max(1.2/S.scale, e[0]); g.stroke(p); } }
   ctx.setTransform(dpr,0,0,dpr,0,0); ctx.drawImage(bgCanvas,0,0,vw,vh);
 }
 
@@ -698,51 +670,7 @@ function updateView(){
   VIEW.x1 = (vw - S.tx) / S.scale;
   VIEW.y1 = (vh - S.ty) / S.scale;
 }
-// ---- 交互快照：平移/缩放手势期间只贴一张位图，停手后再做完整重绘 ----
-// 平移是纯平移（清晰）；缩放期间位图会略糊，停手 settle 后恢复矢量锐度。
-// 任何需要"实时看结果"的交互（拖顶点/画线/框选）都先 endSnap() 退出快照态。
-let _moving = false, _moveTimer = null, _snap = null, _snapCv = null;
-let _rafP = false, _fullMs = 0, drawMs = 0;
-function takeSnap(){
-  if (_snap) return;
-  if (!_snapCv) _snapCv = document.createElement('canvas');
-  if (_snapCv.width !== cv.width || _snapCv.height !== cv.height){
-    _snapCv.width = cv.width; _snapCv.height = cv.height;
-  }
-  _snapCv.getContext('2d').drawImage(cv, 0, 0);
-  _snap = { scale: S.scale, tx: S.tx, ty: S.ty };
-}
-function drawSnap(){
-  if (!_snap) return;
-  const k = S.scale / _snap.scale;
-  const dx = S.tx - _snap.tx * k, dy = S.ty - _snap.ty * k;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = '#e9dbb8'; ctx.fillRect(0, 0, cv.width, cv.height);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.imageSmoothingEnabled = true;
-  if (ctx.imageSmoothingQuality) ctx.imageSmoothingQuality = 'low';
-  ctx.drawImage(_snapCv, dx, dy, vw * k, vh * k);
-}
-function markMoving(){
-  if (!_moving) takeSnap();
-  _moving = true;
-  clearTimeout(_moveTimer);
-  const settle = (_fullMs && _fullMs < 8) ? 140 : 260;
-  _moveTimer = setTimeout(() => { _moving = false; _snap = null; draw(); }, settle);
-}
-function endSnap(){
-  if (_moving || _snap){
-    _moving = false; _snap = null; clearTimeout(_moveTimer);
-  }
-}
-function requestDraw(){
-  if (_rafP) return;
-  _rafP = true;
-  requestAnimationFrame(() => { _rafP = false; draw(); });
-}
 function draw(){
-  const _t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-  if (_moving && _snap){ drawSnap(); return; }
   S.draws = (S.draws||0)+1;
   updateView();
   drawBg();
@@ -751,12 +679,12 @@ function draw(){
   if (S.layers.fill){
     ctx.setTransform(dpr*S.scale,0,0,dpr*S.scale,dpr*S.tx,dpr*S.ty);
     // 按面积从大到小画：小地块后画，永远压在大地块上面
-    // 排序结果缓存：realms 数组整体替换或长度变化时才重排（原先每帧 slice+sort）
-    for (const r of sortedRealms()){
+    const drawList = realms.slice().sort((x, y) => (y.area || 0) - (x.area || 0));
+    for (const r of drawList){
       if (!r.ring || r.ring.length < 3) continue;
       const rb = bboxOf(r.ring);
       if (!inView(rb[0], rb[1], rb[2], rb[3], 20/S.scale)) continue;
-      const nat = natById(r.nation);
+      const nat = nations.find(n => n.id === r.nation);
       const p = patchPath(r);
       const sameNation = r.nation && selRealmNation && r.nation === selRealmNation;
       // 填充色只由国家决定，选中不再改透明度（否则同国不同块会比出深浅）
@@ -775,17 +703,13 @@ function draw(){
       const fb = bboxOf(f.ring);
       if (!inView(fb[0], fb[1], fb[2], fb[3], 20/S.scale)) continue;
       const on = selFace && selFace.id === f.id;
-      // Path2D 缓存在面上（computeFaces 每次生成新对象，天然失效）
-      if (!f._p2d){
-        const p = pathOf(f.ring); p.closePath();
-        if (f.holes) for (const h of f.holes){ p.addPath(closedPath(h)); }
-        f._p2d = p;
-      }
+      const p = pathOf(f.ring); p.closePath();
+      if (f.holes) for (const h of f.holes){ const hp = pathOf(h); hp.closePath(); p.addPath(hp); }
       ctx.fillStyle = on ? 'rgba(211,84,0,.18)' : 'rgba(45,93,128,.05)';
-      ctx.fill(f._p2d, 'evenodd');
+      ctx.fill(p, 'evenodd');
       ctx.strokeStyle = on ? 'rgba(211,84,0,.9)' : 'rgba(45,93,128,.28)';
       ctx.lineWidth = (on ? 2.6 : 1.0) / S.scale;
-      ctx.stroke(f._p2d);
+      ctx.stroke(p);
     }
     ctx.setTransform(dpr,0,0,dpr,0,0);
   }
@@ -802,22 +726,19 @@ function draw(){
     ctx.fillText(txt, 24, 40);
   }
 
-  // 边界线：Path2D 用世界坐标构造并缓存在边上（拖顶点时置空重建），
-  // 每帧只描边；线宽换算到世界单位保持屏幕像素恒定
+  // 边界线
   ctx.setTransform(dpr,0,0,dpr,0,0);
   if (S.layers.edge){
-    ctx.setTransform(dpr*S.scale,0,0,dpr*S.scale,dpr*S.tx,dpr*S.ty);
-    ctx.lineCap='round'; ctx.lineJoin='round';
     for (const e of edges){
       const sel = S.selEdge.has(e.id);
+      ctx.beginPath();
+      for (let i=0;i<e.pts.length;i++){
+        const [sx,sy] = w2s(e.pts[i][0], e.pts[i][1]);
+        i ? ctx.lineTo(sx,sy) : ctx.moveTo(sx,sy);
+      }
       ctx.strokeStyle = sel ? '#d35400' : COL.edge;
-      ctx.lineWidth = (sel ? 5.5 : 3.8) / S.scale;
-      ctx.stroke(edgePath(e));
-    }
-    // 选中顶点与端点标记：数量少，屏幕坐标单独画
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-    for (const e of edges){
-      const sel = S.selEdge.has(e.id);
+      if (e.closed) ctx.closePath();
+      ctx.lineWidth = sel ? 5.5 : 3.8; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke();
       if (sel){
         for (const pt of e.pts){
           const [vx,vy] = w2s(pt[0], pt[1]);
@@ -910,9 +831,6 @@ function draw(){
     ctx.fillStyle = 'rgba(45,93,128,.12)'; ctx.fillRect(x,y,w,h);
     ctx.strokeStyle = 'rgba(45,93,128,.85)'; ctx.lineWidth = 1; ctx.strokeRect(x,y,w,h);
   }
-  const _t1 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-  _fullMs = _fullMs ? _fullMs * 0.7 + (_t1 - _t0) * 0.3 : (_t1 - _t0);
-  drawMs = _fullMs;
   updateStatus();
 }
 
@@ -976,79 +894,42 @@ async function syncRealmsForEdge(edgeId){
   }
 }
 
-// 环 + 洞 的组合路径（evenodd 填充即挖洞）。
-// 缓存在地块对象上：realms 在 rebuildRealms/applyState 时整体换新对象，天然失效
+// 环 + 洞 的组合路径（evenodd 填充即挖洞）
 function patchPath(r){
-  if (r._patchP2d) return r._patchP2d;
   const p = pathOf(r.ring);
   p.closePath();
   for (const h of (r.holes || [])){
-    p.addPath(closedPath(h));
+    const hp = pathOf(h);
+    hp.closePath();
+    p.addPath(hp);
   }
-  r._patchP2d = p;
   return p;
 }
-// 边界线路径（世界坐标）：缓存在边上，拖顶点处置空重建
-function edgePath(e){
-  if (e._p2d) return e._p2d;
-  const p = new Path2D();
-  p.moveTo(e.pts[0][0], e.pts[0][1]);
-  for (let i=1;i<e.pts.length;i++) p.lineTo(e.pts[i][0], e.pts[i][1]);
-  if (e.closed) p.closePath();
-  e._p2d = p;
-  return p;
-}
-// 排序后的地块列表缓存（数组整体替换或长度变化时才重排）
-let _sortedR = null, _sortedSrc = null, _sortedLen = -1;
-function sortedRealms(){
-  if (_sortedSrc !== realms || _sortedLen !== realms.length){
-    _sortedR = realms.slice().sort((x, y) => (y.area || 0) - (x.area || 0));
-    _sortedSrc = realms; _sortedLen = realms.length;
-  }
-  return _sortedR;
-}
-// 国家查表：Map 缓存（原先每帧每块 nations.find 线性扫）
-let _natMap = null, _natSrc = null, _natLen = -1;
-function natById(id){
-  if (_natSrc !== nations || _natLen !== nations.length){
-    _natMap = new Map();
-    for (const n of nations) _natMap.set(n.id, n);
-    _natSrc = nations; _natLen = nations.length;
-  }
-  return _natMap.get(id);
-}
-// 带洞的面：无洞直接在主画布填；
-// 有洞走「离屏填外环，再 destination-out 逐洞擦」，离屏按设备像素包围盒裁剪。
+// 带洞的面：离屏先填外环，再用 destination-out 擦掉洞。
 // 不用 evenodd —— 洞一旦重叠/共边，奇偶翻转会把洞填实，同一块地出现两种深浅。
-// （原来每块都走全屏离屏：289 块同屏时一帧 289 次全屏合成，是编辑器最大的热点）
 let _pcv = null, _pct = null;
 function fillPatch(r, style){
-  const holes = r.holes || [];
-  if (!holes.length){
-    ctx.fill(patchPath(r));
-    return;
-  }
-  const rb = bboxOf(r.ring);
-  const pad = 2;
-  const x0 = Math.max(0, Math.floor((rb[0]*S.scale + S.tx)*dpr - pad));
-  const y0 = Math.max(0, Math.floor((rb[1]*S.scale + S.ty)*dpr - pad));
-  const x1 = Math.min(cv.width,  Math.ceil((rb[2]*S.scale + S.tx)*dpr + pad));
-  const y1 = Math.min(cv.height, Math.ceil((rb[3]*S.scale + S.ty)*dpr + pad));
-  if (x1 <= x0 || y1 <= y0) return;
-  const w = x1 - x0, h = y1 - y0;
+  const w = cv.width, h = cv.height;
   if (!_pcv){ _pcv = document.createElement('canvas'); _pct = _pcv.getContext('2d'); }
-  if (_pcv.width < w || _pcv.height < h){ _pcv.width = w; _pcv.height = h; }
+  if (_pcv.width !== w || _pcv.height !== h){ _pcv.width = w; _pcv.height = h; }
   _pct.setTransform(1,0,0,1,0,0);
   _pct.clearRect(0, 0, w, h);
-  _pct.setTransform(dpr*S.scale, 0, 0, dpr*S.scale, dpr*S.tx - x0, dpr*S.ty - y0);
+  _pct.setTransform(dpr*S.scale,0,0,dpr*S.scale,dpr*S.tx,dpr*S.ty);
   _pct.fillStyle = style;
-  _pct.fill(closedPath(r.ring));
-  _pct.globalCompositeOperation = 'destination-out';
-  _pct.fillStyle = '#000';
-  for (const hh of holes) _pct.fill(closedPath(hh));
-  _pct.globalCompositeOperation = 'source-over';
+  const op = pathOf(r.ring); op.closePath();
+  _pct.fill(op);
+  const holes = r.holes || [];
+  if (holes.length){
+    _pct.globalCompositeOperation = 'destination-out';
+    _pct.fillStyle = '#000';
+    for (const hh of holes){
+      const hp = pathOf(hh); hp.closePath();
+      _pct.fill(hp);
+    }
+    _pct.globalCompositeOperation = 'source-over';
+  }
   ctx.setTransform(1,0,0,1,0,0);
-  ctx.drawImage(_pcv, 0, 0, w, h, x0, y0, w, h);
+  ctx.drawImage(_pcv, 0, 0);
   ctx.setTransform(dpr*S.scale,0,0,dpr*S.scale,dpr*S.tx,dpr*S.ty);
 }
 
@@ -1097,7 +978,6 @@ cv.addEventListener('pointerdown', e => {
   const [wx,wy] = s2w(mx,my);
 
   if (e.button === 1 || e.button === 2 || e.code === 'Space'){ S.drag = {type:'pan', mx, my, tx:S.tx, ty:S.ty}; return; }
-  endSnap();   // 非平移的按下动作：退出快照态，后续绘制走完整渲染
 
   if (S.mode === 'claim'){
     if (!FACES){ toast('正在算面，稍等…'); computeFaces(); return; }
@@ -1210,20 +1090,17 @@ cv.addEventListener('pointermove', e => {
   const [wx,wy] = s2w(mx,my);
   S.cursor = [mx,my];
   if (S.drag && S.drag.type === 'pan'){
-    markMoving();
-    S.tx = S.drag.tx + (mx - S.drag.mx); S.ty = S.drag.ty + (my - S.drag.my);
-    requestDraw(); return;
+    S.tx = S.drag.tx + (mx - S.drag.mx); S.ty = S.drag.ty + (my - S.drag.my); draw(); return;
   }
-  endSnap();
   if (S.mode === 'loop'){
     if (S.draft) S.draft.cursor = [wx, wy];
-    requestDraw(); return;
+    draw(); return;
   }
   if (S.mode === 'draw'){
     const t = snapTarget(wx, wy, 16);
     S.drawTarget = t;
     if (S.draft){ S.draft.cursor = t ? [t.x, t.y] : [wx, wy]; }
-    requestDraw(); return;
+    draw(); return;
   }
   if (S.drag && S.drag.type === 'vertex'){
     const e = S.drag.edge;
@@ -1236,11 +1113,10 @@ cv.addEventListener('pointermove', e => {
     }else{
       e.pts[S.drag.idx] = [Math.round(wx*10)/10, Math.round(wy*10)/10];
     }
-    e._p2d = null;                     // 顶点变了，边界线路径缓存作废
     S.drag.moved = true;
-    requestDraw(); return;
+    draw(); return;
   }
-  if (S.box){ S.box.x1 = mx; S.box.y1 = my; requestDraw(); }
+  if (S.box){ S.box.x1 = mx; S.box.y1 = my; draw(); }
 });
 
 cv.addEventListener('pointerup', () => {
@@ -1253,11 +1129,9 @@ cv.addEventListener('pointerup', () => {
       const n = e.pts.length;
       if (d.idx === 0) e.pts[n-1] = e.pts[0].slice();
       if (d.idx === n-1) e.pts[0] = e.pts[n-1].slice();
-      e._p2d = null;
     }else if (d.isEnd){
       if (!d.snap){
         e.pts[d.idx] = d.orig;                 // 没吸上 → 还原
-        e._p2d = null;
         toast('端点必须落在海岸线 / 河流 / 湖泊 / 其他边界线上，已还原');
         draw(); renderSel();
         return;
@@ -1293,11 +1167,10 @@ cv.addEventListener('wheel', e => {
   const r = cv.getBoundingClientRect();
   const mx = e.clientX-r.left, my = e.clientY-r.top;
   const [wx,wy] = s2w(mx,my);
-  markMoving();
   const k = Math.exp(-e.deltaY*0.0016);
   S.scale = Math.max(0.04, Math.min(6, S.scale*k));
   S.tx = mx - wx*S.scale; S.ty = my - wy*S.scale;
-  bgKey = ''; requestDraw();
+  bgKey = ''; draw();
 }, {passive:false});
 
 cv.addEventListener('dblclick', e => { if (S.mode === 'draw' && S.draft) commitDraft(); });
@@ -1873,7 +1746,7 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 function updateStatus(){
   $('sEdge').textContent = edges.length;
   $('sRealm').textContent = realms.length;
-  $('sZoom').textContent = Math.round(S.scale*100) + '%' + (drawMs ? (' · 绘' + drawMs.toFixed(1) + 'ms') : '');
+  $('sZoom').textContent = Math.round(S.scale*100) + '%';
   $('sSave').textContent = lastSave ? ('已存盘 ' + lastSave) : '未存盘';
 }
 

@@ -361,7 +361,7 @@ HTML = r"""<!doctype html>
 const DATA = __DATA__;
 const CW = 9101, CH = 8509;
 const cv = document.getElementById('cv');
-let ctx = cv.getContext('2d');
+let ctx = cv.getContext('2d', { alpha: false });   // 画布永远被整屏填充，声明不透明省一层合成
 const tip = document.getElementById('tip');
 const zoomEl = document.getElementById('zoom');
 

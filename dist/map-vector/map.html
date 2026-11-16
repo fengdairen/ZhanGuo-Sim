@@ -687,27 +687,31 @@ function drawCore(){
       }
 
       // 2) 内侧渐变：栅格遮罩（先填并集，再减去模糊后的自己 → 紧贴国界向内淡出）
-      if (!_moving) drawInnerFade(list, color, 0.16, key);
+      if (!_moving) drawInnerFade(list, color, 0.16);
 
-      // 3) 国界线：整组描边后擦掉内部 → 只剩合起来的轮廓，宽度恒定
-      if (!off) off = document.createElement('canvas');
-      if (off.width !== cv.width || off.height !== cv.height){
-        off.width = cv.width; off.height = cv.height;
+      // 3) 国界线：整组描边后擦掉内部 → 只剩合起来的轮廓，宽度恒定。
+      //    离屏合成按「设备像素包围盒」裁剪：视野外的国家整组跳过，
+      //    画布池化只增不缩，填充面积只花在这个国家真正占据的范围上。
+      const lwDev = (on ? 9.2 : 6.0) * dpr;
+      const bb = deviceBBox(visList, Math.ceil(lwDev / 2) + 4);
+      if (bb){
+        if (!off) off = document.createElement('canvas');
+        if (off.width < bb.w || off.height < bb.h){ off.width = bb.w; off.height = bb.h; }
+        const g = off.getContext('2d');
+        g.setTransform(1,0,0,1,0,0);
+        g.clearRect(0, 0, bb.w, bb.h);
+        g.setTransform(dpr*V.scale, 0, 0, dpr*V.scale, dpr*V.tx - bb.x, dpr*V.ty - bb.y);
+        g.lineJoin = 'round'; g.lineCap = 'round';
+        g.strokeStyle = rgba(shade(color, on ? 0.55 : 0.45), on ? 1 : 0.95);
+        g.lineWidth = (on ? 9.2 : 6.0) / V.scale;
+        for (const r of visList) g.stroke(r.path);
+        g.globalCompositeOperation = 'destination-out';
+        for (const r of visList) g.fill(r.path, 'evenodd');
+        g.globalCompositeOperation = 'source-over';
+        ctx.setTransform(1,0,0,1,0,0);
+        ctx.drawImage(off, 0, 0, bb.w, bb.h, bb.x, bb.y, bb.w, bb.h);
+        ctx.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
       }
-      const g = off.getContext('2d');
-      g.setTransform(1,0,0,1,0,0);
-      g.clearRect(0,0,off.width,off.height);
-      g.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
-      g.lineJoin = 'round'; g.lineCap = 'round';
-      g.strokeStyle = rgba(shade(color, on ? 0.55 : 0.45), on ? 1 : 0.95);
-      g.lineWidth = (on ? 9.2 : 6.0) / V.scale;
-      for (const r of visList) g.stroke(r.path);
-      g.globalCompositeOperation = 'destination-out';
-      for (const r of visList) g.fill(r.path, 'evenodd');
-      g.globalCompositeOperation = 'source-over';
-      ctx.setTransform(1,0,0,1,0,0);
-      ctx.drawImage(off, 0, 0);
-      ctx.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
     }
   }
 
@@ -916,57 +920,60 @@ function pointInRing(x, y, ring){
 }
 // 内侧渐变：栅格法
 // A = 并集填充；B = A 的模糊版；A 减去 B → 只剩贴边的一圈，且由边向内淡出
+// 合成范围按设备包围盒裁剪（含模糊半径余量），全屏 blur 变成"只糊这个国家那一块"。
+// 场景缓存已覆盖"同视图重复绘制"的场景，故不再需要 per-nation 结果缓存
+// （旧缓存最多囤 16 张全屏画布 ≈ 百 MB 级内存，已移除）。
 let _fadeA = null, _fadeB = null;
-// 渐变的计算结果缓存：同一个 (国家, 视角) 只算一次，之后直接贴图
-const _fadeCache = new Map();
-function fadeKeyOf(key, color){
-  return [key, color, V.scale.toFixed(4), Math.round(V.tx), Math.round(V.ty), cw, ch, dpr,
-          G.realms.length].join('|');
-}
-function drawInnerFade(list, color, alpha, cacheKey){
-  const ck = cacheKey ? fadeKeyOf(cacheKey, color) : null;
-  if (ck && _fadeCache.has(ck)){ 
-    ctx.setTransform(1,0,0,1,0,0);
-    ctx.drawImage(_fadeCache.get(ck), 0, 0);
-    ctx.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
-    return;
+// 一组地块在当前视野下的设备像素包围盒（clamp 到画布内；不可见返回 null）
+// 注意：clamp 用「当前渲染目标」ctx.canvas 的尺寸——主画布/场景缓存/底衬三者不同
+function deviceBBox(list, pad){
+  const TW = ctx.canvas.width, TH = ctx.canvas.height;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const r of list){
+    const b = r.bb;
+    if (!b) continue;
+    const ax0 = (b[0]*V.scale + V.tx)*dpr, ay0 = (b[1]*V.scale + V.ty)*dpr;
+    const ax1 = (b[2]*V.scale + V.tx)*dpr, ay1 = (b[3]*V.scale + V.ty)*dpr;
+    if (ax0 < x0) x0 = ax0; if (ax1 > x1) x1 = ax1;
+    if (ay0 < y0) y0 = ay0; if (ay1 > y1) y1 = ay1;
   }
-  const w = cv.width, h = cv.height;
-  if (!w || !h) return;
+  if (x0 === Infinity) return null;
+  x0 = Math.max(0, Math.floor(x0 - pad)); y0 = Math.max(0, Math.floor(y0 - pad));
+  x1 = Math.min(TW, Math.ceil(x1 + pad)); y1 = Math.min(TH, Math.ceil(y1 + pad));
+  if (x1 <= x0 || y1 <= y0) return null;
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+function drawInnerFade(list, color, alpha){
+  if (!ctx.canvas.width || !ctx.canvas.height) return;
+  const R = 9 * dpr;                            // 渐变带宽度（屏幕像素 × dpr）
+  const bb = deviceBBox(list, R + 4);
+  if (!bb) return;
   if (!_fadeA){ _fadeA = document.createElement('canvas'); _fadeB = document.createElement('canvas'); }
   for (const c of [_fadeA, _fadeB]){
-    if (c.width !== w || c.height !== h){ c.width = w; c.height = h; }
+    if (c.width < bb.w || c.height < bb.h){ c.width = bb.w; c.height = bb.h; }
   }
-  const R = 9 * dpr;                            // 渐变带宽度（屏幕像素 × dpr）
   const ga = _fadeA.getContext('2d');
-  ga.setTransform(1,0,0,1,0,0); ga.clearRect(0,0,w,h);
-  ga.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
+  ga.setTransform(1,0,0,1,0,0); ga.clearRect(0, 0, bb.w, bb.h);
+  ga.setTransform(dpr*V.scale, 0, 0, dpr*V.scale, dpr*V.tx - bb.x, dpr*V.ty - bb.y);
   ga.fillStyle = '#fff';
   for (const r of list) ga.fill(r.path, 'evenodd');
 
   const gb = _fadeB.getContext('2d');
-  gb.setTransform(1,0,0,1,0,0); gb.clearRect(0,0,w,h);
+  gb.setTransform(1,0,0,1,0,0); gb.clearRect(0, 0, bb.w, bb.h);
   gb.filter = 'blur(' + R + 'px)';
-  gb.drawImage(_fadeA, 0, 0);
+  gb.drawImage(_fadeA, 0, 0, bb.w, bb.h, 0, 0, bb.w, bb.h);
   gb.filter = 'none';
 
   ga.setTransform(1,0,0,1,0,0);
   ga.globalCompositeOperation = 'destination-out';
-  ga.drawImage(_fadeB, 0, 0);
+  ga.drawImage(_fadeB, 0, 0, bb.w, bb.h, 0, 0, bb.w, bb.h);
   ga.globalCompositeOperation = 'source-in';
   ga.fillStyle = rgba(color, Math.min(0.55, alpha * 2));
-  ga.fillRect(0, 0, w, h);
+  ga.fillRect(0, 0, bb.w, bb.h);
   ga.globalCompositeOperation = 'source-over';
 
-  if (ck){
-    const cp = document.createElement('canvas');
-    cp.width = w; cp.height = h;
-    cp.getContext('2d').drawImage(_fadeA, 0, 0);
-    _fadeCache.set(ck, cp);
-    if (_fadeCache.size > 16){ _fadeCache.delete(_fadeCache.keys().next().value); }
-  }
   ctx.setTransform(1,0,0,1,0,0);
-  ctx.drawImage(_fadeA, 0, 0);
+  ctx.drawImage(_fadeA, 0, 0, bb.w, bb.h, bb.x, bb.y, bb.w, bb.h);
   ctx.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
 }
 

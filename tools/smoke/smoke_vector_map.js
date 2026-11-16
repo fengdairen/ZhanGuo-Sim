@@ -1,13 +1,19 @@
 // 冒烟测试：用桩对象在 Node 里执行 map.html 的内嵌脚本，
 // 验证 draw() 全流程不抛异常（沙箱内 headless 浏览器起不来，见 AGENTS.md）。
-// 用法：node tools/smoke_vector_map.js
+// 用法：node tools/smoke/smoke_vector_map.js [目标html]
+//      不带参数默认测 dist/map-vector/map.html；
+//      传 dist/舆图.html 可冒烟单文件离线版（data URI 走 mountFallback 桩路径）
 const fs = require('fs');
 const path = require('path');
 
-const html = fs.readFileSync(path.join(__dirname, '..', '..', 'dist', 'map-vector', 'map.html'), 'utf8');
+const target = process.argv[2]
+  ? path.resolve(process.argv[2])
+  : path.join(__dirname, '..', '..', 'dist', 'map-vector', 'map.html');
+const html = fs.readFileSync(target, 'utf8');
 const m = html.match(/<script>([\s\S]*?)<\/script>/);
 if (!m) { console.error('FAIL: 找不到 script'); process.exit(1); }
 let code = m[1];
+console.log('冒烟目标:', path.relative(process.cwd(), target));
 
 // ---- canvas 2d 桩 ----
 let calls = {};

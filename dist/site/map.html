@@ -388,7 +388,13 @@ function bootDone(){
 function mountFallback(src){
   if (typeof Image === 'undefined'){ bootDone(); return; }
   const img = new Image();
-  img.onload = () => { MOUNT = img; mountReady = true; bootPct(1); bootText('已载入'); bootDone(); draw(); };
+  // 与 XHR 路径对齐：纹理就绪后立刻生成全图底衬，
+  // 否则首次拖动会在手势开始时同步渲染底衬（卡一下）
+  img.onload = () => {
+    MOUNT = img; mountReady = true;
+    bootPct(0.9); bootText('正在生成全图底衬……'); draw(); captureBackdrop();
+    bootPct(1); bootText('已载入'); bootDone(); draw();
+  };
   img.onerror = () => { bootDone(); draw(); };
   img.src = src;
 }
@@ -1351,17 +1357,22 @@ window.addEventListener('keydown', e => {
   if (e.key === '0') fit();
   if (e.key === 'p' || e.key === 'P'){ perfOn = !perfOn; draw(); }
 });
-/* 源数据变了就自动刷新（服务端 /api/version） */
-let _stamp = null;
-setInterval(async () => {
+/* 源数据变了就自动刷新（服务端 /api/version）。
+   单文件离线版（file:// 或纯静态托管）没有这个服务：连续失败 2 次就停轮询，
+   不再每 3 秒空转一个注定失败的请求 */
+let _stamp = null, _verFail = 0, _verTimer = null;
+_verTimer = setInterval(async () => {
   if (document.visibilityState !== 'visible') return;
   try{
     const r = await fetch('/api/version', {cache:'no-store'});
-    if (!r.ok) return;
+    if (!r.ok) throw 0;
+    _verFail = 0;
     const j = await r.json();
     if (_stamp === null){ _stamp = j.stamp; return; }
     if (j.stamp > _stamp + 0.001) location.reload();
-  }catch(e){}
+  }catch(e){
+    if (++_verFail >= 2 && _verTimer){ clearInterval(_verTimer); _verTimer = null; }
+  }
 }, 3000);
 
 window.addEventListener('resize', resize);

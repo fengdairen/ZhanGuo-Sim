@@ -641,48 +641,54 @@ try{ window.__perf = { frame: () => _frameMs, draw: () => drawMs }; }catch(_){}
 let _moving = false, _moveTimer = null;
 // 交互用"快照拖动"：开始拖动时把当前画面存成位图，
 // 移动/缩放期间只做位图变换（平滑、无重绘），停手后重画清晰版
-let _snap = null;
+let _snap = null, _snapCv = null;
 function takeSnap(){
   if (_snap) return;
   if (!_backdrop) captureBackdrop();
-  const c = document.createElement('canvas');
-  c.width = cv.width; c.height = cv.height;
-  c.getContext('2d').drawImage(cv, 0, 0);
-  _snap = { c, scale: V.scale, tx: V.tx, ty: V.ty };
+  if (!_snapCv) _snapCv = document.createElement('canvas');
+  if (_snapCv.width !== cv.width || _snapCv.height !== cv.height){
+    _snapCv.width = cv.width; _snapCv.height = cv.height;
+  }
+  _snapCv.getContext('2d').drawImage(cv, 0, 0);
+  _snap = { c: _snapCv, scale: V.scale, tx: V.tx, ty: V.ty };
 }
 function drawSnap(){
   if (!_snap) return;
   const k = V.scale / _snap.scale;
+  const dx = V.tx - _snap.tx * k, dy = V.ty - _snap.ty * k;
+  // 快照已盖满视野时跳过底衬 blit（每帧填充面积比什么都贵）
+  const covered = dx <= 0.5 && dy <= 0.5 && dx + cw * k >= cw - 0.5 && dy + ch * k >= ch - 0.5;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = '#54483a'; ctx.fillRect(0, 0, cv.width, cv.height);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  drawBackdrop();
+  if (!covered) drawBackdrop();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);        // 底衬会残留世界变换，这里重置
   ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(_snap.c,
-    V.tx - _snap.tx * k, V.ty - _snap.ty * k,
-    cw * k, ch * k);
+  if (ctx.imageSmoothingQuality) ctx.imageSmoothingQuality = 'low';   // 运动帧允许低质量缩放
+  ctx.drawImage(_snap.c, dx, dy, cw * k, ch * k);
 }
 // 全图粗糙底衬：拖出快照范围时垫底，避免露白
 let _backdrop = null;
 function captureBackdrop(){
-  // 真正渲染一张"全图"底衬：临时把绘制目标换成离屏画布，按全图适配再画一遍
+  // 渲染一张"全图"底衬：把绘制目标换成离屏画布，按全图适配再画一遍。
+  // 全局量在这里临时替换，try/finally 保证一定还原（否则主画布状态被污染）。
+  const BW = 2600, BH = Math.round(BW * CH / CW);
+  const c = document.createElement('canvas');
+  c.width = BW; c.height = BH;
+  const g = c.getContext('2d');
+  const oldCtx = ctx, oldCw = cw, oldCh = ch, oldDpr = dpr;
+  const oldV = { scale: V.scale, tx: V.tx, ty: V.ty };
+  ctx = g; cw = BW; ch = BH; dpr = 1;
+  const s = Math.min(BW / CW, BH / CH) * 0.985;
+  V.scale = s; V.tx = (BW - CW * s) / 2; V.ty = (BH - CH * s) / 2;
   try{
-    const BW = 2600, BH = Math.round(BW * CH / CW);
-    const c = document.createElement('canvas');
-    c.width = BW; c.height = BH;
-    const g = c.getContext('2d');
-    const oldCtx = ctx, oldCw = cw, oldCh = ch, oldDpr = dpr;
-    const oldV = { scale: V.scale, tx: V.tx, ty: V.ty };
-    ctx = g; cw = BW; ch = BH; dpr = 1;
-    const s = Math.min(BW / CW, BH / CH) * 0.985;
-    V.scale = s; V.tx = (BW - CW * s) / 2; V.ty = (BH - CH * s) / 2;
-    draw();
+    drawCore();
     _backdrop = { c, scale: s, tx: V.tx, ty: V.ty, w: BW, h: BH };
-    ctx = oldCtx; cw = oldCw; ch = oldCh; dpr = oldDpr;
-    V.scale = oldV.scale; V.tx = oldV.tx; V.ty = oldV.ty;
   }catch(e){
     try{ console.warn('backdrop failed', e); }catch(_){}
+  }finally{
+    ctx = oldCtx; cw = oldCw; ch = oldCh; dpr = oldDpr;
+    V.scale = oldV.scale; V.tx = oldV.tx; V.ty = oldV.ty;
   }
 }
 function drawBackdrop(){
@@ -700,10 +706,12 @@ function markMoving(){
   if (!_moving){ takeSnap(); }
   _moving = true;
   clearTimeout(_moveTimer);
+  // 全量重绘够快（<6ms）就更快收尾出清晰帧，否则维持 260ms
+  const settle = (_fullMs && _fullMs < 6) ? 150 : 260;
   _moveTimer = setTimeout(() => {
     _moving = false; _snap = null;
     draw();
-  }, 260);
+  }, settle);
 }
 
 let _rafPending = false;
@@ -712,9 +720,63 @@ function requestDraw(){
   _rafPending = true;
   requestAnimationFrame(() => { _rafPending = false; draw(); });
 }
+
+// ---- 静态场景缓存 ----
+// 整幅静态场景（装裱/疆域/水系/纹理/城邑/标注）只随「视图/图层/选择态」变化，
+// 渲染进离屏画布并按签名缓存；悬停、flash 这类高频小动作只需 1 次 blit + 覆盖层。
+let _scene = null, _sceneSig = '', _fullMs = 0;
+function sceneSig(){
+  const L = state();
+  return [V.scale.toFixed(4), (V.tx * 2).toFixed(0), (V.ty * 2).toFixed(0), cw, ch, dpr,
+          selNation, selFaction, selFactionNation, mountReady ? 1 : 0,
+          L.sea?1:0, L.river?1:0, L.mount?1:0, L.rname?1:0, L.coastDrawn?1:0,
+          L.lakesDrawn?1:0, L.city?1:0, L.label?1:0, L.region?1:0,
+          G.realms.length].join('|');
+}
 function draw(){
   const t0 = performance.now();
   if (_moving && _snap){ drawSnap(); return; }
+  if (!_scene) _scene = document.createElement('canvas');
+  if (_scene.width !== cv.width || _scene.height !== cv.height){
+    _scene.width = cv.width; _scene.height = cv.height;
+  }
+  const sig = sceneSig();
+  if (sig !== _sceneSig){
+    const t1 = performance.now();
+    const old = ctx;
+    ctx = _scene.getContext('2d');
+    try{ drawCore(); } finally { ctx = old; }   // 无论画成什么样，ctx 一定还原
+    _sceneSig = sig;
+    _fullMs = _fullMs ? _fullMs * 0.7 + (performance.now() - t1) * 0.3 : (performance.now() - t1);
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(_scene, 0, 0);
+  drawOverlays();
+  drawMs = drawMs ? drawMs * 0.8 + (performance.now() - t0) * 0.2 : (performance.now() - t0);
+  zoomEl.textContent = '缩放 ' + (V.scale*100).toFixed(0) + '%' +
+    (perfOn ? ('  ·  帧 ' + _frameMs.toFixed(0) + 'ms  ·  绘 ' + drawMs.toFixed(1) + 'ms  ·  ' + (GEOM_POINTS/1000).toFixed(1) + 'k 点') : '');
+}
+// 真正随时间变化的只有悬停圈与 flash 波纹——画在场景之上
+function drawOverlays(){
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (hoverCity){
+    const [sx,sy] = w2s(hoverCity.x, hoverCity.y);
+    ctx.beginPath(); ctx.arc(sx, sy, 8.5, 0, 6.283);
+    ctx.strokeStyle = 'rgba(139,46,30,.8)'; ctx.lineWidth = 1.6; ctx.stroke();
+  }
+  if (flash){
+    const [sx,sy] = w2s(flash.x, flash.y);
+    const t = (performance.now() - flash.t) / 1000;
+    if (t < 1){
+      ctx.beginPath(); ctx.arc(sx, sy, 10 + 30*t, 0, 6.283);
+      ctx.strokeStyle = 'rgba(139,46,30,' + (0.8*(1-t)).toFixed(3) + ')';
+      ctx.lineWidth = 2; ctx.stroke();
+      requestAnimationFrame(draw);
+    } else flash = null;
+  }
+}
+// 全量渲染：画进「当前 ctx」（主画布 / 场景缓存 / 底衬都走这一条路）
+function drawCore(){
   updateVBB();
   const L = state();
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -929,26 +991,6 @@ function draw(){
   labelReset();
   if (L.label) drawLabels(L);
   if (L.rname && DATA.riverLabels) drawRiverNames();
-
-  if (hoverCity){
-    const [sx,sy] = w2s(hoverCity.x, hoverCity.y);
-    ctx.beginPath(); ctx.arc(sx, sy, 8.5, 0, 6.283);
-    ctx.strokeStyle = 'rgba(139,46,30,.8)'; ctx.lineWidth = 1.6; ctx.stroke();
-  }
-  if (flash){
-    const [sx,sy] = w2s(flash.x, flash.y);
-    const t = (performance.now() - flash.t) / 1000;
-    if (t < 1){
-      ctx.beginPath(); ctx.arc(sx, sy, 10 + 30*t, 0, 6.283);
-      ctx.strokeStyle = 'rgba(139,46,30,' + (0.8*(1-t)).toFixed(3) + ')';
-      ctx.lineWidth = 2; ctx.stroke();
-      requestAnimationFrame(draw);
-    } else flash = null;
-  }
-  drawMs = drawMs ? drawMs * 0.8 + (performance.now() - t0) * 0.2 : (performance.now() - t0);
-  zoomEl.textContent = '缩放 ' + (V.scale*100).toFixed(0) + '%' +
-    (perfOn ? ('  ·  帧 ' + _frameMs.toFixed(0) + 'ms  ·  绘 ' + drawMs.toFixed(1) + 'ms  ·  ' + (GEOM_POINTS/1000).toFixed(1) + 'k 点') : '');
-
 }
 
 function drawRiverNames(){

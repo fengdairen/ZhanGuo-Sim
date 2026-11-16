@@ -911,12 +911,20 @@ function drawCore(){
     }
   }
 
-  // 海岛等小地块兜底：海面/岛屿底填充可能晚于地块，这里再上一次色
+  // 海岛小地块兜底：海面上的小块补一次色，保证可读。
+  // 只对「中心点落在海面多边形内」的真·岛屿地块生效——
+  // 陆地上被河流切出的小地块不加：曾把同势力的小块染得比大块深
+  // （河西将军三块地 65201/7839/11883 深浅不一即此故，2026-11-16 修）。
+  // 判定结果缓存在 r._sea 上，海面与地块几何都是静态的。
   if (G.realms.length){
     ctx.setTransform(dpr*V.scale,0,0,dpr*V.scale,dpr*V.tx,dpr*V.ty);
     for (const r of G.realms){
       if ((r.area || 0) > 12000) continue;
       if (!realmVisible(r)) continue;
+      if (r._sea === undefined){
+        r._sea = !!(r.center && ctx.isPointInPath(G.sea, r.center[0], r.center[1], 'evenodd'));
+      }
+      if (!r._sea) continue;
       ctx.fillStyle = rgba(r.color || '#7a6248', 0.20);
       ctx.fill(r.path, 'evenodd');
     }
